@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'all_specialties_screen.dart';
 import 'notifications_screen.dart';
 import 'admission_screen.dart';
@@ -532,14 +533,14 @@ class _HomeScreenState extends State<HomeScreen>
   // ══════════════════════════════════════
   Widget _buildServicesGrid() {
     final services = [
-      {'icon': Icons.assignment_outlined, 'label': 'القبول\nوالتسجيل', 'route': 'admission'},
-      {'icon': Icons.workspace_premium_outlined, 'label': 'الأكاديمية', 'route': null},
-      {'icon': Icons.person_outline_rounded, 'label': 'شؤون الطلاب', 'route': null},
-      {'icon': Icons.menu_book_rounded, 'label': 'الكتالوج', 'route': null},
-      {'icon': Icons.account_balance_wallet_outlined, 'label': 'المالية', 'route': null},
-      {'icon': Icons.school_rounded, 'label': 'خريجي الغد', 'route': null},
-      {'icon': Icons.star_border_rounded, 'label': 'إجازاتنا', 'route': null},
-      {'icon': Icons.post_add_rounded, 'label': 'تقديم طلب\nإعادة', 'route': null},
+      {'iconPath': 'assets/icons/الكنترول.svg', 'label': 'الكنترول', 'route': null},
+      {'iconPath': 'assets/icons/شؤون الطلاب.svg', 'label': 'شؤون الطلاب', 'route': null},
+      {'iconPath': 'assets/icons/الاكاديمية.svg', 'label': 'الأكاديمية', 'route': null},
+      {'iconPath': 'assets/icons/القبول والتسجيل.svg', 'label': 'القبول\nوالتسجيل', 'route': 'admission'},
+      {'iconPath': 'assets/icons/تقديم طلب عام.svg', 'label': 'تقديم طلب\nعام', 'route': null},
+      {'iconPath': 'assets/icons/انجازاتنا.svg', 'label': 'إنجازاتنا', 'route': null},
+      {'iconPath': 'assets/icons/خريجي الغد.svg', 'label': 'خريجي الغد', 'route': null},
+      {'iconPath': 'assets/icons/الماليه.svg', 'label': 'المالية', 'route': null},
     ];
 
     return Padding(
@@ -555,7 +556,7 @@ class _HomeScreenState extends State<HomeScreen>
           childAspectRatio: 0.82,
         ),
         itemBuilder: (context, i) => _buildServiceItem(
-          icon: services[i]['icon'] as IconData,
+          iconPath: services[i]['iconPath'] as String,
           label: services[i]['label'] as String,
           route: services[i]['route'] as String?,
         ),
@@ -564,7 +565,7 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Widget _buildServiceItem({
-    required IconData icon,
+    required String iconPath,
     required String label,
     String? route,
   }) {
@@ -587,17 +588,49 @@ class _HomeScreenState extends State<HomeScreen>
             width: 72,
             height: 72,
             decoration: BoxDecoration(
-              color: navyDark,
-              borderRadius: BorderRadius.circular(18),
+              color: const Color(0xFF0B1E3D),
+              borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: navyDark.withOpacity(0.25),
+                  color: const Color(0xFF0B1E3D).withOpacity(0.25),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 ),
               ],
             ),
-            child: Icon(icon, color: Colors.white, size: 34),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: Stack(
+                children: [
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: 36,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.white.withOpacity(0.25),
+                            Colors.white.withOpacity(0.0),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  Center(
+                    child: SvgPicture.asset(
+                      iconPath,
+                      width: 32,
+                      height: 32,
+                      colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
           const SizedBox(height: 5),
           Text(
@@ -605,7 +638,7 @@ class _HomeScreenState extends State<HomeScreen>
             textAlign: TextAlign.center,
             style: const TextStyle(
               fontSize: 10,
-              fontWeight: FontWeight.w900,   // ← من w700 إلى w900 (أغلسط)
+              fontWeight: FontWeight.w900,
               color: navyDark,
               height: 1.2,
             ),
