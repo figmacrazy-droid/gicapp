@@ -24,6 +24,7 @@ flutter:
   assets:
     - assets/images/
     - assets/icons/
+    - assets/new_icons/
 
   fonts:
     - family: GICFont

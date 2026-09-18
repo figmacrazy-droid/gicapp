@@ -533,14 +533,14 @@ class _HomeScreenState extends State<HomeScreen>
   // ══════════════════════════════════════
   Widget _buildServicesGrid() {
     final services = [
-      {'iconPath': 'assets/icons/الكنترول.svg', 'label': 'الكنترول', 'route': null},
-      {'iconPath': 'assets/icons/شؤون الطلاب.svg', 'label': 'شؤون الطلاب', 'route': null},
-      {'iconPath': 'assets/icons/الاكاديمية.svg', 'label': 'الأكاديمية', 'route': null},
-      {'iconPath': 'assets/icons/القبول والتسجيل.svg', 'label': 'القبول\nوالتسجيل', 'route': 'admission'},
-      {'iconPath': 'assets/icons/تقديم طلب عام.svg', 'label': 'تقديم طلب\nعام', 'route': null},
-      {'iconPath': 'assets/icons/انجازاتنا.svg', 'label': 'إنجازاتنا', 'route': null},
-      {'iconPath': 'assets/icons/خريجي الغد.svg', 'label': 'خريجي الغد', 'route': null},
-      {'iconPath': 'assets/icons/الماليه.svg', 'label': 'المالية', 'route': null},
+      {'iconPath': 'assets/new_icons/الكنترول.svg', 'label': 'الكنترول', 'route': null},
+      {'iconPath': 'assets/new_icons/شؤون الطلاب.svg', 'label': 'شؤون الطلاب', 'route': null},
+      {'iconPath': 'assets/new_icons/الاكاديميه.svg', 'label': 'الأكاديمية', 'route': null},
+      {'iconPath': 'assets/new_icons/القبول والتسجيل.svg', 'label': 'القبول\nوالتسجيل', 'route': 'admission'},
+      {'iconPath': 'assets/new_icons/تقديم طلب عام.svg', 'label': 'تقديم طلب\nعام', 'route': null},
+      {'iconPath': 'assets/new_icons/انجازاتنا.svg', 'label': 'إنجازاتنا', 'route': null},
+      {'iconPath': 'assets/new_icons/خريجي الغد.svg', 'label': 'خريجي الغد', 'route': null},
+      {'iconPath': 'assets/new_icons/المالية.svg', 'label': 'المالية', 'route': null},
     ];
 
     return Padding(
@@ -588,47 +588,20 @@ class _HomeScreenState extends State<HomeScreen>
             width: 72,
             height: 72,
             decoration: BoxDecoration(
-              color: const Color(0xFF0B1E3D),
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF0B1E3D).withOpacity(0.25),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
+                  color: const Color(0xFF0B1E3D).withOpacity(0.20),
+                  blurRadius: 8,
+                  offset: const Offset(0, 3),
                 ),
               ],
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(16),
-              child: Stack(
-                children: [
-                  Positioned(
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    height: 36,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.white.withOpacity(0.25),
-                            Colors.white.withOpacity(0.0),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  Center(
-                    child: SvgPicture.asset(
-                      iconPath,
-                      width: 32,
-                      height: 32,
-                      colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
-                    ),
-                  ),
-                ],
+              child: SvgPicture.asset(
+                iconPath,
+                fit: BoxFit.cover,
               ),
             ),
           ),
