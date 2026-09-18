@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'all_specialties_screen.dart';
@@ -127,7 +128,7 @@ class _HomeScreenState extends State<HomeScreen>
     super.initState();
 
     _pageController = PageController(
-      viewportFraction: 0.55,
+      viewportFraction: 0.65,
       initialPage: _initialPage,
     );
 
@@ -419,20 +420,35 @@ class _HomeScreenState extends State<HomeScreen>
               }
 
               final absValue = value.abs();
-              final scale = (1 - absValue * 0.30).clamp(0.78, 1.0);
-              final opacity = (1 - absValue * 0.45).clamp(0.55, 1.0);
-              final translateY = absValue * 2;
+              final scale = (1 - absValue * 0.15).clamp(0.85, 1.0);
+              final opacity = (1 - absValue * 0.4).clamp(0.5, 1.0);
+              final blurAmount = absValue * 2.5;
 
-              return Transform.translate(
-                offset: Offset(0, translateY),
-                child: Transform.scale(
-                  scale: scale,
-                  child: Opacity(
-                    opacity: opacity,
-                    child: _buildSlideCard(_adImages[imageIndex]),
-                  ),
+              // Rotation around Y axis for 3D effect
+              final rotateY = value * -0.5;
+
+              final matrix = Matrix4.identity()
+                ..setEntry(3, 2, 0.0015) // perspective
+                ..rotateY(rotateY)
+                ..scale(scale, scale, 1.0);
+
+              Widget card = Opacity(
+                opacity: opacity,
+                child: Transform(
+                  alignment: Alignment.center,
+                  transform: matrix,
+                  child: _buildSlideCard(_adImages[imageIndex]),
                 ),
               );
+
+              if (blurAmount > 0.1) {
+                card = ImageFiltered(
+                  imageFilter: ui.ImageFilter.blur(sigmaX: blurAmount, sigmaY: blurAmount),
+                  child: card,
+                );
+              }
+
+              return card;
             },
           );
         },
@@ -448,7 +464,7 @@ class _HomeScreenState extends State<HomeScreen>
         height: _cardHeight,
         decoration: BoxDecoration(
           color: cardCream,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(8),
           boxShadow: [
             BoxShadow(
               color: navyDark.withOpacity(0.15),
@@ -458,7 +474,7 @@ class _HomeScreenState extends State<HomeScreen>
           ],
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(8),
           child: Stack(
             fit: StackFit.expand,
             children: [
@@ -482,7 +498,7 @@ class _HomeScreenState extends State<HomeScreen>
                 child: IgnorePointer(
                   child: Container(
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(8),
                       gradient: LinearGradient(
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
