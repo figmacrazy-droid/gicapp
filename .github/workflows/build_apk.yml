@@ -37,7 +37,7 @@ jobs:
         working-directory: ALghad
 
       - name: Build APK
-        run: flutter build apk --release --no-tree-shake-icons
+        run: flutter build apk --release --no-tree-shake-icons --android-skip-build-dependency-validation
         working-directory: ALghad
 
       - name: Upload APK
