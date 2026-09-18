@@ -420,15 +420,15 @@ class _HomeScreenState extends State<HomeScreen>
               }
 
               final absValue = value.abs();
-              final scale = (1 - absValue * 0.15).clamp(0.85, 1.0);
-              final opacity = (1 - absValue * 0.4).clamp(0.5, 1.0);
-              final blurAmount = absValue * 2.5;
+              final scale = (1 - absValue * 0.25).clamp(0.75, 1.0);
+              final opacity = (1 - absValue * 0.3).clamp(0.6, 1.0);
+              final blurAmount = absValue * 2.0;
 
               // Rotation around Y axis for 3D effect
-              final rotateY = value * -0.5;
+              final rotateY = value * -0.4;
 
               final matrix = Matrix4.identity()
-                ..setEntry(3, 2, 0.0015) // perspective
+                ..setEntry(3, 2, 0.002) // perspective
                 ..rotateY(rotateY)
                 ..scale(scale, scale, 1.0);
 
@@ -549,14 +549,14 @@ class _HomeScreenState extends State<HomeScreen>
   // ══════════════════════════════════════
   Widget _buildServicesGrid() {
     final services = [
-      {'iconPath': 'assets/new_icons/الكنترول.svg', 'label': 'الكنترول', 'route': null},
-      {'iconPath': 'assets/new_icons/شؤون الطلاب.svg', 'label': 'شؤون الطلاب', 'route': null},
-      {'iconPath': 'assets/new_icons/الاكاديميه.svg', 'label': 'الأكاديمية', 'route': null},
-      {'iconPath': 'assets/new_icons/القبول والتسجيل.svg', 'label': 'القبول\nوالتسجيل', 'route': 'admission'},
-      {'iconPath': 'assets/new_icons/تقديم طلب عام.svg', 'label': 'تقديم طلب\nعام', 'route': null},
-      {'iconPath': 'assets/new_icons/انجازاتنا.svg', 'label': 'إنجازاتنا', 'route': null},
-      {'iconPath': 'assets/new_icons/خريجي الغد.svg', 'label': 'خريجي الغد', 'route': null},
-      {'iconPath': 'assets/new_icons/المالية.svg', 'label': 'المالية', 'route': null},
+      {'iconPath': 'assets/new_icons/control.svg', 'label': 'الكنترول', 'route': null},
+      {'iconPath': 'assets/new_icons/student_affairs.svg', 'label': 'شؤون الطلاب', 'route': null},
+      {'iconPath': 'assets/new_icons/academy.svg', 'label': 'الأكاديمية', 'route': null},
+      {'iconPath': 'assets/new_icons/admission.svg', 'label': 'القبول\nوالتسجيل', 'route': 'admission'},
+      {'iconPath': 'assets/new_icons/general_request.svg', 'label': 'تقديم طلب\nعام', 'route': null},
+      {'iconPath': 'assets/new_icons/achievements.svg', 'label': 'إنجازاتنا', 'route': null},
+      {'iconPath': 'assets/new_icons/alumni.svg', 'label': 'خريجي الغد', 'route': null},
+      {'iconPath': 'assets/new_icons/finance.svg', 'label': 'المالية', 'route': null},
     ];
 
     return Padding(
