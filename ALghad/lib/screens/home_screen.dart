@@ -509,9 +509,9 @@ class _HomeScreenState extends State<HomeScreen>
                       size: 40,
                       color: Color(0xFF9E7A2F),
                     ),
-                  );
-                },
-              ),
+                  ),
+                );
+              },
             ),
             Positioned.fill(
               child: IgnorePointer(
