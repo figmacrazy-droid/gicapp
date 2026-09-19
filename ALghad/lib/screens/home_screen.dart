@@ -23,9 +23,9 @@ class _HomeScreenState extends State<HomeScreen>
   late AnimationController _syncController;
   late PageController _pageController;
 
-  static const double _cardWidth = 250;
-  static const double _cardHeight = 300;
-  static const double _cardMargin = 8;
+  static const double _cardWidth = 222;
+  static const double _cardHeight = 278;
+  static const double _cardMargin = 4;
   static const int _initialPage = 5000;
 
   // 🎨 ألوان التصميم
@@ -128,7 +128,7 @@ class _HomeScreenState extends State<HomeScreen>
     super.initState();
 
     _pageController = PageController(
-      viewportFraction: 0.70,
+      viewportFraction: 0.60,
       initialPage: _initialPage,
     );
 
@@ -401,9 +401,12 @@ class _HomeScreenState extends State<HomeScreen>
   // ══════════════════════════════════════
   // 3) السلايدر
   // ══════════════════════════════════════
+  // ══════════════════════════════════════
+  // 3) السلايدر
+  // ══════════════════════════════════════
   Widget _buildSlider() {
     return SizedBox(
-      height: _cardHeight + (_cardMargin * 2) + 12,
+      height: _cardHeight + 16,
       child: PageView.builder(
         controller: _pageController,
         itemCount: 10000,
@@ -423,12 +426,12 @@ class _HomeScreenState extends State<HomeScreen>
               }
 
               final absValue = value.abs();
-              final scale = (1 - absValue * 0.18).clamp(0.80, 1.06);
-              final opacity = (1 - absValue * 0.25).clamp(0.7, 1.0);
+              final scale = (1 - absValue * 0.15).clamp(0.85, 1.0);
+              final opacity = (1 - absValue * 0.20).clamp(0.75, 1.0);
               final blurAmount = absValue * 1.5;
 
-              // Rotation around Y axis for 3D effect
-              final rotateY = value * -0.3;
+              // Rotation around Y axis for subtle 3D depth
+              final rotateY = value * -0.25;
 
               final matrix = Matrix4.identity()
                 ..setEntry(3, 2, 0.0015) // perspective
@@ -461,38 +464,38 @@ class _HomeScreenState extends State<HomeScreen>
 
   Widget _buildSlideCard(String imagePath, {bool isCenter = false}) {
     return Padding(
-      padding: const EdgeInsets.all(_cardMargin),
+      padding: const EdgeInsets.symmetric(horizontal: _cardMargin),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         width: _cardWidth,
         height: _cardHeight,
         decoration: BoxDecoration(
           color: cardCream,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(8),
           boxShadow: isCenter
               ? [
                   BoxShadow(
-                    color: navyDark.withOpacity(0.35),
-                    blurRadius: 24,
-                    spreadRadius: 2,
-                    offset: const Offset(0, 12),
+                    color: navyDark.withOpacity(0.25),
+                    blurRadius: 16,
+                    spreadRadius: 1,
+                    offset: const Offset(0, 8),
                   ),
                   BoxShadow(
-                    color: const Color(0xFF000000).withOpacity(0.12),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
+                    color: const Color(0xFF000000).withOpacity(0.10),
+                    blurRadius: 6,
+                    offset: const Offset(0, 3),
                   ),
                 ]
               : [
                   BoxShadow(
-                    color: navyDark.withOpacity(0.12),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
+                    color: navyDark.withOpacity(0.10),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
                   ),
                 ],
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(8),
           child: Stack(
             fit: StackFit.expand,
             children: [
@@ -516,21 +519,21 @@ class _HomeScreenState extends State<HomeScreen>
                 child: IgnorePointer(
                   child: Container(
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(8),
                       border: Border.all(
                         color: isCenter
-                            ? Colors.white.withOpacity(0.6)
+                            ? Colors.white.withOpacity(0.5)
                             : Colors.transparent,
-                        width: 1.5,
+                        width: 1.0,
                       ),
                       gradient: LinearGradient(
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                         colors: [
-                          Colors.white.withOpacity(0.12),
+                          Colors.white.withOpacity(0.10),
                           Colors.transparent,
                           Colors.transparent,
-                          Colors.black.withOpacity(0.06),
+                          Colors.black.withOpacity(0.05),
                         ],
                         stops: const [0.0, 0.15, 0.85, 1.0],
                       ),
