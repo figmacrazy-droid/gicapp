@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'theme/app_colors.dart';
+import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
 
 void main() {
@@ -23,7 +24,7 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'GIC Login',
       theme: ThemeData(fontFamily: 'Cairo', primarySwatch: Colors.blue),
-      home: const LoginScreen(), // ✅ الآن يأتي من screens/login_screen.dart
+      home: const SplashScreen(), // 🚀 شاشة الأنيميشن البداية
     );
   }
 }
