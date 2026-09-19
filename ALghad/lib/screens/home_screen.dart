@@ -128,7 +128,7 @@ class _HomeScreenState extends State<HomeScreen>
     super.initState();
 
     _pageController = PageController(
-      viewportFraction: 0.52,
+      viewportFraction: 0.62,
       initialPage: _initialPage,
     );
 
@@ -423,14 +423,14 @@ class _HomeScreenState extends State<HomeScreen>
 
               final absValue = value.abs();
 
-              // البنر الأوسط يبرز للأمام بمقدار أكبر (1.08) والجانبية تتقلص (0.82) بدون أي فراغ أبيض
-              final scale = (1.08 - absValue * 0.26).clamp(0.82, 1.08);
+              // البنر الأوسط بمقاسه الأصلي (1.0) والجانبية تتقلص (0.85)
+              final scale = (1.0 - absValue * 0.15).clamp(0.85, 1.0);
               final opacity = (1.0 - absValue * 0.22).clamp(0.78, 1.0);
               final blurAmount = absValue * 1.2;
 
               // رفع البنر الأوسط للأمام وتدويره بزاوية 3D خفيفة
-              final translateY = (1 - absValue.clamp(0.0, 1.0)) * -6.0;
-              final rotateY = value * -0.20;
+              final translateY = (1 - absValue.clamp(0.0, 1.0)) * -4.0;
+              final rotateY = value * -0.15;
 
               final matrix = Matrix4.identity()
                 ..setEntry(3, 2, 0.0015) // perspective
@@ -499,7 +499,7 @@ class _HomeScreenState extends State<HomeScreen>
           children: [
             Image.asset(
               imagePath,
-              fit: BoxFit.cover,
+              fit: BoxFit.fill,
               errorBuilder: (context, error, stackTrace) {
                 return Container(
                   color: cardCream,
