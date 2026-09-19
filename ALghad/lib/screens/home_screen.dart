@@ -128,7 +128,7 @@ class _HomeScreenState extends State<HomeScreen>
     super.initState();
 
     _pageController = PageController(
-      viewportFraction: 0.62,
+      viewportFraction: 0.50,
       initialPage: _initialPage,
     );
 
@@ -423,14 +423,14 @@ class _HomeScreenState extends State<HomeScreen>
 
               final absValue = value.abs();
 
-              // البنر الأوسط بمقاسه الأصلي (1.0) والجانبية تتقلص (0.85)
-              final scale = (1.0 - absValue * 0.15).clamp(0.85, 1.0);
-              final opacity = (1.0 - absValue * 0.22).clamp(0.78, 1.0);
-              final blurAmount = absValue * 1.2;
+              // البنر الأوسط بمقاسه الأصلي (1.0) والجانبي يبرز من خلفه بضبابية خفيفة
+              final scale = (1.0 - absValue * 0.14).clamp(0.86, 1.0);
+              final opacity = (1.0 - absValue * 0.15).clamp(0.82, 1.0);
+              final blurAmount = (absValue * 2.5).clamp(0.0, 4.0);
 
-              // رفع البنر الأوسط للأمام وتدويره بزاوية 3D خفيفة
+              // تدوير خفيف ثلاثي الأبعاد ورفع البنر الأوسط
               final translateY = (1 - absValue.clamp(0.0, 1.0)) * -4.0;
-              final rotateY = value * -0.15;
+              final rotateY = value * -0.12;
 
               final matrix = Matrix4.identity()
                 ..setEntry(3, 2, 0.0015) // perspective
@@ -438,14 +438,7 @@ class _HomeScreenState extends State<HomeScreen>
                 ..rotateY(rotateY)
                 ..scale(scale, scale, 1.0);
 
-              Widget card = Opacity(
-                opacity: opacity,
-                child: Transform(
-                  alignment: Alignment.center,
-                  transform: matrix,
-                  child: _buildSlideCard(_adImages[imageIndex], isCenter: absValue < 0.4),
-                ),
-              );
+              Widget card = _buildSlideCard(_adImages[imageIndex], isCenter: absValue < 0.4);
 
               if (blurAmount > 0.1) {
                 card = ImageFiltered(
@@ -453,6 +446,15 @@ class _HomeScreenState extends State<HomeScreen>
                   child: card,
                 );
               }
+
+              card = Opacity(
+                opacity: opacity,
+                child: Transform(
+                  alignment: Alignment.center,
+                  transform: matrix,
+                  child: card,
+                ),
+              );
 
               return card;
             },
