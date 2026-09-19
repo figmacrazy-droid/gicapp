@@ -23,8 +23,8 @@ class _HomeScreenState extends State<HomeScreen>
   late AnimationController _syncController;
   late PageController _pageController;
 
-  static const double _cardWidth = 222;
-  static const double _cardHeight = 278;
+  static const double _cardWidth = 250;
+  static const double _cardHeight = 300;
   static const double _cardMargin = 8;
   static const int _initialPage = 5000;
 
@@ -128,7 +128,7 @@ class _HomeScreenState extends State<HomeScreen>
     super.initState();
 
     _pageController = PageController(
-      viewportFraction: 0.65,
+      viewportFraction: 0.70,
       initialPage: _initialPage,
     );
 
@@ -398,9 +398,12 @@ class _HomeScreenState extends State<HomeScreen>
   // ══════════════════════════════════════
   // 3) السلايدر
   // ══════════════════════════════════════
+  // ══════════════════════════════════════
+  // 3) السلايدر
+  // ══════════════════════════════════════
   Widget _buildSlider() {
     return SizedBox(
-      height: _cardHeight + (_cardMargin * 2),
+      height: _cardHeight + (_cardMargin * 2) + 12,
       child: PageView.builder(
         controller: _pageController,
         itemCount: 10000,
@@ -420,15 +423,15 @@ class _HomeScreenState extends State<HomeScreen>
               }
 
               final absValue = value.abs();
-              final scale = (1 - absValue * 0.25).clamp(0.75, 1.0);
-              final opacity = (1 - absValue * 0.3).clamp(0.6, 1.0);
-              final blurAmount = absValue * 2.0;
+              final scale = (1 - absValue * 0.18).clamp(0.80, 1.06);
+              final opacity = (1 - absValue * 0.25).clamp(0.7, 1.0);
+              final blurAmount = absValue * 1.5;
 
               // Rotation around Y axis for 3D effect
-              final rotateY = value * -0.4;
+              final rotateY = value * -0.3;
 
               final matrix = Matrix4.identity()
-                ..setEntry(3, 2, 0.002) // perspective
+                ..setEntry(3, 2, 0.0015) // perspective
                 ..rotateY(rotateY)
                 ..scale(scale, scale, 1.0);
 
@@ -437,7 +440,7 @@ class _HomeScreenState extends State<HomeScreen>
                 child: Transform(
                   alignment: Alignment.center,
                   transform: matrix,
-                  child: _buildSlideCard(_adImages[imageIndex]),
+                  child: _buildSlideCard(_adImages[imageIndex], isCenter: absValue < 0.5),
                 ),
               );
 
@@ -456,25 +459,40 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  Widget _buildSlideCard(String imagePath) {
+  Widget _buildSlideCard(String imagePath, {bool isCenter = false}) {
     return Padding(
       padding: const EdgeInsets.all(_cardMargin),
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
         width: _cardWidth,
         height: _cardHeight,
         decoration: BoxDecoration(
           color: cardCream,
-          borderRadius: BorderRadius.circular(8),
-          boxShadow: [
-            BoxShadow(
-              color: navyDark.withOpacity(0.15),
-              blurRadius: 14,
-              offset: const Offset(0, 6),
-            ),
-          ],
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: isCenter
+              ? [
+                  BoxShadow(
+                    color: navyDark.withOpacity(0.35),
+                    blurRadius: 24,
+                    spreadRadius: 2,
+                    offset: const Offset(0, 12),
+                  ),
+                  BoxShadow(
+                    color: const Color(0xFF000000).withOpacity(0.12),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ]
+              : [
+                  BoxShadow(
+                    color: navyDark.withOpacity(0.12),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(16),
           child: Stack(
             fit: StackFit.expand,
             children: [
@@ -498,17 +516,23 @@ class _HomeScreenState extends State<HomeScreen>
                 child: IgnorePointer(
                   child: Container(
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: isCenter
+                            ? Colors.white.withOpacity(0.6)
+                            : Colors.transparent,
+                        width: 1.5,
+                      ),
                       gradient: LinearGradient(
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                         colors: [
-                          Colors.white.withOpacity(0.05),
+                          Colors.white.withOpacity(0.12),
                           Colors.transparent,
                           Colors.transparent,
-                          Colors.black.withOpacity(0.04),
+                          Colors.black.withOpacity(0.06),
                         ],
-                        stops: const [0.0, 0.12, 0.88, 1.0],
+                        stops: const [0.0, 0.15, 0.85, 1.0],
                       ),
                     ),
                   ),
@@ -549,14 +573,14 @@ class _HomeScreenState extends State<HomeScreen>
   // ══════════════════════════════════════
   Widget _buildServicesGrid() {
     final services = [
-      {'iconPath': 'assets/new_icons/control.svg', 'label': 'الكنترول', 'route': null},
-      {'iconPath': 'assets/new_icons/student_affairs.svg', 'label': 'شؤون الطلاب', 'route': null},
-      {'iconPath': 'assets/new_icons/academy.svg', 'label': 'الأكاديمية', 'route': null},
-      {'iconPath': 'assets/new_icons/admission.svg', 'label': 'القبول\nوالتسجيل', 'route': 'admission'},
-      {'iconPath': 'assets/new_icons/general_request.svg', 'label': 'تقديم طلب\nعام', 'route': null},
-      {'iconPath': 'assets/new_icons/achievements.svg', 'label': 'إنجازاتنا', 'route': null},
-      {'iconPath': 'assets/new_icons/alumni.svg', 'label': 'خريجي الغد', 'route': null},
-      {'iconPath': 'assets/new_icons/finance.svg', 'label': 'المالية', 'route': null},
+      {'iconPath': 'assets/new_icons/control.png', 'label': 'الكنترول', 'route': null},
+      {'iconPath': 'assets/new_icons/student_affairs.png', 'label': 'شؤون الطلاب', 'route': null},
+      {'iconPath': 'assets/new_icons/academy.png', 'label': 'الأكاديمية', 'route': null},
+      {'iconPath': 'assets/new_icons/admission.png', 'label': 'القبول\nوالتسجيل', 'route': 'admission'},
+      {'iconPath': 'assets/new_icons/general_request.png', 'label': 'تقديم طلب\nعام', 'route': null},
+      {'iconPath': 'assets/new_icons/achievements.png', 'label': 'إنجازاتنا', 'route': null},
+      {'iconPath': 'assets/new_icons/alumni.png', 'label': 'خريجي الغد', 'route': null},
+      {'iconPath': 'assets/new_icons/finance.png', 'label': 'المالية', 'route': null},
     ];
 
     return Padding(
@@ -607,17 +631,27 @@ class _HomeScreenState extends State<HomeScreen>
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF0B1E3D).withOpacity(0.20),
-                  blurRadius: 8,
-                  offset: const Offset(0, 3),
+                  color: const Color(0xFF0B1E3D).withOpacity(0.18),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
                 ),
               ],
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(16),
-              child: SvgPicture.asset(
+              child: Image.asset(
                 iconPath,
                 fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    color: const Color(0xFFF2F2F2),
+                    child: const Icon(
+                      Icons.apps,
+                      color: navyDark,
+                      size: 32,
+                    ),
+                  );
+                },
               ),
             ),
           ),
