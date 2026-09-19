@@ -25,7 +25,7 @@ class _HomeScreenState extends State<HomeScreen>
 
   static const double _cardWidth = 222;
   static const double _cardHeight = 278;
-  static const double _cardMargin = 4;
+  static const double _cardMargin = 0;
   static const int _initialPage = 5000;
 
   // 🎨 ألوان التصميم
@@ -128,7 +128,7 @@ class _HomeScreenState extends State<HomeScreen>
     super.initState();
 
     _pageController = PageController(
-      viewportFraction: 0.60,
+      viewportFraction: 0.52,
       initialPage: _initialPage,
     );
 
@@ -398,15 +398,11 @@ class _HomeScreenState extends State<HomeScreen>
   // ══════════════════════════════════════
   // 3) السلايدر
   // ══════════════════════════════════════
-  // ══════════════════════════════════════
-  // 3) السلايدر
-  // ══════════════════════════════════════
-  // ══════════════════════════════════════
   // 3) السلايدر
   // ══════════════════════════════════════
   Widget _buildSlider() {
     return SizedBox(
-      height: _cardHeight + 16,
+      height: _cardHeight + 24,
       child: PageView.builder(
         controller: _pageController,
         itemCount: 10000,
@@ -426,15 +422,19 @@ class _HomeScreenState extends State<HomeScreen>
               }
 
               final absValue = value.abs();
-              final scale = (1 - absValue * 0.15).clamp(0.85, 1.0);
-              final opacity = (1 - absValue * 0.20).clamp(0.75, 1.0);
-              final blurAmount = absValue * 1.5;
 
-              // Rotation around Y axis for subtle 3D depth
-              final rotateY = value * -0.25;
+              // البنر الأوسط يبرز للأمام بمقدار أكبر (1.08) والجانبية تتقلص (0.82) بدون أي فراغ أبيض
+              final scale = (1.08 - absValue * 0.26).clamp(0.82, 1.08);
+              final opacity = (1.0 - absValue * 0.22).clamp(0.78, 1.0);
+              final blurAmount = absValue * 1.2;
+
+              // رفع البنر الأوسط للأمام وتدويره بزاوية 3D خفيفة
+              final translateY = (1 - absValue.clamp(0.0, 1.0)) * -6.0;
+              final rotateY = value * -0.20;
 
               final matrix = Matrix4.identity()
                 ..setEntry(3, 2, 0.0015) // perspective
+                ..translate(0.0, translateY, 0.0)
                 ..rotateY(rotateY)
                 ..scale(scale, scale, 1.0);
 
@@ -443,7 +443,7 @@ class _HomeScreenState extends State<HomeScreen>
                 child: Transform(
                   alignment: Alignment.center,
                   transform: matrix,
-                  child: _buildSlideCard(_adImages[imageIndex], isCenter: absValue < 0.5),
+                  child: _buildSlideCard(_adImages[imageIndex], isCenter: absValue < 0.4),
                 ),
               );
 
@@ -463,86 +463,83 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Widget _buildSlideCard(String imagePath, {bool isCenter = false}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: _cardMargin),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        width: _cardWidth,
-        height: _cardHeight,
-        decoration: BoxDecoration(
-          color: cardCream,
-          borderRadius: BorderRadius.circular(8),
-          boxShadow: isCenter
-              ? [
-                  BoxShadow(
-                    color: navyDark.withOpacity(0.25),
-                    blurRadius: 16,
-                    spreadRadius: 1,
-                    offset: const Offset(0, 8),
-                  ),
-                  BoxShadow(
-                    color: const Color(0xFF000000).withOpacity(0.10),
-                    blurRadius: 6,
-                    offset: const Offset(0, 3),
-                  ),
-                ]
-              : [
-                  BoxShadow(
-                    color: navyDark.withOpacity(0.10),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              Image.asset(
-                imagePath,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    color: cardCream,
-                    child: const Center(
-                      child: Icon(
-                        Icons.image_outlined,
-                        size: 40,
-                        color: Color(0xFF9E7A2F),
-                      ),
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      width: _cardWidth,
+      height: _cardHeight,
+      decoration: BoxDecoration(
+        color: cardCream,
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: isCenter
+            ? [
+                BoxShadow(
+                  color: navyDark.withOpacity(0.35),
+                  blurRadius: 20,
+                  spreadRadius: 2,
+                  offset: const Offset(0, 10),
+                ),
+                BoxShadow(
+                  color: const Color(0xFF000000).withOpacity(0.12),
+                  blurRadius: 8,
+                  offset: const Offset(0, 3),
+                ),
+              ]
+            : [
+                BoxShadow(
+                  color: navyDark.withOpacity(0.10),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.asset(
+              imagePath,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return Container(
+                  color: cardCream,
+                  child: const Center(
+                    child: Icon(
+                      Icons.image_outlined,
+                      size: 40,
+                      color: Color(0xFF9E7A2F),
                     ),
                   );
                 },
               ),
-              Positioned.fill(
-                child: IgnorePointer(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: isCenter
-                            ? Colors.white.withOpacity(0.5)
-                            : Colors.transparent,
-                        width: 1.0,
-                      ),
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.white.withOpacity(0.10),
-                          Colors.transparent,
-                          Colors.transparent,
-                          Colors.black.withOpacity(0.05),
-                        ],
-                        stops: const [0.0, 0.15, 0.85, 1.0],
-                      ),
+            ),
+            Positioned.fill(
+              child: IgnorePointer(
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: isCenter
+                          ? Colors.white.withOpacity(0.6)
+                          : Colors.transparent,
+                      width: 1.2,
+                    ),
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.white.withOpacity(0.12),
+                        Colors.transparent,
+                        Colors.transparent,
+                        Colors.black.withOpacity(0.05),
+                      ],
+                      stops: const [0.0, 0.15, 0.85, 1.0],
                     ),
                   ),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
