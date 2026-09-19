@@ -573,14 +573,14 @@ class _HomeScreenState extends State<HomeScreen>
   // ══════════════════════════════════════
   Widget _buildServicesGrid() {
     final services = [
-      {'iconPath': 'assets/new_icons/control.png', 'label': 'الكنترول', 'route': null},
-      {'iconPath': 'assets/new_icons/student_affairs.png', 'label': 'شؤون الطلاب', 'route': null},
-      {'iconPath': 'assets/new_icons/academy.png', 'label': 'الأكاديمية', 'route': null},
       {'iconPath': 'assets/new_icons/admission.png', 'label': 'القبول\nوالتسجيل', 'route': 'admission'},
-      {'iconPath': 'assets/new_icons/general_request.png', 'label': 'تقديم طلب\nعام', 'route': null},
-      {'iconPath': 'assets/new_icons/achievements.png', 'label': 'إنجازاتنا', 'route': null},
-      {'iconPath': 'assets/new_icons/alumni.png', 'label': 'خريجي الغد', 'route': null},
+      {'iconPath': 'assets/new_icons/academy.png', 'label': 'الأكاديمية', 'route': null},
+      {'iconPath': 'assets/new_icons/student_affairs.png', 'label': 'شؤون الطلاب', 'route': null},
+      {'iconPath': 'assets/new_icons/control.png', 'label': 'الكنترول', 'route': null},
       {'iconPath': 'assets/new_icons/finance.png', 'label': 'المالية', 'route': null},
+      {'iconPath': 'assets/new_icons/alumni.png', 'label': 'خريجي الغد', 'route': null},
+      {'iconPath': 'assets/new_icons/achievements.png', 'label': 'إنجازاتنا', 'route': null},
+      {'iconPath': 'assets/new_icons/general_request.png', 'label': 'تقديم طلب\nعام', 'route': null},
     ];
 
     return Padding(
