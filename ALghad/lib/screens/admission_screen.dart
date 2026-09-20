@@ -4,8 +4,8 @@ class AdmissionScreen extends StatelessWidget {
   const AdmissionScreen({super.key});
 
   static const Color whiteBg = Colors.white;
-  static const Color navyDark = Color(0xFF0A2451);
-  static const Color cardBg = Color(0xFFFAFAFA);
+  static const Color navyDark = Color(0xFF0B1E3D);
+  static const Color cardBg = Colors.white;
 
   @override
   Widget build(BuildContext context) {
@@ -18,14 +18,15 @@ class AdmissionScreen extends StatelessWidget {
           child: Column(
             children: [
               _buildAppBar(context),
+              const Divider(height: 1, color: Color(0xFFF0F0F0)),
               Expanded(
                 child: ListView(
                   physics: const BouncingScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
                   children: [
                     _buildCard(
                       context,
-                      title: 'متطلبات القبول والتسجيل في الكلية',
+                      title: 'متطلبات القبول التسجيل في الكلية',
                       onTap: () {
                         Navigator.push(
                           context,
@@ -36,20 +37,20 @@ class AdmissionScreen extends StatelessWidget {
                         );
                       },
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 14),
                     _buildCard(
                       context,
-                      title: 'التسجيل أوليًا',
+                      title: 'التسجيل اونلاين',
                       onTap: () {},
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 14),
                     _buildCard(
                       context,
                       title:
-                      'بوابة التنسيق الإلكتروني لوزارة التربية والتعليم والبحث العلمي',
+                      'بوابة التنسيق الالكتروني لوزارة التربية والتعليم والبحث العلمي',
                       onTap: () {},
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 14),
                     _buildCard(
                       context,
                       title: 'نظام الإنسحاب',
@@ -67,30 +68,30 @@ class AdmissionScreen extends StatelessWidget {
 
   Widget _buildAppBar(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Row(
         children: [
-          IconButton(
-            onPressed: () => Navigator.pop(context),
-            icon: const Icon(
-              Icons.arrow_forward_rounded,
-              color: navyDark,
-              size: 24,
-            ),
-          ),
-          const SizedBox(width: 4),
-          const Expanded(
-            child: Text(
-              'نظام القبول والتسجيل والانسحاب',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w900,
+          InkWell(
+            onTap: () => Navigator.pop(context),
+            borderRadius: BorderRadius.circular(8),
+            child: const Padding(
+              padding: EdgeInsets.all(4.0),
+              child: Icon(
+                Icons.arrow_forward_rounded,
                 color: navyDark,
+                size: 24,
               ),
             ),
           ),
-          const SizedBox(width: 40),
+          const SizedBox(width: 8),
+          const Text(
+            'نظام القبول والتسجيل والإنسحاب',
+            style: TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w900,
+              color: navyDark,
+            ),
+          ),
         ],
       ),
     );
@@ -104,12 +105,19 @@ class AdmissionScreen extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         decoration: BoxDecoration(
           color: cardBg,
           borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
           border: Border.all(
-            color: const Color(0xFFEEEEEE),
+            color: const Color(0xFFF2F2F2),
             width: 1,
           ),
         ),
@@ -121,48 +129,62 @@ class AdmissionScreen extends StatelessWidget {
                 textAlign: TextAlign.right,
                 style: const TextStyle(
                   fontSize: 14,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w800,
                   color: navyDark,
-                  height: 1.4,
+                  height: 1.35,
                 ),
               ),
             ),
-            const SizedBox(width: 12),
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: navyDark,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Center(
-                child: Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(6),
-                    child: Image.asset(
-                      'assets/images/gic_logo.jpg',
-                      fit: BoxFit.contain,
-                      errorBuilder: (context, error, stackTrace) {
-                        return const Center(
-                          child: Icon(
-                            Icons.school,
-                            color: navyDark,
-                            size: 20,
-                          ),
-                        );
-                      },
+            const SizedBox(width: 14),
+            _buildGicBadge(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGicBadge() {
+    return Container(
+      width: 48,
+      height: 48,
+      decoration: BoxDecoration(
+        color: navyDark,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: navyDark.withOpacity(0.25),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Center(
+        child: Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.white.withOpacity(0.8), width: 1.2),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(7),
+            child: Image.asset(
+              'assets/images/gic_logo.jpg',
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return const Center(
+                  child: Text(
+                    'gic',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
                     ),
                   ),
-                ),
-              ),
+                );
+              },
             ),
-          ],
+          ),
         ),
       ),
     );

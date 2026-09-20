@@ -5,6 +5,10 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'all_specialties_screen.dart';
 import 'notifications_screen.dart';
 import 'admission_screen.dart';
+import 'academy_screen.dart';
+import 'control_screen.dart';
+import 'student_affairs_screen.dart';
+import 'general_request_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final String userName;
@@ -573,13 +577,13 @@ class _HomeScreenState extends State<HomeScreen>
   Widget _buildServicesGrid() {
     final services = [
       {'iconPath': 'assets/new_icons/admission.png', 'label': 'القبول\nوالتسجيل', 'route': 'admission'},
-      {'iconPath': 'assets/new_icons/academy.png', 'label': 'الأكاديمية', 'route': null},
-      {'iconPath': 'assets/new_icons/student_affairs.png', 'label': 'شؤون الطلاب', 'route': null},
-      {'iconPath': 'assets/new_icons/control.png', 'label': 'الكنترول', 'route': null},
+      {'iconPath': 'assets/new_icons/academy.png', 'label': 'الأكاديمية', 'route': 'academy'},
+      {'iconPath': 'assets/new_icons/student_affairs.png', 'label': 'شؤون الطلاب', 'route': 'student_affairs'},
+      {'iconPath': 'assets/new_icons/control.png', 'label': 'الكنترول', 'route': 'control'},
       {'iconPath': 'assets/new_icons/finance.png', 'label': 'المالية', 'route': null},
       {'iconPath': 'assets/new_icons/alumni.png', 'label': 'خريجي الغد', 'route': null},
       {'iconPath': 'assets/new_icons/achievements.png', 'label': 'إنجازاتنا', 'route': null},
-      {'iconPath': 'assets/new_icons/general_request.png', 'label': 'تقديم طلب\nعام', 'route': null},
+      {'iconPath': 'assets/new_icons/general_request.png', 'label': 'تقديم طلب\nعام', 'route': 'general_request'},
     ];
 
     return Padding(
@@ -615,6 +619,34 @@ class _HomeScreenState extends State<HomeScreen>
             context,
             MaterialPageRoute(
               builder: (context) => const AdmissionScreen(),
+            ),
+          );
+        } else if (route == 'academy') {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const AcademyScreen(),
+            ),
+          );
+        } else if (route == 'student_affairs') {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const StudentAffairsScreen(),
+            ),
+          );
+        } else if (route == 'control') {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const ControlScreen(),
+            ),
+          );
+        } else if (route == 'general_request') {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const GeneralRequestScreen(),
             ),
           );
         }
