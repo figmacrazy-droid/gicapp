@@ -128,7 +128,7 @@ class _HomeScreenState extends State<HomeScreen>
     super.initState();
 
     _pageController = PageController(
-      viewportFraction: 0.58,
+      viewportFraction: 0.52,
       initialPage: _initialPage,
     );
 
