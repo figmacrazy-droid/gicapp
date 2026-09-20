@@ -128,7 +128,7 @@ class _HomeScreenState extends State<HomeScreen>
     super.initState();
 
     _pageController = PageController(
-      viewportFraction: 0.50,
+      viewportFraction: 0.58,
       initialPage: _initialPage,
     );
 
@@ -155,7 +155,7 @@ class _HomeScreenState extends State<HomeScreen>
   void _startAutoPlay() {
     _autoPlayTimer?.cancel();
     _autoPlayTimer = Timer.periodic(
-      const Duration(seconds: 4),
+      const Duration(milliseconds: 2000),
           (timer) {
         if (!mounted) return;
         if (!_pageController.hasClients) return;
@@ -164,7 +164,7 @@ class _HomeScreenState extends State<HomeScreen>
 
         _pageController.animateToPage(
           currentPage + 1,
-          duration: const Duration(milliseconds: 700),
+          duration: const Duration(milliseconds: 600),
           curve: Curves.easeInOut,
         );
       },
@@ -402,7 +402,7 @@ class _HomeScreenState extends State<HomeScreen>
   // ══════════════════════════════════════
   Widget _buildSlider() {
     return SizedBox(
-      height: _cardHeight + 24,
+      height: 321,
       child: PageView.builder(
         controller: _pageController,
         itemCount: 10000,
@@ -423,19 +423,16 @@ class _HomeScreenState extends State<HomeScreen>
 
               final absValue = value.abs();
 
-              // البنر الأوسط بمقاسه الأصلي (1.0) والجانبي يبرز من خلفه بضبابية خفيفة
-              final scale = (1.0 - absValue * 0.14).clamp(0.86, 1.0);
-              final opacity = (1.0 - absValue * 0.15).clamp(0.82, 1.0);
+              // البنر الأوسط بمقاسه الأصلي مسطح والجانبي يبرز من خلفه بدون أي انحدار 3D
+              final scale = (1.0 - absValue * 0.12).clamp(0.88, 1.0);
+              final opacity = (1.0 - absValue * 0.15).clamp(0.85, 1.0);
               final blurAmount = (absValue * 2.5).clamp(0.0, 4.0);
 
-              // تدوير خفيف ثلاثي الأبعاد ورفع البنر الأوسط
+              // تراكب مسطح بدون انحدار ثلاثي الأبعاد
               final translateY = (1 - absValue.clamp(0.0, 1.0)) * -4.0;
-              final rotateY = value * -0.12;
 
               final matrix = Matrix4.identity()
-                ..setEntry(3, 2, 0.0015) // perspective
                 ..translate(0.0, translateY, 0.0)
-                ..rotateY(rotateY)
                 ..scale(scale, scale, 1.0);
 
               Widget card = _buildSlideCard(_adImages[imageIndex], isCenter: absValue < 0.4);
