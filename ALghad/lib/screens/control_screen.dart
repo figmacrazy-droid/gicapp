@@ -132,6 +132,8 @@ class ControlScreen extends StatelessWidget {
         ),
         child: Row(
           children: [
+            _buildGicBadge(),
+            const SizedBox(width: 14),
             Expanded(
               child: Text(
                 title,
@@ -144,8 +146,6 @@ class ControlScreen extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(width: 14),
-            _buildGicBadge(),
           ],
         ),
       ),

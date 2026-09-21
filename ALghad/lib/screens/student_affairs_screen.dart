@@ -126,6 +126,8 @@ class StudentAffairsScreen extends StatelessWidget {
         ),
         child: Row(
           children: [
+            _buildGicBadge(),
+            const SizedBox(width: 14),
             Expanded(
               child: Text(
                 title,
@@ -138,8 +140,6 @@ class StudentAffairsScreen extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(width: 14),
-            _buildGicBadge(),
           ],
         ),
       ),
