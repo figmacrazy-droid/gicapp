@@ -81,11 +81,11 @@ class _SplashScreenState extends State<SplashScreen>
         weight: 30, // ظهور الدائرة الذهبية المحيطة بالشعار أثناء تصاغره
       ),
       TweenSequenceItem(
-        tween: Tween<double>(begin: 1.0, end: 1.30),
-        weight: 45, // تضخم الدائرة أثناء الانطلاق لأقصى اليمين
+        tween: Tween<double>(begin: 1.0, end: 1.43),
+        weight: 45, // تضخم الدائرة أثناء الانطلاق لأقصى اليمين ليصل قطرها إلى 47.2 بكسل
       ),
       TweenSequenceItem(
-        tween: Tween<double>(begin: 1.30, end: 0.0),
+        tween: Tween<double>(begin: 1.43, end: 0.0),
         weight: 25, // اندماج وانصهار الدائرة مع التوسع
       ),
     ]).animate(
@@ -219,8 +219,8 @@ class _SplashScreenState extends State<SplashScreen>
                     child: Transform.scale(
                       scale: _dotScale.value,
                       child: Container(
-                        width: 44,
-                        height: 44,
+                        width: 33,
+                        height: 33,
                         decoration: BoxDecoration(
                           color: _dotColor.value ?? const Color(0xFFD4A51C),
                           shape: BoxShape.circle,
