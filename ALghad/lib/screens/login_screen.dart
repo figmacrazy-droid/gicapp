@@ -48,7 +48,7 @@ class LoginScreen extends StatelessWidget {
                         child: Padding(
                           padding: const EdgeInsets.all(8),
                           child: Image.asset(
-                            'assets/images/gic_logo.jpg',
+                            'assets/images/gic_shield.png',
                             fit: BoxFit.contain,
                           ),
                         ),

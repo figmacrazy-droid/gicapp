@@ -201,7 +201,7 @@ class _SplashScreenState extends State<SplashScreen>
                         errorBuilder: (context, error, stackTrace) {
                           // الاحتياطي في حال عدم تحميل الصورة من المسار الفرعي
                           return Image.asset(
-                            'assets/images/gic_logo.jpg',
+                            'assets/images/gic_shield.png',
                             width: 180,
                             height: 180,
                             fit: BoxFit.contain,

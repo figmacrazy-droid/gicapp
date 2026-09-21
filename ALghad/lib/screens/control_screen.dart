@@ -178,7 +178,7 @@ class ControlScreen extends StatelessWidget {
           child: ClipRRect(
             borderRadius: BorderRadius.circular(7),
             child: Image.asset(
-              'assets/images/gic_logo.jpg',
+              'assets/images/gic_shield.png',
               fit: BoxFit.cover,
               errorBuilder: (context, error, stackTrace) {
                 return const Center(
