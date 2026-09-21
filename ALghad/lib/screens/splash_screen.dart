@@ -28,97 +28,96 @@ class _SplashScreenState extends State<SplashScreen>
 
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 2400),
+      duration: const Duration(milliseconds: 3000),
     );
 
     // ==========================================
-    // المرحلة 1 و 2: عرض الشعار والتكبير (Zoom In)
-    // (من 0.0s إلى 1.0s)
+    // المرحلة 1 و 2: ظهور الشعار ثم انكماشه وامتصاصه داخل النقطة الذهبية
+    // (من 0.0s إلى 1.4s)
     // ==========================================
     _logoOpacity = TweenSequence<double>([
       TweenSequenceItem(
         tween: Tween<double>(begin: 0.0, end: 1.0),
-        weight: 25,
-      ), // ظهور الشعار
+        weight: 30, // ظهور الشعار حتى 0.7 ثانية
+      ),
       TweenSequenceItem(
         tween: Tween<double>(begin: 1.0, end: 1.0),
-        weight: 45,
-      ), // الثبات والحرية
+        weight: 20, // الثبات حتى 0.9 ثانية
+      ),
       TweenSequenceItem(
         tween: Tween<double>(begin: 1.0, end: 0.0),
-        weight: 30,
-      ), // اختفاء الشعار للتحول إلى النقطة
+        weight: 50, // اختفاء الانكماش والانصهار داخل النقطة حتى 1.4 ثانية
+      ),
     ]).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.0, 0.48, curve: Curves.easeInOut),
+        curve: const Interval(0.0, 0.467, curve: Curves.easeInOut),
       ),
     );
 
     _logoScale = TweenSequence<double>([
       TweenSequenceItem(
         tween: Tween<double>(begin: 0.85, end: 1.0),
-        weight: 40,
-      ), // الحجم الطبيعي
+        weight: 40, // الحجم الطبيعي حتى 0.9s
+      ),
       TweenSequenceItem(
-        tween: Tween<double>(begin: 1.0, end: 1.30),
-        weight: 60,
-      ), // التكبير السريع (Zoom-in)
+        tween: Tween<double>(begin: 1.0, end: 0.05),
+        weight: 60, // انكماش الشعار وصغره الشديد للبدء بالانضمام داخل النقطة حتى 1.4s
+      ),
     ]).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.0, 0.45, curve: Curves.easeOutCubic),
+        curve: const Interval(0.0, 0.467, curve: Curves.easeInOutBack),
       ),
     );
 
     // ==========================================
-    // المرحلة 3 و 4: ظهور النقطة البرتقالية والتحرك لليمين والتغير للكحلي
-    // (من 0.45s إلى 0.75s)
+    // المرحلة 3: ظهور النقطة الذهبية عند انكماش الشعار ثم انطلاقها لأقصى اليمين وتحول لونها للكحلي
+    // (من 0.9s إلى 2.2s)
     // ==========================================
     _dotScale = TweenSequence<double>([
       TweenSequenceItem(
         tween: Tween<double>(begin: 0.0, end: 1.0),
-        weight: 35,
-      ), // ظهور النقطة
+        weight: 30, // ظهور النقطة الذهبية في المكان الذي انكمش فيه الشعار
+      ),
       TweenSequenceItem(
-        tween: Tween<double>(begin: 1.0, end: 1.25),
-        weight: 35,
-      ), // تضخم أثناء الحركة
+        tween: Tween<double>(begin: 1.0, end: 1.35),
+        weight: 45, // تضخم النقطة أثناء الانطلاق لأقصى اليمين
+      ),
       TweenSequenceItem(
-        tween: Tween<double>(begin: 1.25, end: 0.0),
-        weight: 30,
-      ), // الانصهار في موجة التوسع
+        tween: Tween<double>(begin: 1.35, end: 0.0),
+        weight: 25, // ذوبان النقطة وانصهارها في الموجة
+      ),
     ]).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.44, 0.74, curve: Curves.easeInOut),
+        curve: const Interval(0.30, 0.933, curve: Curves.easeInOut),
       ),
     );
 
     _dotPosition = Tween<Offset>(
       begin: Offset.zero,
-      end: const Offset(75.0, 0.0), // التحرك ناحية اليمين
+      end: const Offset(135.0, 0.0), // التحرك والانطلاق إلى أقصى اليمين
     ).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.50, 0.72, curve: Curves.easeInOutCubic),
+        curve: const Interval(0.467, 0.733, curve: Curves.easeInOutCubic),
       ),
     );
 
     _dotColor = ColorTween(
-      begin: const Color(0xFFD4A51C), // اللون البرتقالي/الذهبي للشعار
-      end: const Color(0xFF002060), // التغير الفوري للون الكحلي الداكن
+      begin: const Color(0xFFD4A51C), // اللون الذهبي البراق
+      end: const Color(0xFF002060), // التحول التدريجي للون الكحلي الملكي الداكن
     ).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.50, 0.70, curve: Curves.easeInOut),
+        curve: const Interval(0.467, 0.70, curve: Curves.easeInOut),
       ),
     );
 
     // ==========================================
-    // المرحلة 5: التوسع الكلي برسم موجة دائرية (Ripple/Circle Expand)
-    // وتطبيق التدرج الخطي (#0A131D, #091527, #002060)
-    // (من 0.68s إلى 0.96s)
+    // المرحلة 4: انطلاق الموجة الكلية للتدرج الكحلي الداكن
+    // (من 2.0s إلى 2.9s)
     // ==========================================
     _rippleProgress = Tween<double>(
       begin: 0.0,
@@ -126,11 +125,11 @@ class _SplashScreenState extends State<SplashScreen>
     ).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.66, 0.96, curve: Curves.easeInQuart),
+        curve: const Interval(0.667, 0.967, curve: Curves.easeInQuart),
       ),
     );
 
-    // عند انتهاء الأنيميشن بالكامل يتم الانتقال فوراً لشاشة تسجيل الدخول
+    // عند انتهاء الـ 3 ثواني بالكامل يتم الانتقال فوراً لشاشة تسجيل الدخول
     _controller.addStatusListener((status) {
       if (status == AnimationStatus.completed) {
         _navigateToLogin();
