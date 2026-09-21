@@ -457,7 +457,16 @@ class _HomeScreenState extends State<HomeScreen>
                 ),
               );
 
-              return card;
+              return Align(
+                alignment: Alignment.center,
+                child: UnconstrainedBox(
+                  child: SizedBox(
+                    width: _cardWidth, // 222
+                    height: _cardHeight, // 278
+                    child: card,
+                  ),
+                ),
+              );
             },
           );
         },
