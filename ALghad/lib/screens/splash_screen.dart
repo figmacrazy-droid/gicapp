@@ -28,96 +28,96 @@ class _SplashScreenState extends State<SplashScreen>
 
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 3000),
+      duration: const Duration(milliseconds: 3500),
     );
 
     // ==========================================
-    // المرحلة 1 و 2: ظهور الشعار ثم انكماشه وامتصاصه داخل النقطة الذهبية
-    // (من 0.0s إلى 1.4s)
+    // المرحلة 1 و 2: ظهور الشعار وتكبره ثم صغره تدريجياً ليدخل داخل الدائرة الذهبية
+    // (من 0.0s إلى 1.9s)
     // ==========================================
     _logoOpacity = TweenSequence<double>([
       TweenSequenceItem(
         tween: Tween<double>(begin: 0.0, end: 1.0),
-        weight: 30, // ظهور الشعار حتى 0.7 ثانية
+        weight: 35, // ظهور الشعار السلس
       ),
       TweenSequenceItem(
         tween: Tween<double>(begin: 1.0, end: 1.0),
-        weight: 20, // الثبات حتى 0.9 ثانية
+        weight: 35, // البقاء والوضوح كاملاً أثناء التكبر
       ),
       TweenSequenceItem(
         tween: Tween<double>(begin: 1.0, end: 0.0),
-        weight: 50, // اختفاء الانكماش والانصهار داخل النقطة حتى 1.4 ثانية
+        weight: 30, // تصاغر الشعار وانصهاره داخل الدائرة الذهبية
       ),
     ]).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.0, 0.467, curve: Curves.easeInOut),
+        curve: const Interval(0.0, 0.543, curve: Curves.easeInOut),
       ),
     );
 
     _logoScale = TweenSequence<double>([
       TweenSequenceItem(
-        tween: Tween<double>(begin: 0.85, end: 1.0),
-        weight: 40, // الحجم الطبيعي حتى 0.9s
+        tween: Tween<double>(begin: 0.70, end: 1.35),
+        weight: 65, // الشعار يظهر ويكبر طوال الفترة الأولى ليكون واضحاً وقوياً
       ),
       TweenSequenceItem(
-        tween: Tween<double>(begin: 1.0, end: 0.05),
-        weight: 60, // انكماش الشعار وصغره الشديد للبدء بالانضمام داخل النقطة حتى 1.4s
+        tween: Tween<double>(begin: 1.35, end: 0.08),
+        weight: 35, // انكماش وتصاغر تدريجي ليدخل بالكامل داخل الدائرة الذهبية
       ),
     ]).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.0, 0.467, curve: Curves.easeInOutBack),
+        curve: const Interval(0.0, 0.543, curve: Curves.easeInOutCubic),
       ),
     );
 
     // ==========================================
-    // المرحلة 3: ظهور النقطة الذهبية عند انكماش الشعار ثم انطلاقها لأقصى اليمين وتحول لونها للكحلي
-    // (من 0.9s إلى 2.2s)
+    // المرحلة 3: ظهور الدائرة الذهبية وانطلاقها نحو أقصى اليمين وتحول لونها للكحلي
+    // (من 1.3s إلى 2.7s)
     // ==========================================
     _dotScale = TweenSequence<double>([
       TweenSequenceItem(
         tween: Tween<double>(begin: 0.0, end: 1.0),
-        weight: 30, // ظهور النقطة الذهبية في المكان الذي انكمش فيه الشعار
+        weight: 30, // ظهور الدائرة الذهبية المحيطة بالشعار أثناء تصاغره
       ),
       TweenSequenceItem(
-        tween: Tween<double>(begin: 1.0, end: 1.35),
-        weight: 45, // تضخم النقطة أثناء الانطلاق لأقصى اليمين
+        tween: Tween<double>(begin: 1.0, end: 1.30),
+        weight: 45, // تضخم الدائرة أثناء الانطلاق لأقصى اليمين
       ),
       TweenSequenceItem(
-        tween: Tween<double>(begin: 1.35, end: 0.0),
-        weight: 25, // ذوبان النقطة وانصهارها في الموجة
+        tween: Tween<double>(begin: 1.30, end: 0.0),
+        weight: 25, // اندماج وانصهار الدائرة مع التوسع
       ),
     ]).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.30, 0.933, curve: Curves.easeInOut),
+        curve: const Interval(0.371, 0.914, curve: Curves.easeInOut),
       ),
     );
 
     _dotPosition = Tween<Offset>(
       begin: Offset.zero,
-      end: const Offset(135.0, 0.0), // التحرك والانطلاق إلى أقصى اليمين
+      end: const Offset(145.0, 0.0), // التحرك والانطلاق إلى أقصى اليمين
     ).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.467, 0.733, curve: Curves.easeInOutCubic),
+        curve: const Interval(0.543, 0.771, curve: Curves.easeInOutCubic),
       ),
     );
 
     _dotColor = ColorTween(
-      begin: const Color(0xFFD4A51C), // اللون الذهبي البراق
-      end: const Color(0xFF002060), // التحول التدريجي للون الكحلي الملكي الداكن
+      begin: const Color(0xFFD4A51C), // اللون الذهبي البرّاق الفخم
+      end: const Color(0xFF002060), // التحول التدريجي إلى اللون الكحلي الداكن
     ).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.467, 0.70, curve: Curves.easeInOut),
+        curve: const Interval(0.543, 0.743, curve: Curves.easeInOut),
       ),
     );
 
     // ==========================================
-    // المرحلة 4: انطلاق الموجة الكلية للتدرج الكحلي الداكن
-    // (من 2.0s إلى 2.9s)
+    // المرحلة 4: انطلاق وتوسع الخلفية الكحلية من الدائرة
+    // (من 2.5s إلى 3.4s)
     // ==========================================
     _rippleProgress = Tween<double>(
       begin: 0.0,
@@ -125,11 +125,11 @@ class _SplashScreenState extends State<SplashScreen>
     ).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.667, 0.967, curve: Curves.easeInQuart),
+        curve: const Interval(0.714, 0.971, curve: Curves.easeInQuart),
       ),
     );
 
-    // عند انتهاء الـ 3 ثواني بالكامل يتم الانتقال فوراً لشاشة تسجيل الدخول
+    // عند انتهاء الـ 3.5 ثانية بالكامل يتم الانتقال فوراً لشاشة تسجيل الدخول
     _controller.addStatusListener((status) {
       if (status == AnimationStatus.completed) {
         _navigateToLogin();
@@ -219,17 +219,21 @@ class _SplashScreenState extends State<SplashScreen>
                     child: Transform.scale(
                       scale: _dotScale.value,
                       child: Container(
-                        width: 26,
-                        height: 26,
+                        width: 44,
+                        height: 44,
                         decoration: BoxDecoration(
                           color: _dotColor.value ?? const Color(0xFFD4A51C),
                           shape: BoxShape.circle,
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.85),
+                            width: 2,
+                          ),
                           boxShadow: [
                             BoxShadow(
                               color: (_dotColor.value ?? const Color(0xFFD4A51C))
-                                  .withOpacity(0.5),
-                              blurRadius: 10,
-                              spreadRadius: 2,
+                                  .withOpacity(0.6),
+                              blurRadius: 14,
+                              spreadRadius: 3,
                             ),
                           ],
                         ),
