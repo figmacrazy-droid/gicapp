@@ -28,12 +28,12 @@ class _SplashScreenState extends State<SplashScreen>
 
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 3500),
+      duration: const Duration(milliseconds: 2500),
     );
 
     // ==========================================
     // المرحلة 1 و 2: ظهور الشعار وتكبره ثم صغره تدريجياً ليدخل داخل الدائرة الذهبية
-    // (من 0.0s إلى 1.9s)
+    // (من 0.0s إلى 1.35s)
     // ==========================================
     _logoOpacity = TweenSequence<double>([
       TweenSequenceItem(
@@ -51,7 +51,7 @@ class _SplashScreenState extends State<SplashScreen>
     ]).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.0, 0.543, curve: Curves.easeInOut),
+        curve: const Interval(0.0, 0.54, curve: Curves.easeInOut),
       ),
     );
 
@@ -67,57 +67,57 @@ class _SplashScreenState extends State<SplashScreen>
     ]).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.0, 0.543, curve: Curves.easeInOutCubic),
+        curve: const Interval(0.0, 0.54, curve: Curves.easeInOutCubic),
       ),
     );
 
     // ==========================================
-    // المرحلة 3: ظهور الدائرة الذهبية وانطلاقها نحو أقصى اليمين وتحول لونها للكحلي
-    // (من 1.3s إلى 2.7s)
+    // المرحلة 3: حركة وانطلاق الدائرة الكحلية بشكل أسرع وحجم أصغر نحو أقصى اليمين
+    // (حجم مصغر: 37 بكسل - حركة سريعة من 1.35s إلى 1.85s)
     // ==========================================
     _dotScale = TweenSequence<double>([
       TweenSequenceItem(
         tween: Tween<double>(begin: 0.0, end: 1.0),
-        weight: 30, // ظهور الدائرة الذهبية المحيطة بالشعار أثناء تصاغره
+        weight: 30, // ظهور الدائرة
       ),
       TweenSequenceItem(
-        tween: Tween<double>(begin: 1.0, end: 1.43),
-        weight: 45, // تضخم الدائرة أثناء الانطلاق لأقصى اليمين ليصل قطرها إلى 47.2 بكسل
+        tween: Tween<double>(begin: 1.0, end: 1.12),
+        weight: 45, // تضخم خفيف ومصغّر جداً أثناء الحركة (37 بكسل)
       ),
       TweenSequenceItem(
-        tween: Tween<double>(begin: 1.43, end: 0.0),
+        tween: Tween<double>(begin: 1.12, end: 0.0),
         weight: 25, // اندماج وانصهار الدائرة مع التوسع
       ),
     ]).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.371, 0.914, curve: Curves.easeInOut),
+        curve: const Interval(0.35, 0.88, curve: Curves.easeInOut),
       ),
     );
 
     _dotPosition = Tween<Offset>(
       begin: Offset.zero,
-      end: const Offset(145.0, 0.0), // التحرك والانطلاق إلى أقصى اليمين
+      end: const Offset(145.0, 0.0), // انطلاق سريع وحاد لأقصى اليمين
     ).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.543, 0.771, curve: Curves.easeInOutCubic),
+        curve: const Interval(0.54, 0.74, curve: Curves.easeOutCubic),
       ),
     );
 
     _dotColor = ColorTween(
       begin: const Color(0xFFD4A51C), // اللون الذهبي البرّاق الفخم
-      end: const Color(0xFF002060), // التحول التدريجي إلى اللون الكحلي الداكن
+      end: const Color(0xFF002060), // التحول السريع للون الكحلي الداكن
     ).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.543, 0.743, curve: Curves.easeInOut),
+        curve: const Interval(0.54, 0.72, curve: Curves.easeInOut),
       ),
     );
 
     // ==========================================
-    // المرحلة 4: انطلاق وتوسع الخلفية الكحلية من الدائرة
-    // (من 2.5s إلى 3.4s)
+    // المرحلة 4: انطلاق وتوسع الخلفية الكحلية السريع
+    // (من 1.70s إلى 2.45s)
     // ==========================================
     _rippleProgress = Tween<double>(
       begin: 0.0,
@@ -125,11 +125,11 @@ class _SplashScreenState extends State<SplashScreen>
     ).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.714, 0.971, curve: Curves.easeInQuart),
+        curve: const Interval(0.68, 0.96, curve: Curves.easeInQuart),
       ),
     );
 
-    // عند انتهاء الـ 3.5 ثانية بالكامل يتم الانتقال فوراً لشاشة تسجيل الدخول
+    // عند انتهاء الـ 2.5 ثانية بالكامل يتم الانتقال فوراً لشاشة تسجيل الدخول
     _controller.addStatusListener((status) {
       if (status == AnimationStatus.completed) {
         _navigateToLogin();
