@@ -33,8 +33,8 @@ class _SplashScreenState extends State<SplashScreen>
     );
 
     // ==========================================
-    // المرحلة 0: الظهور التدريجي للخلفية البيضاء فوق الخلفية الشفافة
-    // (من 0.6s إلى 1.3s)
+    // المرحلة 0: تأخر قليل على الخلفية الشفافة ثم ظهور الخلفية البيضاء تدريجياً
+    // (الشفافية من 0.0s إلى 1.0s ثم التلاشي الأبيض من 1.0s إلى 1.5s)
     // ==========================================
     _whiteBackgroundOpacity = Tween<double>(
       begin: 0.0,
@@ -42,7 +42,7 @@ class _SplashScreenState extends State<SplashScreen>
     ).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.222, 0.481, curve: Curves.easeInOut),
+        curve: const Interval(0.370, 0.555, curve: Curves.easeInOut),
       ),
     );
 
@@ -53,15 +53,15 @@ class _SplashScreenState extends State<SplashScreen>
     _logoOpacity = TweenSequence<double>([
       TweenSequenceItem(
         tween: Tween<double>(begin: 0.0, end: 1.0),
-        weight: 35, // ظهور الشعار السلس على الخلفية الشفافة للهاتف
+        weight: 30, // ظهور الشعار السلس أولاً على الخلفية الشفافة للهاتف
       ),
       TweenSequenceItem(
         tween: Tween<double>(begin: 1.0, end: 1.0),
-        weight: 35, // البقاء والوضوح أثناء ظهور الخلفية البيضاء
+        weight: 45, // البقاء والوضوح كاملاً أثناء فترة التأخير وعلى الخلفية البيضاء
       ),
       TweenSequenceItem(
         tween: Tween<double>(begin: 1.0, end: 0.0),
-        weight: 30, // تصاغر الشعار وانصهاره داخل الدائرة الذهبية
+        weight: 25, // تصاغر سريع للشعار وانصهاره داخل الدائرة الذهبية
       ),
     ]).animate(
       CurvedAnimation(
@@ -73,11 +73,11 @@ class _SplashScreenState extends State<SplashScreen>
     _logoScale = TweenSequence<double>([
       TweenSequenceItem(
         tween: Tween<double>(begin: 0.70, end: 1.35),
-        weight: 65, // الشعار يظهر ويكبر طوال الفترة الأولى
+        weight: 75, // الشعار يظهر ويكبر طوال الفترة الشفافة والبيضاء
       ),
       TweenSequenceItem(
         tween: Tween<double>(begin: 1.35, end: 0.08),
-        weight: 35, // انكماش وتصاغر تدريجي ليدخل بالكامل داخل الدائرة الذهبية
+        weight: 25, // انكماش وتصاغر سريع ليدخل بالكامل داخل الدائرة الذهبية
       ),
     ]).animate(
       CurvedAnimation(
@@ -87,36 +87,36 @@ class _SplashScreenState extends State<SplashScreen>
     );
 
     // ==========================================
-    // المرحلة 3: حركة وانطلاق الدائرة الكحلية نحو أقصى اليمين
-    // (حجم مصغر: 37 بكسل - حركة سريعة من 1.7s إلى 2.2s)
+    // المرحلة 3: حركة وانطلاق الدائرة الكحلية بشكل فائق السرعة نحو أقصى اليمين
+    // (حجم مصغر: 37 بكسل - حركة خاطفة وسريعة من 1.65s إلى 2.05s)
     // ==========================================
     _dotScale = TweenSequence<double>([
       TweenSequenceItem(
         tween: Tween<double>(begin: 0.0, end: 1.0),
-        weight: 30, // ظهور الدائرة
+        weight: 25, // ظهور الدائرة
       ),
       TweenSequenceItem(
         tween: Tween<double>(begin: 1.0, end: 1.12),
-        weight: 45, // تضخم خفيف ومصغّر جداً أثناء الحركة (37 بكسل)
+        weight: 45, // تضخم خفيف ومصغّر جداً أثناء الحركة
       ),
       TweenSequenceItem(
         tween: Tween<double>(begin: 1.12, end: 0.0),
-        weight: 25, // اندماج وانصهار الدائرة مع التوسع
+        weight: 30, // اندماج وانصهار الدائرة مع التوسع
       ),
     ]).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.444, 0.926, curve: Curves.easeInOut),
+        curve: const Interval(0.555, 0.900, curve: Curves.easeInOut),
       ),
     );
 
     _dotPosition = Tween<Offset>(
       begin: Offset.zero,
-      end: const Offset(145.0, 0.0), // انطلاق سريع وحاد لأقصى اليمين
+      end: const Offset(145.0, 0.0), // انطلاق خاطف وسريع لأقصى اليمين
     ).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.630, 0.815, curve: Curves.easeOutCubic),
+        curve: const Interval(0.611, 0.759, curve: Curves.easeOutCubic),
       ),
     );
 
@@ -126,13 +126,13 @@ class _SplashScreenState extends State<SplashScreen>
     ).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.630, 0.778, curve: Curves.easeInOut),
+        curve: const Interval(0.611, 0.740, curve: Curves.easeInOut),
       ),
     );
 
     // ==========================================
-    // المرحلة 4: انطلاق وتوسع الخلفية الكحلية السريع
-    // (من 2.1s إلى 2.65s)
+    // المرحلة 4: انطلاق وتوسع الخلفية الكحلية السريع جداً
+    // (من 1.95s إلى 2.65s)
     // ==========================================
     _rippleProgress = Tween<double>(
       begin: 0.0,
@@ -140,7 +140,7 @@ class _SplashScreenState extends State<SplashScreen>
     ).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.741, 0.981, curve: Curves.easeInQuart),
+        curve: const Interval(0.722, 0.981, curve: Curves.easeInQuart),
       ),
     );
 
