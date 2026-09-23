@@ -9,6 +9,7 @@ import 'academy_screen.dart';
 import 'control_screen.dart';
 import 'student_affairs_screen.dart';
 import 'general_request_screen.dart';
+import 'finance_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final String userName;
@@ -589,7 +590,7 @@ class _HomeScreenState extends State<HomeScreen>
       {'iconPath': 'assets/new_icons/academy.png', 'label': 'الأكاديمية', 'route': 'academy'},
       {'iconPath': 'assets/new_icons/student_affairs.png', 'label': 'شؤون الطلاب', 'route': 'student_affairs'},
       {'iconPath': 'assets/new_icons/control.png', 'label': 'الكنترول', 'route': 'control'},
-      {'iconPath': 'assets/new_icons/finance.png', 'label': 'المالية', 'route': null},
+      {'iconPath': 'assets/new_icons/finance.png', 'label': 'المالية', 'route': 'finance'},
       {'iconPath': 'assets/new_icons/alumni.png', 'label': 'خريجي الغد', 'route': null},
       {'iconPath': 'assets/new_icons/achievements.png', 'label': 'إنجازاتنا', 'route': null},
       {'iconPath': 'assets/new_icons/general_request.png', 'label': 'تقديم طلب\nعام', 'route': 'general_request'},
@@ -649,6 +650,13 @@ class _HomeScreenState extends State<HomeScreen>
             context,
             MaterialPageRoute(
               builder: (context) => const ControlScreen(),
+            ),
+          );
+        } else if (route == 'finance') {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const FinanceScreen(),
             ),
           );
         } else if (route == 'general_request') {
