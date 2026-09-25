@@ -315,7 +315,7 @@ class _VerificationScreenState extends State<VerificationScreen>
             child: ClipRRect(
               borderRadius: BorderRadius.circular(28),
               child: SizedBox(
-                height: 48,
+                height: 56,
                 child: Stack(
                   children: [
                     const Positioned.fill(
@@ -324,7 +324,7 @@ class _VerificationScreenState extends State<VerificationScreen>
                           'تأكيد',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            fontSize: 18,
+                            fontSize: 28,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
                             letterSpacing: 0.2,
