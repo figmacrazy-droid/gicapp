@@ -408,69 +408,110 @@ class _HomeScreenState extends State<HomeScreen>
   Widget _buildSlider() {
     return SizedBox(
       height: 321,
-      child: PageView.builder(
-        controller: _pageController,
-        itemCount: 10000,
-        onPageChanged: (i) {
-          setState(() => _currentSlide = i % _adImages.length);
-        },
-        physics: const BouncingScrollPhysics(),
-        itemBuilder: (context, i) {
-          final imageIndex = i % _adImages.length;
-
-          return AnimatedBuilder(
-            animation: _pageController,
-            builder: (context, child) {
-              double value = 0;
-              if (_pageController.position.haveDimensions) {
-                value = (_pageController.page ?? _initialPage.toDouble()) - i;
-              }
-
-              final absValue = value.abs();
-
-              // البنر الأوسط بمقاسه الأصلي مسطح والجانبي يبرز من خلفه بدون أي انحدار 3D
-              final scale = (1.0 - absValue * 0.12).clamp(0.88, 1.0);
-              final opacity = (1.0 - absValue * 0.15).clamp(0.85, 1.0);
-              final blurAmount = (absValue * 2.5).clamp(0.0, 4.0);
-
-              // تراكب مسطح بدون انحدار ثلاثي الأبعاد
-              final translateY = (1 - absValue.clamp(0.0, 1.0)) * -4.0;
-
-              final matrix = Matrix4.identity()
-                ..translate(0.0, translateY, 0.0)
-                ..scale(scale, scale, 1.0);
-
-              Widget card = _buildSlideCard(_adImages[imageIndex], isCenter: absValue < 0.4);
-
-              if (blurAmount > 0.1) {
-                card = ImageFiltered(
-                  imageFilter: ui.ImageFilter.blur(sigmaX: blurAmount, sigmaY: blurAmount),
-                  child: card,
-                );
-              }
-
-              card = Opacity(
-                opacity: opacity,
-                child: Transform(
-                  alignment: Alignment.center,
-                  transform: matrix,
-                  child: card,
-                ),
-              );
-
-              return Align(
-                alignment: Alignment.center,
-                child: UnconstrainedBox(
-                  child: SizedBox(
-                    width: _cardWidth, // 222
-                    height: _cardHeight, // 278
-                    child: card,
-                  ),
-                ),
-              );
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // 1) PageView غير مرئي للتحكم في التمرير والإيماءات
+          PageView.builder(
+            controller: _pageController,
+            itemCount: 10000,
+            onPageChanged: (i) {
+              setState(() => _currentSlide = i % _adImages.length);
             },
-          );
-        },
+            physics: const BouncingScrollPhysics(),
+            itemBuilder: (context, i) => const SizedBox.shrink(),
+          ),
+
+          // 2) رسم البطاقات بترتيب Z-Index صحيح (المركز دائماً في الأمام)
+          IgnorePointer(
+            child: AnimatedBuilder(
+              animation: _pageController,
+              builder: (context, child) {
+                double page = _initialPage.toDouble();
+                if (_pageController.position.haveDimensions) {
+                  page = _pageController.page ?? page;
+                }
+
+                int currentPage = page.round();
+
+                // نأخذ 5 عناصر (2 يمين، 2 يسار، والمركز)
+                List<int> indices = [
+                  currentPage - 2,
+                  currentPage + 2,
+                  currentPage - 1,
+                  currentPage + 1,
+                  currentPage,
+                ];
+
+                // ترتيب العناصر بحيث يتم رسم الأبعد أولاً، والأقرب للمركز يتم رسمه أخيراً (ليكون في الأعلى)
+                indices.sort((a, b) {
+                  final distA = (a - page).abs();
+                  final distB = (b - page).abs();
+                  return distB.compareTo(distA);
+                });
+
+                return LayoutBuilder(
+                  builder: (context, constraints) {
+                    final itemWidth = constraints.maxWidth * 0.52; // نفس viewportFraction
+
+                    return Stack(
+                      alignment: Alignment.center,
+                      children: indices.map((i) {
+                        final imageIndex = i % _adImages.length;
+                        final value = page - i;
+                        final absValue = value.abs();
+
+                        if (absValue > 2.5) return const SizedBox.shrink();
+
+                        final scale = (1.0 - absValue * 0.12).clamp(0.88, 1.0);
+                        final opacity = (1.0 - absValue * 0.15).clamp(0.85, 1.0);
+                        final blurAmount = (absValue * 2.5).clamp(0.0, 4.0);
+
+                        final translateY = (1 - absValue.clamp(0.0, 1.0)) * -4.0;
+                        
+                        // اتجاه اليمين واليسار (RTL)
+                        final dx = value * itemWidth;
+
+                        final matrix = Matrix4.identity()
+                          ..translate(dx, translateY, 0.0)
+                          ..scale(scale, scale, 1.0);
+
+                        Widget card = _buildSlideCard(_adImages[imageIndex], isCenter: absValue < 0.4);
+
+                        if (blurAmount > 0.1) {
+                          card = ImageFiltered(
+                            imageFilter: ui.ImageFilter.blur(sigmaX: blurAmount, sigmaY: blurAmount),
+                            child: card,
+                          );
+                        }
+
+                        card = Opacity(
+                          opacity: opacity,
+                          child: Transform(
+                            alignment: Alignment.center,
+                            transform: matrix,
+                            child: card,
+                          ),
+                        );
+
+                        return Align(
+                          alignment: Alignment.center,
+                          child: UnconstrainedBox(
+                            child: SizedBox(
+                              width: _cardWidth,
+                              height: _cardHeight,
+                              child: card,
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
