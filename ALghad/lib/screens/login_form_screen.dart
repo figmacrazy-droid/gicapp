@@ -72,7 +72,7 @@ class _LoginFormScreenState extends State<LoginFormScreen>
                                       'كلية الغد الدولية',
                                       textAlign: TextAlign.right,
                                       style: TextStyle(
-                                        fontSize: 42, // تصغير قليل ليتناسب مع الصورة
+                                        fontSize: 38,
                                         fontWeight: FontWeight.w900,
                                         color: Colors.white,
                                         height: 1.2,
@@ -87,8 +87,8 @@ class _LoginFormScreenState extends State<LoginFormScreen>
                                       'التأهيل الطبي والإداري الأفضل',
                                       textAlign: TextAlign.right,
                                       style: TextStyle(
-                                        fontSize: 22, // تكبير ليصبح واضحاً
-                                        fontWeight: FontWeight.w800,
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w500,
                                         color: AppColors.gold,
                                         height: 1.3,
                                         letterSpacing: 0.2,
@@ -150,16 +150,16 @@ class _LoginFormScreenState extends State<LoginFormScreen>
                                         Text(
                                           'بيانات آمنة، مستقبل مضمون',
                                           style: TextStyle(
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.w700,
-                                            color: Color(0xFF0A2451),
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w600,
+                                            color: Color(0xFF002060),
                                           ),
                                         ),
                                         SizedBox(width: 8),
                                         Icon(
                                           Icons.verified_user_outlined,
-                                          size: 20,
-                                          color: Color(0xFF0A2451),
+                                          size: 18,
+                                          color: Color(0xFF002060),
                                         ),
                                       ],
                                     ),
@@ -224,7 +224,7 @@ class _LoginFormScreenState extends State<LoginFormScreen>
             child: ClipRRect(
               borderRadius: BorderRadius.circular(35),
               child: SizedBox(
-                height: 60, // زيادة الارتفاع ليكون أعرض/أطول عمودياً
+                height: 52,
                 child: Stack(
                   children: [
                     // 1) النص — في المنتصف تماماً
@@ -234,8 +234,8 @@ class _LoginFormScreenState extends State<LoginFormScreen>
                           'دخول',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            fontSize: 26, // تكبير خط الزر
-                            fontWeight: FontWeight.w900,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
                             color: Colors.white,
                             letterSpacing: 0.2,
                           ),
@@ -356,8 +356,8 @@ class _LoginFormScreenState extends State<LoginFormScreen>
             Text(
               label,
               style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w800,
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
                 color: Color(0xFF002060),
                 letterSpacing: 0.2,
               ),

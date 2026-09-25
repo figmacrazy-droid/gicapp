@@ -65,8 +65,8 @@ class LoginScreen extends StatelessWidget {
                     'مرحباً بك',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: 54, // تكبير حجم الخط ليكون طويلاً وبارزاً
-                      fontWeight: FontWeight.w900,
+                      fontSize: 40,
+                      fontWeight: FontWeight.w800,
                       color: Colors.white,
                       height: 1.0,
                       letterSpacing: 0.2,
@@ -82,8 +82,8 @@ class LoginScreen extends StatelessWidget {
                     'كلية الغد الدولية',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: 28, // تكبير الخط ليناسب الصورة
-                      fontWeight: FontWeight.w800,
+                      fontSize: 24,
+                      fontWeight: FontWeight.w700,
                       color: Colors.white,
                       height: 1.2,
                       letterSpacing: 0.2,
@@ -135,13 +135,13 @@ class LoginScreen extends StatelessWidget {
                           splashFactory: InkRipple.splashFactory,
                           child: const Padding(
                             padding: EdgeInsets.symmetric(
-                              vertical: 16, // زيادة الارتفاع الداخلي للزر
+                              vertical: 14,
                             ),
                             child: Text(
                               'تسجيل الدخول',
                               textAlign: TextAlign.center,
                               style: TextStyle(
-                                fontSize: 24, // تكبير خط الزر
+                                fontSize: 20,
                                 fontWeight: FontWeight.w800,
                                 color: Colors.white,
                                 letterSpacing: 0.2,
@@ -161,9 +161,9 @@ class LoginScreen extends StatelessWidget {
                   const Text(
                     'ليس لديك حساب؟ سجل الدخول كزائر',
                     style: TextStyle(
-                      fontSize: 14.5,
+                      fontSize: 13,
                       color: AppColors.gold,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w500,
                       letterSpacing: 0.3,
                     ),
                   ),
