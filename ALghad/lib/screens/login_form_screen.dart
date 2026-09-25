@@ -72,26 +72,26 @@ class _LoginFormScreenState extends State<LoginFormScreen>
                                       'كلية الغد الدولية',
                                       textAlign: TextAlign.right,
                                       style: TextStyle(
-                                        fontSize: 50,
+                                        fontSize: 42, // تصغير قليل ليتناسب مع الصورة
                                         fontWeight: FontWeight.w900,
                                         color: Colors.white,
-                                        height: 1.3,
-                                        letterSpacing: 0.4,
+                                        height: 1.2,
+                                        letterSpacing: 0.2,
                                       ),
                                     ),
                                   ),
-                                  const SizedBox(height: 8),
+                                  const SizedBox(height: 6),
                                   const SizedBox(
                                     width: double.infinity,
                                     child: Text(
                                       'التأهيل الطبي والإداري الأفضل',
                                       textAlign: TextAlign.right,
                                       style: TextStyle(
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.w400,
+                                        fontSize: 22, // تكبير ليصبح واضحاً
+                                        fontWeight: FontWeight.w800,
                                         color: AppColors.gold,
-                                        height: 1.4,
-                                        letterSpacing: 0.3,
+                                        height: 1.3,
+                                        letterSpacing: 0.2,
                                       ),
                                     ),
                                   ),
@@ -117,7 +117,7 @@ class _LoginFormScreenState extends State<LoginFormScreen>
                               child: Padding(
                                 padding: const EdgeInsets.fromLTRB(
                                   28,
-                                  24,
+                                  32,
                                   28,
                                   16,
                                 ),
@@ -127,12 +127,12 @@ class _LoginFormScreenState extends State<LoginFormScreen>
                                   children: [
                                     _buildField(
                                       label: 'الرقم الأكاديمي للطالب',
-                                      hint: '0000000000',
+                                      hint: '00000000000',
                                       icon: Icons.person_outline,
                                     ),
                                     _buildField(
                                       label: 'كلمة المرور',
-                                      hint: '0000000000',
+                                      hint: '00000000000',
                                       icon: Icons.lock_outline,
                                     ),
                                     _buildField(
@@ -150,7 +150,7 @@ class _LoginFormScreenState extends State<LoginFormScreen>
                                         Text(
                                           'بيانات آمنة، مستقبل مضمون',
                                           style: TextStyle(
-                                            fontSize: 13,
+                                            fontSize: 14,
                                             fontWeight: FontWeight.w700,
                                             color: Color(0xFF0A2451),
                                           ),
@@ -158,7 +158,7 @@ class _LoginFormScreenState extends State<LoginFormScreen>
                                         SizedBox(width: 8),
                                         Icon(
                                           Icons.verified_user_outlined,
-                                          size: 18,
+                                          size: 20,
                                           color: Color(0xFF0A2451),
                                         ),
                                       ],
@@ -186,7 +186,7 @@ class _LoginFormScreenState extends State<LoginFormScreen>
   // ============================
   Widget _buildGlassButton() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 70),
+      padding: const EdgeInsets.symmetric(horizontal: 45), // تقليل الهامش ليصبح الزر أعرض
       child: Container(
         width: double.infinity,
         decoration: BoxDecoration(
@@ -198,10 +198,10 @@ class _LoginFormScreenState extends State<LoginFormScreen>
               Color(0xFF03102E),
             ],
           ),
-          borderRadius: BorderRadius.circular(28),
+          borderRadius: BorderRadius.circular(35),
           border: Border.all(
             color: AppColors.gold,
-            width: 1.4,
+            width: 1.5,
           ),
           boxShadow: [
             BoxShadow(
@@ -214,9 +214,9 @@ class _LoginFormScreenState extends State<LoginFormScreen>
         ),
         child: Material(
           color: Colors.transparent,
-          borderRadius: BorderRadius.circular(28),
+          borderRadius: BorderRadius.circular(35),
           child: InkWell(
-            borderRadius: BorderRadius.circular(28),
+            borderRadius: BorderRadius.circular(35),
             onTap: () {
               Navigator.push(
                 context,
@@ -229,9 +229,9 @@ class _LoginFormScreenState extends State<LoginFormScreen>
             highlightColor: const Color(0xFF03102E).withOpacity(0.45),
             splashFactory: InkRipple.splashFactory,
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(28),
+              borderRadius: BorderRadius.circular(35),
               child: SizedBox(
-                height: 48, // ← ارتفاع ثابت للزر
+                height: 60, // زيادة الارتفاع ليكون أعرض/أطول عمودياً
                 child: Stack(
                   children: [
                     // 1) النص — في المنتصف تماماً
@@ -241,8 +241,8 @@ class _LoginFormScreenState extends State<LoginFormScreen>
                           'دخول',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
+                            fontSize: 26, // تكبير خط الزر
+                            fontWeight: FontWeight.w900,
                             color: Colors.white,
                             letterSpacing: 0.2,
                           ),

@@ -65,15 +65,15 @@ class LoginScreen extends StatelessWidget {
                     'مرحباً بك',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: 38,
+                      fontSize: 54, // تكبير حجم الخط ليكون طويلاً وبارزاً
                       fontWeight: FontWeight.w900,
                       color: Colors.white,
-                      height: 1.1,
-                      letterSpacing: 0.4,
+                      height: 1.0,
+                      letterSpacing: 0.2,
                     ),
                   ),
 
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 2),
 
                   // ============================
                   // كلية الغد الدولية
@@ -82,11 +82,11 @@ class LoginScreen extends StatelessWidget {
                     'كلية الغد الدولية',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: 22,
+                      fontSize: 28, // تكبير الخط ليناسب الصورة
                       fontWeight: FontWeight.w800,
                       color: Colors.white,
                       height: 1.2,
-                      letterSpacing: 0.4,
+                      letterSpacing: 0.2,
                     ),
                   ),
 
@@ -96,15 +96,15 @@ class LoginScreen extends StatelessWidget {
                   // زر تسجيل الدخول
                   // ============================
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 45),
+                    padding: const EdgeInsets.symmetric(horizontal: 24), // تقليل الهامش ليكون الزر أطول/أعرض
                     child: Container(
                       width: double.infinity,
                       decoration: BoxDecoration(
                         gradient: AppColors.buttonGradient,
-                        borderRadius: BorderRadius.circular(30),
+                        borderRadius: BorderRadius.circular(35), // زيادة الدوران ليتناسب مع الطول الجديد
                         border: Border.all(
                           color: AppColors.gold,
-                          width: 1.2,
+                          width: 1.5, // زيادة سمك الإطار الذهبي قليلاً
                         ),
                         boxShadow: [
                           BoxShadow(
@@ -116,9 +116,9 @@ class LoginScreen extends StatelessWidget {
                       ),
                       child: Material(
                         color: Colors.transparent,
-                        borderRadius: BorderRadius.circular(30),
+                        borderRadius: BorderRadius.circular(35),
                         child: InkWell(
-                          borderRadius: BorderRadius.circular(30),
+                          borderRadius: BorderRadius.circular(35),
                           onTap: () {
                             Navigator.push(
                               context,
@@ -135,13 +135,13 @@ class LoginScreen extends StatelessWidget {
                           splashFactory: InkRipple.splashFactory,
                           child: const Padding(
                             padding: EdgeInsets.symmetric(
-                              vertical: 14,
+                              vertical: 16, // زيادة الارتفاع الداخلي للزر
                             ),
                             child: Text(
                               'تسجيل الدخول',
                               textAlign: TextAlign.center,
                               style: TextStyle(
-                                fontSize: 20,
+                                fontSize: 24, // تكبير خط الزر
                                 fontWeight: FontWeight.w800,
                                 color: Colors.white,
                                 letterSpacing: 0.2,
