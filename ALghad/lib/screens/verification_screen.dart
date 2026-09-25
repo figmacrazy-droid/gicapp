@@ -129,37 +129,37 @@ class _VerificationScreenState extends State<VerificationScreen>
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  const SizedBox(
-                                    width: double.infinity,
-                                    child: Text(
-                                      'التحقق مطلوب',
-                                      textAlign: TextAlign.right,
-                                      style: TextStyle(
-                                        fontSize: 60,
-                                        fontWeight: FontWeight.w900,
-                                        color: Colors.white,
-                                        height: 1.3,
-                                        letterSpacing: 0.4,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 12),
-                                  const SizedBox(
-                                    width: double.infinity,
-                                    child: Text(
-                                      'لقد أرسلنا رمز التحقق لمرة واحدة (OTP)\nإلى بريدك الإلكتروني يرجى إدخاله\nأدناه لإتمام عملية التحقق.',
-                                      textAlign: TextAlign.right,
-                                      style: TextStyle(
-                                        fontSize: 24,
-                                        fontWeight: FontWeight.w800,
-                                        color: AppColors.gold,
-                                        height: 1.7,
-                                        letterSpacing: 0.2,
-                                      ),
-                                    ),
-                                  ),
-                                ],
+                                        children: [
+                                          const SizedBox(
+                                            width: double.infinity,
+                                            child: Text(
+                                              'التحقق مطلوب',
+                                              textAlign: TextAlign.right,
+                                              style: TextStyle(
+                                                fontSize: 48,
+                                                fontWeight: FontWeight.w900,
+                                                color: Colors.white,
+                                                height: 1.3,
+                                                letterSpacing: 0.4,
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 12),
+                                          const SizedBox(
+                                            width: double.infinity,
+                                            child: Text(
+                                              'لقد أرسلنا رمز التحقق لمرة واحدة (OTP)\nإلى بريدك الإلكتروني يرجى إدخاله\nأدناه لإتمام عملية التحقق.',
+                                              textAlign: TextAlign.right,
+                                              style: TextStyle(
+                                                fontSize: 20,
+                                                fontWeight: FontWeight.w800,
+                                                color: AppColors.gold,
+                                                height: 1.7,
+                                                letterSpacing: 0.2,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
                               ),
                             ),
                           ),

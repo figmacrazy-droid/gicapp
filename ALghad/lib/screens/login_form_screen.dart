@@ -72,7 +72,7 @@ class _LoginFormScreenState extends State<LoginFormScreen>
                                               'كلية الغد الدولية',
                                               textAlign: TextAlign.right,
                                               style: TextStyle(
-                                                fontSize: 64,
+                                                fontSize: 52,
                                                 fontWeight: FontWeight.w900,
                                                 color: Colors.white,
                                                 height: 1.2,
@@ -87,7 +87,7 @@ class _LoginFormScreenState extends State<LoginFormScreen>
                                               'التأهيل الطبي والإداري الأفضل',
                                               textAlign: TextAlign.right,
                                               style: TextStyle(
-                                                fontSize: 28,
+                                                fontSize: 24,
                                                 fontWeight: FontWeight.w800,
                                                 color: AppColors.gold,
                                                 height: 1.3,
