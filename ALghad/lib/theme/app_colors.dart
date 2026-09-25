@@ -13,8 +13,8 @@ class AppColors {
 
   // 🌑 الخلفية الكُحلي — تدرج ثلاثة ألوان (0A131D → 091527 → 002060)
   static const LinearGradient backgroundGradient = LinearGradient(
-    begin: Alignment.centerLeft,
-    end: Alignment.centerRight,
+    begin: Alignment.centerRight,
+    end: Alignment.centerLeft,
     colors: [
       Color(0xFF0A131D),
       Color(0xFF091527),
