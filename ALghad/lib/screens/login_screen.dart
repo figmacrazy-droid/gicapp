@@ -29,8 +29,8 @@ class LoginScreen extends StatelessWidget {
                   // الشعار
                   // ============================
                   Container(
-                    width: 90,
-                    height: 90,
+                    width: 110,
+                    height: 110,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(
@@ -65,7 +65,7 @@ class LoginScreen extends StatelessWidget {
                     'مرحباً بك',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: 54,
+                      fontSize: 60,
                       fontWeight: FontWeight.w900,
                       color: Colors.white,
                       height: 1.0,
@@ -82,7 +82,7 @@ class LoginScreen extends StatelessWidget {
                     'كلية الغد الدولية',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: 26,
+                      fontSize: 32,
                       fontWeight: FontWeight.w800,
                       color: Colors.white,
                       height: 1.2,

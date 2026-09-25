@@ -136,7 +136,7 @@ class _VerificationScreenState extends State<VerificationScreen>
                                       'التحقق مطلوب',
                                       textAlign: TextAlign.right,
                                       style: TextStyle(
-                                        fontSize: 54,
+                                        fontSize: 60,
                                         fontWeight: FontWeight.w900,
                                         color: Colors.white,
                                         height: 1.3,
@@ -151,7 +151,7 @@ class _VerificationScreenState extends State<VerificationScreen>
                                       'لقد أرسلنا رمز التحقق لمرة واحدة (OTP)\nإلى بريدك الإلكتروني يرجى إدخاله\nأدناه لإتمام عملية التحقق.',
                                       textAlign: TextAlign.right,
                                       style: TextStyle(
-                                        fontSize: 22,
+                                        fontSize: 24,
                                         fontWeight: FontWeight.w800,
                                         color: AppColors.gold,
                                         height: 1.7,

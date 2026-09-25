@@ -72,7 +72,7 @@ class _LoginFormScreenState extends State<LoginFormScreen>
                                               'كلية الغد الدولية',
                                               textAlign: TextAlign.right,
                                               style: TextStyle(
-                                                fontSize: 60,
+                                                fontSize: 64,
                                                 fontWeight: FontWeight.w900,
                                                 color: Colors.white,
                                                 height: 1.2,
@@ -87,7 +87,7 @@ class _LoginFormScreenState extends State<LoginFormScreen>
                                               'التأهيل الطبي والإداري الأفضل',
                                               textAlign: TextAlign.right,
                                               style: TextStyle(
-                                                fontSize: 26,
+                                                fontSize: 28,
                                                 fontWeight: FontWeight.w800,
                                                 color: AppColors.gold,
                                                 height: 1.3,
@@ -348,7 +348,7 @@ class _LoginFormScreenState extends State<LoginFormScreen>
             Text(
               label,
               style: const TextStyle(
-                fontSize: 14,
+                fontSize: 16,
                 fontWeight: FontWeight.w700,
                 color: Color(0xFF002060),
                 letterSpacing: 0.2,
@@ -360,14 +360,14 @@ class _LoginFormScreenState extends State<LoginFormScreen>
         TextField(
           textAlign: TextAlign.right,
           style: const TextStyle(
-            fontSize: 14,
+            fontSize: 16,
             fontWeight: FontWeight.w600,
             color: Color(0xFF002060),
           ),
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: const TextStyle(
-              fontSize: 13,
+              fontSize: 14,
               color: AppColors.textGrey,
               fontWeight: FontWeight.w400,
             ),
