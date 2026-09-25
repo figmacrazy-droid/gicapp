@@ -129,9 +129,9 @@ class LoginScreen extends StatelessWidget {
                             );
                           },
                           splashColor:
-                          const Color(0xFF03102E).withOpacity(0.85),
+                              const Color(0xFF091527).withOpacity(0.85),
                           highlightColor:
-                          const Color(0xFF03102E).withOpacity(0.45),
+                              const Color(0xFF091527).withOpacity(0.45),
                           splashFactory: InkRipple.splashFactory,
                           child: const Padding(
                             padding: EdgeInsets.symmetric(

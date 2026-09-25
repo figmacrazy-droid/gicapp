@@ -1,30 +1,36 @@
 import 'package:flutter/material.dart';
 
 class AppColors {
-  static const Color gold = Color(0xFFD4A51C);
+  // اللون البرتقالي / الذهبي
+  static const Color gold = Color(0xFFD39706);
+  static const Color orange = Color(0xFFD39706);
 
-  // 🌑 الخلفية — من اليسار لليمين
-  //    من كحلي غامق (#03102E) → كحلي أغمق (#01081B) → شبه أسود (#000208)
+  // لون الكتابة الرمادي
+  static const Color textGrey = Color(0xFFC9C9C9);
+
+  // الأبيض
+  static const Color white = Color(0xFFFFFFFF);
+
+  // 🌑 الخلفية الكُحلي — تدرج ثلاثة ألوان (0A131D → 091527 → 002060)
   static const LinearGradient backgroundGradient = LinearGradient(
     begin: Alignment.centerLeft,
     end: Alignment.centerRight,
     colors: [
-      Color(0xFF03102E),
-      Color(0xFF01081B),
-      Color(0xFF000208),
+      Color(0xFF0A131D),
+      Color(0xFF091527),
+      Color(0xFF002060),
     ],
     stops: [0.0, 0.5, 1.0],
   );
 
-  // 🌊 الزر — معكوس على الخلفية (من اليمين لليسار)
-  //    من كحلي غامق (#03102E) على اليمين → شبه أسود (#000208) على اليسار
+  // 🌊 الزر الكحلي — معكوس على الخلفية
   static const LinearGradient buttonGradient = LinearGradient(
-    begin: Alignment.centerRight,   // ← يبدأ من اليمين
-    end: Alignment.centerLeft,      // ← ينتهي عند اليسار
+    begin: Alignment.centerRight,
+    end: Alignment.centerLeft,
     colors: [
-      Color(0xFF03102E), // نفس لون الخلفية الأول
-      Color(0xFF01081B), // نفس لون الخلفية الثاني
-      Color(0xFF000208), // نفس لون الخلفية الثالث
+      Color(0xFF0A131D),
+      Color(0xFF091527),
+      Color(0xFF002060),
     ],
     stops: [0.0, 0.5, 1.0],
   );

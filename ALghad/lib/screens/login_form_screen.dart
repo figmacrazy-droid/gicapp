@@ -190,14 +190,7 @@ class _LoginFormScreenState extends State<LoginFormScreen>
       child: Container(
         width: double.infinity,
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            begin: Alignment.centerRight,
-            end: Alignment.centerLeft,
-            colors: [
-              Color(0xFF0A2451),
-              Color(0xFF03102E),
-            ],
-          ),
+          gradient: AppColors.buttonGradient,
           borderRadius: BorderRadius.circular(35),
           border: Border.all(
             color: AppColors.gold,
@@ -205,7 +198,7 @@ class _LoginFormScreenState extends State<LoginFormScreen>
           ),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF03102E).withOpacity(0.4),
+              color: const Color(0xFF091527).withOpacity(0.4),
               blurRadius: 15,
               spreadRadius: 1,
               offset: const Offset(0, 6),
@@ -225,8 +218,8 @@ class _LoginFormScreenState extends State<LoginFormScreen>
                 ),
               );
             },
-            splashColor: const Color(0xFF03102E).withOpacity(0.85),
-            highlightColor: const Color(0xFF03102E).withOpacity(0.45),
+            splashColor: const Color(0xFF091527).withOpacity(0.85),
+            highlightColor: const Color(0xFF091527).withOpacity(0.45),
             splashFactory: InkRipple.splashFactory,
             child: ClipRRect(
               borderRadius: BorderRadius.circular(35),
@@ -358,14 +351,14 @@ class _LoginFormScreenState extends State<LoginFormScreen>
       children: [
         Row(
           children: [
-            Icon(icon, color: const Color(0xFF0A2451), size: 22),
+            Icon(icon, color: const Color(0xFF002060), size: 22),
             const SizedBox(width: 8),
             Text(
               label,
               style: const TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w800,
-                color: Color(0xFF0A2451),
+                color: Color(0xFF002060),
                 letterSpacing: 0.2,
               ),
             ),
@@ -377,13 +370,13 @@ class _LoginFormScreenState extends State<LoginFormScreen>
           style: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
-            color: Color(0xFF0A2451),
+            color: Color(0xFF002060),
           ),
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: TextStyle(
+            hintStyle: const TextStyle(
               fontSize: 13,
-              color: Colors.grey.shade400,
+              color: AppColors.textGrey,
               fontWeight: FontWeight.w400,
             ),
             contentPadding: const EdgeInsets.symmetric(vertical: 6),
@@ -392,7 +385,7 @@ class _LoginFormScreenState extends State<LoginFormScreen>
               borderSide: BorderSide(color: Color(0xFFE0E0E0)),
             ),
             focusedBorder: const UnderlineInputBorder(
-              borderSide: BorderSide(color: Color(0xFFD4A51C), width: 1.5),
+              borderSide: BorderSide(color: AppColors.gold, width: 1.5),
             ),
           ),
         ),
