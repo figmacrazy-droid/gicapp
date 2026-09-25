@@ -128,15 +128,15 @@ class _VerificationScreenState extends State<VerificationScreen>
                               ),
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
-                                crossAxisAlignment: CrossAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.end,
                                 children: [
                                   const SizedBox(
                                     width: double.infinity,
                                     child: Text(
                                       'التحقق مطلوب',
-                                      textAlign: TextAlign.center,
+                                      textAlign: TextAlign.right,
                                       style: TextStyle(
-                                        fontSize: 28,
+                                        fontSize: 54,
                                         fontWeight: FontWeight.w900,
                                         color: Colors.white,
                                         height: 1.3,
@@ -149,10 +149,10 @@ class _VerificationScreenState extends State<VerificationScreen>
                                     width: double.infinity,
                                     child: Text(
                                       'لقد أرسلنا رمز التحقق لمرة واحدة (OTP)\nإلى بريدك الإلكتروني يرجى إدخاله\nأدناه لإتمام عملية التحقق.',
-                                      textAlign: TextAlign.center,
+                                      textAlign: TextAlign.right,
                                       style: TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w400,
+                                        fontSize: 22,
+                                        fontWeight: FontWeight.w800,
                                         color: AppColors.gold,
                                         height: 1.7,
                                         letterSpacing: 0.2,
@@ -242,7 +242,7 @@ class _VerificationScreenState extends State<VerificationScreen>
                                         MainAxisAlignment.center,
                                         children: const [
                                           Icon(
-                                            Icons.verified_user_outlined,
+                                            Icons.screen_lock_landscape,
                                             size: 18,
                                             color: Color(0xFF0A2451),
                                           ),
@@ -280,7 +280,7 @@ class _VerificationScreenState extends State<VerificationScreen>
   // ============================
   Widget _buildGlassButton() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 70),
+      padding: const EdgeInsets.symmetric(horizontal: 25),
       child: Container(
         width: double.infinity,
         decoration: BoxDecoration(
@@ -295,16 +295,8 @@ class _VerificationScreenState extends State<VerificationScreen>
           borderRadius: BorderRadius.circular(28),
           border: Border.all(
             color: AppColors.gold,
-            width: 1.4,
+            width: 1.0,
           ),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF03102E).withOpacity(0.4),
-              blurRadius: 15,
-              spreadRadius: 1,
-              offset: const Offset(0, 6),
-            ),
-          ],
         ),
         child: Material(
           color: Colors.transparent,
@@ -435,8 +427,8 @@ class _VerificationScreenState extends State<VerificationScreen>
   // ============================
   Widget _buildOtpBox(int index) {
     return SizedBox(
-      width: 55,
-      height: 55,
+      width: 50,
+      height: 75,
       child: TextField(
         controller: _otpControllers[index],
         focusNode: _focusNodes[index],
@@ -454,17 +446,17 @@ class _VerificationScreenState extends State<VerificationScreen>
           filled: true,
           fillColor: Colors.white,
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(8),
             borderSide: const BorderSide(
-              color: Color(0xFFE0E0E0),
-              width: 1.4,
+              color: Color(0xFF9E9E9E),
+              width: 2.0,
             ),
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(8),
             borderSide: const BorderSide(
               color: AppColors.gold,
-              width: 1.8,
+              width: 2.5,
             ),
           ),
         ),

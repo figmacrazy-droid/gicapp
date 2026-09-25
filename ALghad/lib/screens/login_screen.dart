@@ -29,24 +29,24 @@ class LoginScreen extends StatelessWidget {
                   // الشعار
                   // ============================
                   Container(
-                    width: 150,
-                    height: 150,
+                    width: 90,
+                    height: 90,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(
                         color: AppColors.gold,
-                        width: 2,
+                        width: 1.5,
                       ),
                     ),
                     child: Padding(
-                      padding: const EdgeInsets.all(8),
+                      padding: const EdgeInsets.all(5),
                       child: Container(
                         decoration: const BoxDecoration(
                           shape: BoxShape.circle,
                           color: Colors.white,
                         ),
                         child: Padding(
-                          padding: const EdgeInsets.all(8),
+                          padding: const EdgeInsets.all(5),
                           child: Image.asset(
                             'assets/images/gic_shield.png',
                             fit: BoxFit.contain,
@@ -56,7 +56,7 @@ class LoginScreen extends StatelessWidget {
                     ),
                   ),
 
-                  const SizedBox(height: 25),
+                  const SizedBox(height: 15),
 
                   // ============================
                   // مرحباً بك
@@ -65,15 +65,15 @@ class LoginScreen extends StatelessWidget {
                     'مرحباً بك',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: 40,
-                      fontWeight: FontWeight.w800,
+                      fontSize: 54,
+                      fontWeight: FontWeight.w900,
                       color: Colors.white,
                       height: 1.0,
                       letterSpacing: 0.2,
                     ),
                   ),
 
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 4),
 
                   // ============================
                   // كلية الغد الدولية
@@ -82,8 +82,8 @@ class LoginScreen extends StatelessWidget {
                     'كلية الغد الدولية',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w700,
+                      fontSize: 26,
+                      fontWeight: FontWeight.w800,
                       color: Colors.white,
                       height: 1.2,
                       letterSpacing: 0.2,
@@ -95,57 +95,47 @@ class LoginScreen extends StatelessWidget {
                   // ============================
                   // زر تسجيل الدخول
                   // ============================
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24), // تقليل الهامش ليكون الزر أطول/أعرض
-                    child: Container(
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        gradient: AppColors.buttonGradient,
-                        borderRadius: BorderRadius.circular(35), // زيادة الدوران ليتناسب مع الطول الجديد
-                        border: Border.all(
-                          color: AppColors.gold,
-                          width: 1.5, // زيادة سمك الإطار الذهبي قليلاً
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.35),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
+                  Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: Colors.transparent,
+                      borderRadius: BorderRadius.circular(35),
+                      border: Border.all(
+                        color: AppColors.gold,
+                        width: 1.2,
                       ),
-                      child: Material(
-                        color: Colors.transparent,
+                    ),
+                    child: Material(
+                      color: Colors.transparent,
+                      borderRadius: BorderRadius.circular(35),
+                      child: InkWell(
                         borderRadius: BorderRadius.circular(35),
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(35),
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                const LoginFormScreen(),
-                              ),
-                            );
-                          },
-                          splashColor:
-                              const Color(0xFF091527).withOpacity(0.85),
-                          highlightColor:
-                              const Color(0xFF091527).withOpacity(0.45),
-                          splashFactory: InkRipple.splashFactory,
-                          child: const Padding(
-                            padding: EdgeInsets.symmetric(
-                              vertical: 14,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                              const LoginFormScreen(),
                             ),
-                            child: Text(
-                              'تسجيل الدخول',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w800,
-                                color: Colors.white,
-                                letterSpacing: 0.2,
-                              ),
+                          );
+                        },
+                        splashColor:
+                            const Color(0xFF091527).withOpacity(0.85),
+                        highlightColor:
+                            const Color(0xFF091527).withOpacity(0.45),
+                        splashFactory: InkRipple.splashFactory,
+                        child: const Padding(
+                          padding: EdgeInsets.symmetric(
+                            vertical: 16,
+                          ),
+                          child: Text(
+                            'تسجيل الدخول',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 26,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.white,
+                              letterSpacing: 0.2,
                             ),
                           ),
                         ),
@@ -161,9 +151,9 @@ class LoginScreen extends StatelessWidget {
                   const Text(
                     'ليس لديك حساب؟ سجل الدخول كزائر',
                     style: TextStyle(
-                      fontSize: 13,
+                      fontSize: 14,
                       color: AppColors.gold,
-                      fontWeight: FontWeight.w500,
+                      fontWeight: FontWeight.w600,
                       letterSpacing: 0.3,
                     ),
                   ),

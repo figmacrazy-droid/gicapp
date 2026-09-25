@@ -52,122 +52,122 @@ class _LoginFormScreenState extends State<LoginFormScreen>
                     child: IntrinsicHeight(
                       child: Column(
                         children: [
-                          // ============================
-                          // الجزء العلوي الكحلي — العنوان أعلى اليمين
-                          // ============================
-                          Expanded(
-                            flex: 40,
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 24,
-                                vertical: 20,
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                mainAxisAlignment: MainAxisAlignment.start,
-                                children: [
-                                  const SizedBox(
-                                    width: double.infinity,
-                                    child: Text(
-                                      'كلية الغد الدولية',
-                                      textAlign: TextAlign.right,
-                                      style: TextStyle(
-                                        fontSize: 38,
-                                        fontWeight: FontWeight.w900,
-                                        color: Colors.white,
-                                        height: 1.2,
-                                        letterSpacing: 0.2,
+                                  // ============================
+                                  // الجزء العلوي الكحلي — العنوان أعلى اليمين
+                                  // ============================
+                                  Expanded(
+                                    flex: 40,
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 24,
+                                        vertical: 20,
                                       ),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  const SizedBox(
-                                    width: double.infinity,
-                                    child: Text(
-                                      'التأهيل الطبي والإداري الأفضل',
-                                      textAlign: TextAlign.right,
-                                      style: TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.w500,
-                                        color: AppColors.gold,
-                                        height: 1.3,
-                                        letterSpacing: 0.2,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-
-                          // ============================
-                          // الجزء السفلي الأبيض
-                          // ============================
-                          Expanded(
-                            flex: 60,
-                            child: Container(
-                              width: double.infinity,
-                              decoration: const BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.only(
-                                  topLeft: Radius.circular(45),
-                                  topRight: Radius.circular(45),
-                                ),
-                              ),
-                              child: Padding(
-                                padding: const EdgeInsets.fromLTRB(
-                                  28,
-                                  32,
-                                  28,
-                                  16,
-                                ),
-                                child: Column(
-                                  mainAxisAlignment:
-                                  MainAxisAlignment.spaceEvenly,
-                                  children: [
-                                    _buildField(
-                                      label: 'الرقم الأكاديمي للطالب',
-                                      hint: '00000000000',
-                                      icon: Icons.person_outline,
-                                    ),
-                                    _buildField(
-                                      label: 'كلمة المرور',
-                                      hint: '00000000000',
-                                      icon: Icons.lock_outline,
-                                    ),
-                                    _buildField(
-                                      label: 'البريد الإلكتروني',
-                                      hint: 'name@example.com',
-                                      icon: Icons.email_outlined,
-                                    ),
-                                    Center(
-                                      child: _buildGlassButton(),
-                                    ),
-                                    Row(
-                                      mainAxisAlignment:
-                                      MainAxisAlignment.center,
-                                      children: const [
-                                        Text(
-                                          'بيانات آمنة، مستقبل مضمون',
-                                          style: TextStyle(
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w600,
-                                            color: Color(0xFF002060),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.end,
+                                        mainAxisAlignment: MainAxisAlignment.start,
+                                        children: [
+                                          const SizedBox(
+                                            width: double.infinity,
+                                            child: Text(
+                                              'كلية الغد الدولية',
+                                              textAlign: TextAlign.right,
+                                              style: TextStyle(
+                                                fontSize: 60,
+                                                fontWeight: FontWeight.w900,
+                                                color: Colors.white,
+                                                height: 1.2,
+                                                letterSpacing: 0.2,
+                                              ),
+                                            ),
                                           ),
-                                        ),
-                                        SizedBox(width: 8),
-                                        Icon(
-                                          Icons.verified_user_outlined,
-                                          size: 18,
-                                          color: Color(0xFF002060),
-                                        ),
-                                      ],
+                                          const SizedBox(height: 6),
+                                          const SizedBox(
+                                            width: double.infinity,
+                                            child: Text(
+                                              'التأهيل الطبي والإداري الأفضل',
+                                              textAlign: TextAlign.right,
+                                              style: TextStyle(
+                                                fontSize: 26,
+                                                fontWeight: FontWeight.w800,
+                                                color: AppColors.gold,
+                                                height: 1.3,
+                                                letterSpacing: 0.2,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                     ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
+                                  ),
+
+                                  // ============================
+                                  // الجزء السفلي الأبيض
+                                  // ============================
+                                  Expanded(
+                                    flex: 60,
+                                    child: Container(
+                                      width: double.infinity,
+                                      decoration: const BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.only(
+                                          topLeft: Radius.circular(55),
+                                          topRight: Radius.circular(55),
+                                        ),
+                                      ),
+                                      child: Padding(
+                                        padding: const EdgeInsets.fromLTRB(
+                                          28,
+                                          32,
+                                          28,
+                                          16,
+                                        ),
+                                        child: Column(
+                                          mainAxisAlignment:
+                                          MainAxisAlignment.spaceEvenly,
+                                          children: [
+                                            _buildField(
+                                              label: 'الرقم الأكاديمي للطالب',
+                                              hint: '00000000000',
+                                              icon: Icons.person_outline,
+                                            ),
+                                            _buildField(
+                                              label: 'كلمة المرور',
+                                              hint: '00000000000',
+                                              icon: Icons.lock_outline,
+                                            ),
+                                            _buildField(
+                                              label: 'البريد الإلكتروني',
+                                              hint: 'name@example.com',
+                                              icon: Icons.email_outlined,
+                                            ),
+                                            Center(
+                                              child: _buildGlassButton(),
+                                            ),
+                                            Row(
+                                              mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                              children: const [
+                                                Text(
+                                                  'بيانات آمنة، مستقبل مضمون',
+                                                  style: TextStyle(
+                                                    fontSize: 13,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: Color(0xFF002060),
+                                                  ),
+                                                ),
+                                                SizedBox(width: 8),
+                                                Icon(
+                                                  Icons.screen_lock_landscape,
+                                                  size: 18,
+                                                  color: Color(0xFF002060),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
                         ],
                       ),
                     ),
@@ -186,7 +186,7 @@ class _LoginFormScreenState extends State<LoginFormScreen>
   // ============================
   Widget _buildGlassButton() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 45), // تقليل الهامش ليصبح الزر أعرض
+      padding: const EdgeInsets.symmetric(horizontal: 25),
       child: Container(
         width: double.infinity,
         decoration: BoxDecoration(
@@ -194,16 +194,8 @@ class _LoginFormScreenState extends State<LoginFormScreen>
           borderRadius: BorderRadius.circular(35),
           border: Border.all(
             color: AppColors.gold,
-            width: 1.5,
+            width: 0.5,
           ),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF091527).withOpacity(0.4),
-              blurRadius: 15,
-              spreadRadius: 1,
-              offset: const Offset(0, 6),
-            ),
-          ],
         ),
         child: Material(
           color: Colors.transparent,
