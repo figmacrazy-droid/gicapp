@@ -10,6 +10,7 @@ import 'control_screen.dart';
 import 'student_affairs_screen.dart';
 import 'general_request_screen.dart';
 import 'finance_screen.dart';
+import 'profile_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final String userName;
@@ -749,7 +750,7 @@ class _HomeScreenState extends State<HomeScreen>
             label,
             textAlign: TextAlign.center,
             style: const TextStyle(
-              fontSize: 10,
+              fontSize: 13,
               fontWeight: FontWeight.w900,
               color: navyDark,
               height: 1.2,
@@ -923,7 +924,7 @@ class _HomeScreenState extends State<HomeScreen>
                     Text(
                       title,
                       style: const TextStyle(
-                        fontSize: 15,
+                        fontSize: 17, // Increased font size
                         fontWeight: FontWeight.w900,
                         color: navyDark,
                         height: 1.25,
@@ -1050,7 +1051,18 @@ class _HomeScreenState extends State<HomeScreen>
         children: List.generate(items.length, (i) {
           final isActive = i == _currentNavIndex;
           return GestureDetector(
-            onTap: () => setState(() => _currentNavIndex = i),
+            onTap: () {
+              if (i == 3) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const ProfileScreen(),
+                  ),
+                );
+              } else {
+                setState(() => _currentNavIndex = i);
+              }
+            },
             behavior: HitTestBehavior.opaque,
             child: Container(
               width: 46,

@@ -11,27 +11,27 @@ class AppColors {
   // الأبيض
   static const Color white = Color(0xFFFFFFFF);
 
-  // 🌑 الخلفية الكُحلي — تدرج ثلاثة ألوان (0A131D → 091527 → 002060)
+  // 🌑 الخلفية الكُحلي — تدرج يميل للون الفاتح أكثر
   static const LinearGradient backgroundGradient = LinearGradient(
     begin: Alignment.centerRight,
     end: Alignment.centerLeft,
     colors: [
-      Color(0xFF0A131D),
       Color(0xFF091527),
       Color(0xFF002060),
+      Color(0xFF003380), // Added a slightly lighter shade at the end
     ],
-    stops: [0.0, 0.5, 1.0],
+    stops: [0.0, 0.25, 1.0],
   );
 
-  // 🌊 الزر الكحلي — معكوس على الخلفية
+  // 🌊 الزر الكحلي — تدرج يميل للون الفاتح أكثر
   static const LinearGradient buttonGradient = LinearGradient(
     begin: Alignment.centerRight,
     end: Alignment.centerLeft,
     colors: [
-      Color(0xFF0A131D),
       Color(0xFF091527),
       Color(0xFF002060),
+      Color(0xFF003380),
     ],
-    stops: [0.0, 0.5, 1.0],
+    stops: [0.0, 0.25, 1.0],
   );
 }

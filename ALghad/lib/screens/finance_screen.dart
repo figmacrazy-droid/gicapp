@@ -127,7 +127,7 @@ class FinanceScreen extends StatelessWidget {
                 title,
                 textAlign: TextAlign.right,
                 style: const TextStyle(
-                  fontSize: 14,
+                  fontSize: 17,
                   fontWeight: FontWeight.w800,
                   color: navyDark,
                   height: 1.35,
@@ -145,43 +145,20 @@ class FinanceScreen extends StatelessWidget {
       width: 48,
       height: 48,
       decoration: BoxDecoration(
-        color: navyDark,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: navyDark.withOpacity(0.25),
+            color: Colors.black.withOpacity(0.1),
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),
         ],
       ),
-      child: Center(
-        child: Container(
-          width: 36,
-          height: 36,
-          decoration: BoxDecoration(
-            border: Border.all(color: Colors.white.withOpacity(0.8), width: 1.2),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(7),
-            child: Image.asset(
-              'assets/images/gic_shield.png',
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return const Center(
-                  child: Text(
-                    'gic',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Image.asset(
+          'assets/images/gic_logo_new.png',
+          fit: BoxFit.cover,
         ),
       ),
     );

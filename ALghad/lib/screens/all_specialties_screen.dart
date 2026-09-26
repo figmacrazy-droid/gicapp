@@ -262,7 +262,7 @@ class _AllSpecialtiesScreenState extends State<AllSpecialtiesScreen> {
                     Text(
                       title,
                       style: const TextStyle(
-                        fontSize: 12,
+                        fontSize: 14, // Increased font size
                         fontWeight: FontWeight.w800,
                         color: navyDark,
                         height: 1.3,
