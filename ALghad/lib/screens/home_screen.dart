@@ -294,9 +294,9 @@ class _HomeScreenState extends State<HomeScreen>
           child: Container(
             width: 46,
             height: 46,
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               color: iconBg,
-              borderRadius: BorderRadius.circular(14),
+              shape: BoxShape.circle,
             ),
             child: const Icon(
               Icons.notifications_rounded,
@@ -326,9 +326,9 @@ class _HomeScreenState extends State<HomeScreen>
     return Container(
       width: 46,
       height: 46,
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: iconBg,
-        borderRadius: BorderRadius.circular(14),
+        shape: BoxShape.circle,
       ),
       child: Center(
         child: SizedBox(
@@ -646,9 +646,9 @@ class _HomeScreenState extends State<HomeScreen>
         itemCount: services.length,
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 4,
-          mainAxisSpacing: 0,
+          mainAxisSpacing: 10,
           crossAxisSpacing: 6,
-          childAspectRatio: 0.82,
+          childAspectRatio: 0.65,
         ),
         itemBuilder: (context, i) => _buildServiceItem(
           iconPath: services[i]['iconPath'] as String,
@@ -996,7 +996,7 @@ class _HomeScreenState extends State<HomeScreen>
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: const Icon(
-                            Icons.login_rounded,
+                            Icons.add,
                             size: 14,
                             color: Colors.white,
                           ),
@@ -1068,12 +1068,12 @@ class _HomeScreenState extends State<HomeScreen>
               width: 46,
               height: 46,
               decoration: BoxDecoration(
-                color: isActive ? navyDark : Colors.transparent,
+                color: isActive ? const Color(0xFFF2F5F8) : Colors.transparent,
                 shape: BoxShape.circle,
               ),
               child: Icon(
                 items[i]['icon'] as IconData,
-                color: isActive ? Colors.white : const Color(0xFFB0B0B0),
+                color: isActive ? navyDark : const Color(0xFFB0B0B0),
                 size: 24,
               ),
             ),

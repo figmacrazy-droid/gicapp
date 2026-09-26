@@ -126,14 +126,14 @@ class LoginScreen extends StatelessWidget {
                         splashFactory: InkRipple.splashFactory,
                         child: const Padding(
                           padding: EdgeInsets.symmetric(
-                            vertical: 14,
+                            vertical: 12, // Reduced padding
                           ),
                           child: Text(
                             'تسجيل الدخول',
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                              fontSize: 32,
-                              fontWeight: FontWeight.w900,
+                              fontSize: 24, // Reduced font size to match required screen
+                              fontWeight: FontWeight.bold,
                               color: Colors.white,
                               letterSpacing: 0.2,
                             ),

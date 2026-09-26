@@ -216,7 +216,7 @@ class _LoginFormScreenState extends State<LoginFormScreen>
             child: ClipRRect(
               borderRadius: BorderRadius.circular(35),
               child: SizedBox(
-                height: 60,
+                height: 52, // Slimmer button
                 child: Stack(
                   children: [
                     // 1) النص — في المنتصف تماماً
@@ -226,8 +226,8 @@ class _LoginFormScreenState extends State<LoginFormScreen>
                           'دخول',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            fontSize: 32,
-                            fontWeight: FontWeight.w900,
+                            fontSize: 24, // Smaller font size
+                            fontWeight: FontWeight.bold,
                             color: Colors.white,
                             letterSpacing: 0.2,
                           ),

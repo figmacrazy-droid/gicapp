@@ -30,23 +30,27 @@ class ProfileScreen extends StatelessWidget {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const SizedBox(width: 28), // Placeholder to center text
-                        const Text(
-                          'ملفي الشخصي',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
                         GestureDetector(
                           onTap: () => Navigator.pop(context),
                           child: const Icon(
                             Icons.arrow_forward_rounded,
                             color: Colors.white,
                             size: 28,
+                            textDirection: TextDirection.ltr, // Force pointing right
                           ),
                         ),
+                        const Expanded(
+                          child: Text(
+                            'ملفي الشخصي',
+                            textAlign: TextAlign.right,
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 28), // Placeholder on the left to center text
                       ],
                     ),
                   ),
@@ -105,7 +109,12 @@ class ProfileScreen extends StatelessWidget {
                   height: 150,
                   decoration: const BoxDecoration(
                     color: gold,
-                    shape: BoxShape.circle,
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(100),
+                      bottomLeft: Radius.circular(50),
+                      topRight: Radius.circular(40),
+                      bottomRight: Radius.circular(80),
+                    ),
                   ),
                 ),
               ),
@@ -167,7 +176,12 @@ class ProfileScreen extends StatelessWidget {
                       height: 70,
                       decoration: const BoxDecoration(
                         color: navyDark,
-                        shape: BoxShape.circle,
+                        borderRadius: BorderRadius.only(
+                          topRight: Radius.circular(50),
+                          bottomRight: Radius.circular(30),
+                          topLeft: Radius.circular(10),
+                          bottomLeft: Radius.circular(50),
+                        ),
                       ),
                     ),
                   ),
@@ -179,7 +193,7 @@ class ProfileScreen extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         const Text(
-                          'عبدالله حمود محمد أبوطالب',
+                          'مصطفى الارياني',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w900,
@@ -192,7 +206,7 @@ class ProfileScreen extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
-                            color: Colors.black87,
+                            color: const Color(0xFF6B6B6B),
                           ),
                         ),
                         const Spacer(),
