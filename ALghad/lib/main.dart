@@ -23,7 +23,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'GIC Login',
-      theme: ThemeData(fontFamily: 'Linaround', primarySwatch: Colors.blue),
+      theme: ThemeData(fontFamily: 'LamaSans', primarySwatch: Colors.blue),
       home: const SplashScreen(), // 🚀 شاشة الأنيميشن البداية
     );
   }

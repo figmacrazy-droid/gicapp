@@ -34,9 +34,12 @@ flutter:
     - assets/new_icons/
 
   fonts:
+    - family: LamaSans
+      fonts:
+        - asset: fonts/LamaSans-ExtraBold.otf
     - family: Linaround
       fonts:
-        - asset: fonts/Linaround-Regular.otf
+        - asset: fonts/LamaSans-ExtraBold.otf
     - family: GICFont
       fonts:
         - asset: fonts/GIC-Font.otf

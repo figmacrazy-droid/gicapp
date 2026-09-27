@@ -35,12 +35,14 @@ class LoginScreen extends StatelessWidget {
                       shape: BoxShape.circle,
                       border: Border.all(
                         color: AppColors.gold,
-                        width: 1.5,
+                        width: 2.0,
                       ),
                     ),
                     child: Padding(
-                      padding: const EdgeInsets.all(5),
+                      padding: const EdgeInsets.only(top: 7, bottom: 6, left: 8, right: 5),
                       child: Container(
+                        width: 100,
+                        height: 100,
                         decoration: const BoxDecoration(
                           shape: BoxShape.circle,
                           color: Colors.white,
@@ -65,11 +67,11 @@ class LoginScreen extends StatelessWidget {
                     'مرحباً بك',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: 60,
+                      fontSize: 40,
                       fontWeight: FontWeight.w900,
                       color: Colors.white,
                       height: 1.0,
-                      letterSpacing: 0.2,
+                      letterSpacing: 0.0,
                     ),
                   ),
 
@@ -82,11 +84,11 @@ class LoginScreen extends StatelessWidget {
                     'كلية الغد الدولية',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.w800,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
                       color: Colors.white,
                       height: 1.2,
-                      letterSpacing: 0.2,
+                      letterSpacing: 0.0,
                     ),
                   ),
 
@@ -96,20 +98,21 @@ class LoginScreen extends StatelessWidget {
                   // زر تسجيل الدخول
                   // ============================
                   Container(
-                    width: double.infinity,
+                    width: 261,
+                    height: 45,
                     decoration: BoxDecoration(
                       color: Colors.transparent,
-                      borderRadius: BorderRadius.circular(35),
+                      borderRadius: BorderRadius.circular(25),
                       border: Border.all(
                         color: AppColors.gold,
-                        width: 1.2,
+                        width: 1.0,
                       ),
                     ),
                     child: Material(
                       color: Colors.transparent,
-                      borderRadius: BorderRadius.circular(35),
+                      borderRadius: BorderRadius.circular(25),
                       child: InkWell(
-                        borderRadius: BorderRadius.circular(35),
+                        borderRadius: BorderRadius.circular(25),
                         onTap: () {
                           Navigator.push(
                             context,
@@ -124,18 +127,15 @@ class LoginScreen extends StatelessWidget {
                         highlightColor:
                             const Color(0xFF091527).withOpacity(0.45),
                         splashFactory: InkRipple.splashFactory,
-                        child: const Padding(
-                          padding: EdgeInsets.symmetric(
-                            vertical: 12, // Reduced padding
-                          ),
+                        child: const Center(
                           child: Text(
                             'تسجيل الدخول',
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                              fontSize: 24, // Reduced font size to match required screen
+                              fontSize: 24,
                               fontWeight: FontWeight.bold,
                               color: Colors.white,
-                              letterSpacing: 0.2,
+                              letterSpacing: 0.0,
                             ),
                           ),
                         ),

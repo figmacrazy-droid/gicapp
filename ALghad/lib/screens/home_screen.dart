@@ -646,9 +646,9 @@ class _HomeScreenState extends State<HomeScreen>
         itemCount: services.length,
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 4,
-          mainAxisSpacing: 10,
+          mainAxisSpacing: 9,
           crossAxisSpacing: 6,
-          childAspectRatio: 0.65,
+          childAspectRatio: 0.85,
         ),
         itemBuilder: (context, i) => _buildServiceItem(
           iconPath: services[i]['iconPath'] as String,
@@ -750,7 +750,7 @@ class _HomeScreenState extends State<HomeScreen>
             label,
             textAlign: TextAlign.center,
             style: const TextStyle(
-              fontSize: 13,
+              fontSize: 11,
               fontWeight: FontWeight.w900,
               color: navyDark,
               height: 1.2,
@@ -798,7 +798,7 @@ class _HomeScreenState extends State<HomeScreen>
               style: TextStyle(
                 fontSize: 13,
                 color: navyDark,
-                fontWeight: FontWeight.w800,   // ← من w600 إلى w800
+                fontWeight: FontWeight.w800,
                 decoration: TextDecoration.underline,
                 decorationColor: navyDark,
                 decorationThickness: 1.5,
@@ -815,7 +815,7 @@ class _HomeScreenState extends State<HomeScreen>
   // ══════════════════════════════════════
   Widget _buildSpecialtyCards() {
     return SizedBox(
-      height: 260,
+      height: 226,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -844,7 +844,7 @@ class _HomeScreenState extends State<HomeScreen>
     required String imagePath,
   }) {
     return Container(
-      width: 300,
+      width: 232,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),

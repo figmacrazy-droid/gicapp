@@ -154,7 +154,12 @@ class ProfileScreen extends StatelessWidget {
             height: 154.76, // Setting height explicitly as requested
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(34),
+                topRight: Radius.circular(24),
+                bottomRight: Radius.circular(0),
+                bottomLeft: Radius.circular(0),
+              ),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.06),
@@ -164,7 +169,12 @@ class ProfileScreen extends StatelessWidget {
               ],
             ),
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(34),
+                topRight: Radius.circular(24),
+                bottomRight: Radius.circular(0),
+                bottomLeft: Radius.circular(0),
+              ),
               child: Stack(
                 children: [
                   // Bottom Left Dark Blue Decoration
@@ -188,12 +198,12 @@ class ProfileScreen extends StatelessWidget {
                   
                   // Card Content
                   Padding(
-                    padding: const EdgeInsets.only(top: 60, bottom: 10, left: 16, right: 16),
+                    padding: const EdgeInsets.only(top: 55, bottom: 10, left: 16, right: 16),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         const Text(
-                          'مصطفى الارياني',
+                          'عبدالله حمود محمد أبوطالب',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w900,
@@ -241,22 +251,24 @@ class ProfileScreen extends StatelessWidget {
           
           // Profile Avatar overlapping the top
           Positioned(
-            top: -44, // Avatar is half outside, half inside
+            top: -45.25,
             child: Container(
-              padding: const EdgeInsets.all(4),
+              width: 90.5,
+              height: 90.5,
+              padding: const EdgeInsets.all(3),
               decoration: const BoxDecoration(
                 color: Colors.white,
                 shape: BoxShape.circle,
               ),
               child: CircleAvatar(
-                radius: 40,
+                radius: 45.25,
                 backgroundColor: const Color(0xFFF2E8D0),
                 child: ClipOval(
                   child: Image.asset(
-                    'assets/images/avatar.png', // Assuming there's an avatar image, if not, we use icon
+                    'assets/images/avatar.png',
                     fit: BoxFit.cover,
-                    width: 88,
-                    height: 88,
+                    width: 90.5,
+                    height: 90.5,
                     errorBuilder: (context, error, stackTrace) {
                       return const Icon(Icons.person, size: 50, color: gold);
                     },
