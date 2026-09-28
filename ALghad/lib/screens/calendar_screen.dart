@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'profile_screen.dart';
+import 'location_screen.dart';
 
 class CalendarScreen extends StatefulWidget {
   const CalendarScreen({super.key});
@@ -606,6 +607,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
             onTap: () {
               if (i == 0) {
                 Navigator.popUntil(context, (route) => route.isFirst);
+              } else if (i == 1) {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const LocationScreen(),
+                  ),
+                );
               } else if (i == 3) {
                 Navigator.push(
                   context,
