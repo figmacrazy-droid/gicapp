@@ -11,6 +11,7 @@ import 'student_affairs_screen.dart';
 import 'general_request_screen.dart';
 import 'finance_screen.dart';
 import 'profile_screen.dart';
+import 'calendar_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final String userName;
@@ -1052,7 +1053,14 @@ class _HomeScreenState extends State<HomeScreen>
           final isActive = i == _currentNavIndex;
           return GestureDetector(
             onTap: () {
-              if (i == 3) {
+              if (i == 2) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const CalendarScreen(),
+                  ),
+                );
+              } else if (i == 3) {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
