@@ -72,7 +72,7 @@ class _LoginFormScreenState extends State<LoginFormScreen>
                                               'كلية الغد الدولية',
                                               textAlign: TextAlign.right,
                                               style: TextStyle(
-                                                fontSize: 52,
+                                                fontSize: 36,
                                                 fontWeight: FontWeight.w900,
                                                 color: Colors.white,
                                                 height: 1.2,
@@ -87,7 +87,7 @@ class _LoginFormScreenState extends State<LoginFormScreen>
                                               'التأهيل الطبي والإداري الأفضل',
                                               textAlign: TextAlign.right,
                                               style: TextStyle(
-                                                fontSize: 20,
+                                                fontSize: 17,
                                                 fontWeight: FontWeight.w600,
                                                 color: AppColors.gold,
                                                 height: 1.3,
@@ -182,145 +182,47 @@ class _LoginFormScreenState extends State<LoginFormScreen>
   }
 
   // ============================
-  // زر دخول — نص موسّط + لون تأكيد + اللمعة والزجاج
+  // زر دخول — بنفس مقاس وحجم زر شاشة تسجيل الدخول (261x45)
   // ============================
   Widget _buildGlassButton() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 25),
-      child: Container(
-        width: double.infinity,
-        decoration: BoxDecoration(
-          gradient: AppColors.buttonGradient,
-          borderRadius: BorderRadius.circular(35),
-          border: Border.all(
-            color: AppColors.gold,
-            width: 0.5,
-          ),
+    return Container(
+      width: 261,
+      height: 45,
+      decoration: BoxDecoration(
+        gradient: AppColors.buttonGradient,
+        borderRadius: BorderRadius.circular(25),
+        border: Border.all(
+          color: AppColors.gold,
+          width: 1.0,
         ),
-        child: Material(
-          color: Colors.transparent,
-          borderRadius: BorderRadius.circular(35),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(35),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const VerificationScreen(),
-                ),
-              );
-            },
-            splashColor: const Color(0xFF091527).withOpacity(0.85),
-            highlightColor: const Color(0xFF091527).withOpacity(0.45),
-            splashFactory: InkRipple.splashFactory,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(35),
-              child: SizedBox(
-                height: 52, // Slimmer button
-                child: Stack(
-                  children: [
-                    // 1) النص — في المنتصف تماماً
-                    const Positioned.fill(
-                      child: Center(
-                        child: Text(
-                          'دخول',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 24, // Smaller font size
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                            letterSpacing: 0.2,
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    // 2) انعكاس علوي (زجاج)
-                    Positioned.fill(
-                      child: IgnorePointer(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(28),
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                                Colors.white.withOpacity(0.22),
-                                Colors.white.withOpacity(0.06),
-                                Colors.transparent,
-                                Colors.transparent,
-                                Colors.black.withOpacity(0.08),
-                              ],
-                              stops: const [0.0, 0.18, 0.42, 0.85, 1.0],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    // 3) حد زجاجي رفيع في الأعلى
-                    Positioned(
-                      top: 1.5,
-                      left: 12,
-                      right: 12,
-                      child: IgnorePointer(
-                        child: Container(
-                          height: 1,
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                Colors.transparent,
-                                Colors.white.withOpacity(0.5),
-                                Colors.white.withOpacity(0.7),
-                                Colors.white.withOpacity(0.5),
-                                Colors.transparent,
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    // 4) لمعة ناعمة تتحرك
-                    Positioned.fill(
-                      child: IgnorePointer(
-                        child: AnimatedBuilder(
-                          animation: _shimmerController,
-                          builder: (context, _) {
-                            final double t =
-                                _shimmerController.value * 3 - 1;
-                            return Container(
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(28),
-                                gradient: LinearGradient(
-                                  begin: Alignment(t - 0.6, -0.4),
-                                  end: Alignment(t + 0.6, 0.4),
-                                  colors: [
-                                    Colors.transparent,
-                                    Colors.white.withOpacity(0.03),
-                                    Colors.white.withOpacity(0.10),
-                                    Colors.white.withOpacity(0.18),
-                                    Colors.white.withOpacity(0.10),
-                                    Colors.white.withOpacity(0.03),
-                                    Colors.transparent,
-                                  ],
-                                  stops: const [
-                                    0.0,
-                                    0.25,
-                                    0.40,
-                                    0.50,
-                                    0.60,
-                                    0.75,
-                                    1.0,
-                                  ],
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    ),
-                  ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(25),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(25),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const VerificationScreen(),
+              ),
+            );
+          },
+          splashColor: const Color(0xFF091527).withOpacity(0.85),
+          highlightColor: const Color(0xFF091527).withOpacity(0.45),
+          splashFactory: InkRipple.splashFactory,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(25),
+            child: const Center(
+              child: Text(
+                'دخول',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  letterSpacing: 0.0,
                 ),
               ),
             ),

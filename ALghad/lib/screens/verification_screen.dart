@@ -276,143 +276,52 @@ class _VerificationScreenState extends State<VerificationScreen>
   }
 
   // ============================
-  // زر تأكيد — كحلي + زجاج + لمعة
+  // زر تأكيد — بنفس مقاس وحجم زر شاشة تسجيل الدخول (261x45)
   // ============================
   Widget _buildGlassButton() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 25),
-      child: Container(
-        width: double.infinity,
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            begin: Alignment.centerRight,
-            end: Alignment.centerLeft,
-            colors: [
-              Color(0xFF0A2451),
-              Color(0xFF03102E),
-            ],
-          ),
-          borderRadius: BorderRadius.circular(28),
-          border: Border.all(
-            color: AppColors.gold,
-            width: 1.0,
-          ),
+    return Container(
+      width: 261,
+      height: 45,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.centerRight,
+          end: Alignment.centerLeft,
+          colors: [
+            Color(0xFF0A2451),
+            Color(0xFF03102E),
+          ],
         ),
-        child: Material(
-          color: Colors.transparent,
-          borderRadius: BorderRadius.circular(28),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(28),
-            onTap: () {
-              final code = _otpControllers.map((c) => c.text).join();
-              if (code.length == 4) {
-                _verifyCode(code);
-              }
-            },
-            splashColor: const Color(0xFF03102E).withOpacity(0.85),
-            highlightColor: const Color(0xFF03102E).withOpacity(0.45),
-            splashFactory: InkRipple.splashFactory,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(28),
-              child: SizedBox(
-                height: 56,
-                child: Stack(
-                  children: [
-                    const Positioned.fill(
-                      child: Center(
-                        child: Text(
-                          'تأكيد',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                            letterSpacing: 0.2,
-                          ),
-                        ),
-                      ),
-                    ),
-                    Positioned.fill(
-                      child: IgnorePointer(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(28),
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                                Colors.white.withOpacity(0.22),
-                                Colors.white.withOpacity(0.06),
-                                Colors.transparent,
-                                Colors.transparent,
-                                Colors.black.withOpacity(0.08),
-                              ],
-                              stops: const [0.0, 0.18, 0.42, 0.85, 1.0],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      top: 1.5,
-                      left: 12,
-                      right: 12,
-                      child: IgnorePointer(
-                        child: Container(
-                          height: 1,
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                Colors.transparent,
-                                Colors.white.withOpacity(0.5),
-                                Colors.white.withOpacity(0.7),
-                                Colors.white.withOpacity(0.5),
-                                Colors.transparent,
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    Positioned.fill(
-                      child: IgnorePointer(
-                        child: AnimatedBuilder(
-                          animation: _shimmerController,
-                          builder: (context, _) {
-                            final double t =
-                                _shimmerController.value * 3 - 1;
-                            return Container(
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(28),
-                                gradient: LinearGradient(
-                                  begin: Alignment(t - 0.6, -0.4),
-                                  end: Alignment(t + 0.6, 0.4),
-                                  colors: [
-                                    Colors.transparent,
-                                    Colors.white.withOpacity(0.03),
-                                    Colors.white.withOpacity(0.10),
-                                    Colors.white.withOpacity(0.18),
-                                    Colors.white.withOpacity(0.10),
-                                    Colors.white.withOpacity(0.03),
-                                    Colors.transparent,
-                                  ],
-                                  stops: const [
-                                    0.0,
-                                    0.25,
-                                    0.40,
-                                    0.50,
-                                    0.60,
-                                    0.75,
-                                    1.0,
-                                  ],
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    ),
-                  ],
+        borderRadius: BorderRadius.circular(25),
+        border: Border.all(
+          color: AppColors.gold,
+          width: 1.0,
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(25),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(25),
+          onTap: () {
+            final code = _otpControllers.map((c) => c.text).join();
+            if (code.length == 4) {
+              _verifyCode(code);
+            }
+          },
+          splashColor: const Color(0xFF03102E).withOpacity(0.85),
+          highlightColor: const Color(0xFF03102E).withOpacity(0.45),
+          splashFactory: InkRipple.splashFactory,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(25),
+            child: const Center(
+              child: Text(
+                'تأكيد',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  letterSpacing: 0.0,
                 ),
               ),
             ),
