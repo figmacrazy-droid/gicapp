@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:table_calendar/table_calendar.dart';
 import 'profile_screen.dart';
 import 'location_screen.dart';
 
@@ -11,65 +12,77 @@ class CalendarScreen extends StatefulWidget {
 
 class _CalendarScreenState extends State<CalendarScreen> {
   int _currentNavIndex = 2; // 2 = Calendar tab active
-  String _selectedMonth = 'Sep';
-  int _selectedYear = 2026;
+  DateTime _focusedDay = DateTime.now();
+  DateTime? _selectedDay;
+  CalendarFormat _calendarFormat = CalendarFormat.month;
 
   static const Color navyDark = Color(0xFF0A2451);
   static const Color gold = Color(0xFFD39706);
   static const Color textGray = Color(0xFF6B6B6B);
-  static const Color lightGray = Color(0xFFF2F2F2);
 
-  // 🗓️ قائمة إجازات السنة والأحداث الأكاديمية
-  final List<Map<String, dynamic>> _events = [
-    {
-      'id': '1',
-      'title': 'إجازة رسمية',
-      'subtitle': 'بمناسبة عيد ثورة 26 سبتمبر',
-      'description': 'نتمنى لكم إجازة سعيدة',
-      'dayName': 'السبت',
-      'dayNumber': '26',
-      'views': '450',
-      'isFavorite': true,
-      'isHoliday': true,
-      'dateTag': '26 سبتمبر 2026',
-    },
-    {
-      'id': '2',
-      'title': 'حفل تكريم الأوائل',
-      'subtitle': 'جميع المستويات',
-      'description': 'الدعوة عامة لجميع الطلاب',
-      'dayName': 'الأربعاء',
-      'dayNumber': '30',
-      'views': '602',
-      'isFavorite': false,
-      'isHoliday': false,
-      'dateTag': '30 سبتمبر 2026',
-    },
-    {
-      'id': '3',
-      'title': 'إجازة عيد الجلاء 14 أكتوبر',
-      'subtitle': 'إجازة رسمية لجميع الكليات',
-      'description': 'تعطل الدراسة في جميع الأقسام',
-      'dayName': 'الأربعاء',
-      'dayNumber': '14',
-      'views': '512',
-      'isFavorite': true,
-      'isHoliday': true,
-      'dateTag': '14 أكتوبر 2026',
-    },
-    {
-      'id': '4',
-      'title': 'بدء الاختبارات النصفية',
-      'subtitle': 'الفصل الدراسي الأول',
-      'description': 'جدول الاختبارات معلن في شؤون الطلاب',
-      'dayName': 'الأحد',
-      'dayNumber': '18',
-      'views': '780',
-      'isFavorite': false,
-      'isHoliday': false,
-      'dateTag': '18 أكتوبر 2026',
-    },
-  ];
+  // 🗓️ قائمة إجازات السنة والأحداث الأكاديمية مرتبطة بالتواريخ
+  final Map<DateTime, List<Map<String, dynamic>>> _events = {
+    DateTime(2026, 9, 26): [
+      {
+        'id': '1',
+        'title': 'إجازة رسمية',
+        'subtitle': 'بمناسبة عيد ثورة 26 سبتمبر',
+        'description': 'نتمنى لكم إجازة سعيدة',
+        'dayName': 'السبت',
+        'dayNumber': '26',
+        'views': '450',
+        'isFavorite': true,
+        'isHoliday': true,
+        'dateTag': '26 سبتمبر 2026',
+      },
+    ],
+    DateTime(2026, 9, 30): [
+      {
+        'id': '2',
+        'title': 'حفل تكريم الأوائل',
+        'subtitle': 'جميع المستويات',
+        'description': 'الدعوة عامة لجميع الطلاب',
+        'dayName': 'الأربعاء',
+        'dayNumber': '30',
+        'views': '602',
+        'isFavorite': false,
+        'isHoliday': false,
+        'dateTag': '30 سبتمبر 2026',
+      },
+    ],
+    DateTime(2026, 10, 14): [
+      {
+        'id': '3',
+        'title': 'إجازة عيد الجلاء 14 أكتوبر',
+        'subtitle': 'إجازة رسمية لجميع الكليات',
+        'description': 'تعطل الدراسة في جميع الأقسام',
+        'dayName': 'الأربعاء',
+        'dayNumber': '14',
+        'views': '512',
+        'isFavorite': true,
+        'isHoliday': true,
+        'dateTag': '14 أكتوبر 2026',
+      },
+    ],
+    DateTime(2026, 10, 18): [
+      {
+        'id': '4',
+        'title': 'بدء الاختبارات النصفية',
+        'subtitle': 'الفصل الدراسي الأول',
+        'description': 'جدول الاختبارات معلن في شؤون الطلاب',
+        'dayName': 'الأحد',
+        'dayNumber': '18',
+        'views': '780',
+        'isFavorite': false,
+        'isHoliday': false,
+        'dateTag': '18 أكتوبر 2026',
+      },
+    ],
+  };
+
+  List<Map<String, dynamic>> _getEventsForDay(DateTime day) {
+    return _events[DateTime(day.year, day.month, day.day)] ?? [];
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -175,194 +188,98 @@ class _CalendarScreenState extends State<CalendarScreen> {
             ),
           ],
         ),
-        child: Column(
-          children: [
-            // أزرار تحديد الشهر والسنة
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Icon(
-                  Icons.chevron_left_rounded,
-                  color: gold,
-                  size: 28,
-                ),
-                Row(
-                  children: [
-                    // زر الشهر
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: gold,
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Row(
-                        children: [
-                          Text(
-                            _selectedMonth,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              color: navyDark,
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          const Icon(
-                            Icons.keyboard_arrow_down_rounded,
-                            size: 18,
-                            color: navyDark,
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    // زر السنة
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: gold,
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Row(
-                        children: [
-                          Text(
-                            '$_selectedYear',
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              color: navyDark,
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          const Icon(
-                            Icons.keyboard_arrow_down_rounded,
-                            size: 18,
-                            color: navyDark,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const Icon(
-                  Icons.chevron_right_rounded,
-                  color: gold,
-                  size: 28,
-                ),
-              ],
+        child: TableCalendar(
+          locale: 'ar_SA',
+          firstDay: DateTime(2026, 1, 1),
+          lastDay: DateTime(2027, 12, 31),
+          focusedDay: _focusedDay,
+          selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+          calendarFormat: _calendarFormat,
+          eventLoader: _getEventsForDay,
+          startingDayOfWeek: StartingDayOfWeek.sunday,
+          headerStyle: HeaderStyle(
+            formatButtonVisible: false,
+            titleCentered: true,
+            titleTextStyle: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: navyDark,
             ),
-
-            const SizedBox(height: 12),
-
-            // أسماء أيام الأسبوع
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: const [
-                _DayNameHeader('Su'),
-                _DayNameHeader('Mo'),
-                _DayNameHeader('Tu'),
-                _DayNameHeader('We'),
-                _DayNameHeader('Th'),
-                _DayNameHeader('Fr'),
-                _DayNameHeader('Sa'),
-              ],
+            leftChevronIcon: const Icon(
+              Icons.chevron_left_rounded,
+              color: gold,
+              size: 28,
             ),
-
-            const SizedBox(height: 8),
-            const Divider(color: Colors.white12, height: 1),
-            const SizedBox(height: 8),
-
-            // شبكة أيام الشهر
-            Expanded(
-              child: GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: 35, // 5 أسابيع
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 7,
-                  mainAxisSpacing: 4,
-                  crossAxisSpacing: 4,
-                ),
-                itemBuilder: (context, index) {
-                  final dayNumber = index + 1;
-                  if (dayNumber > 30) {
-                    final nextMonthDay = dayNumber - 30;
-                    return Center(
-                      child: Text(
-                        '$nextMonthDay',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.white.withOpacity(0.3),
-                        ),
-                      ),
-                    );
-                  }
-
-                  // يوم 25: إجازة مميزة بشعار درع ذهبي
-                  final bool isSpecialBadgeDay = (dayNumber == 25);
-                  // أيام 26 و 30: أيام بها تنبيهات/جرس
-                  final bool hasNotification = (dayNumber == 26 || dayNumber == 30);
-
-                  if (isSpecialBadgeDay) {
-                    return Container(
-                      decoration: BoxDecoration(
-                        color: gold,
-                        shape: BoxShape.rectangle,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          const Icon(
-                            Icons.shield_rounded,
-                            color: gold,
-                            size: 26,
-                          ),
-                          Text(
-                            '$dayNumber',
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w900,
-                              color: navyDark,
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-
-                  return Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      Text(
-                        '$dayNumber',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
-                      ),
-                      if (hasNotification)
-                        const Positioned(
-                          top: 2,
-                          right: 2,
-                          child: Icon(
-                            Icons.notifications_active_rounded,
-                            size: 10,
-                            color: gold,
-                          ),
-                        ),
-                    ],
-                  );
-                },
-              ),
+            rightChevronIcon: const Icon(
+              Icons.chevron_right_rounded,
+              color: gold,
+              size: 28,
             ),
-          ],
+            headerPadding: const EdgeInsets.symmetric(vertical: 8),
+          ),
+          daysOfWeekStyle: DaysOfWeekStyle(
+            weekdayStyle: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFFA0C0E0),
+            ),
+            weekendStyle: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFFA0C0E0),
+            ),
+          ),
+          calendarStyle: CalendarStyle(
+            todayDecoration: BoxDecoration(
+              color: gold.withOpacity(0.3),
+              shape: BoxShape.circle,
+            ),
+            selectedDecoration: const BoxDecoration(
+              color: gold,
+              shape: BoxShape.circle,
+            ),
+            todayTextStyle: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
+            ),
+            selectedTextStyle: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w900,
+              color: navyDark,
+            ),
+            defaultTextStyle: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
+            ),
+            weekendTextStyle: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
+            ),
+            outsideTextStyle: TextStyle(
+              fontSize: 13,
+              color: Colors.white.withOpacity(0.3),
+            ),
+            markerDecoration: BoxDecoration(
+              color: gold,
+              shape: BoxShape.circle,
+            ),
+            markersMaxCount: 3,
+            markerSize: 6,
+          ),
+          onDaySelected: (selectedDay, focusedDay) {
+            setState(() {
+              _selectedDay = selectedDay;
+              _focusedDay = focusedDay;
+            });
+          },
+          onPageChanged: (focusedDay) {
+            setState(() {
+              _focusedDay = focusedDay;
+            });
+          },
         ),
       ),
     );
@@ -412,12 +329,32 @@ class _CalendarScreenState extends State<CalendarScreen> {
   // 4) كروت الأحداث والإجازات الرسمية (W: 312, H: 126)
   // ══════════════════════════════════════
   Widget _buildEventsList() {
+    final selectedEvents = _selectedDay != null
+        ? _getEventsForDay(_selectedDay!)
+        : _getEventsForDay(_focusedDay);
+
+    if (selectedEvents.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+        child: Center(
+          child: Text(
+            'لا توجد أحداث في هذا اليوم',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: textGray,
+            ),
+          ),
+        ),
+      );
+    }
+
     return ListView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      itemCount: _events.length,
+      itemCount: selectedEvents.length,
       itemBuilder: (context, index) {
-        final event = _events[index];
+        final event = selectedEvents[index];
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 6),
           child: _buildEventCard(event),
@@ -641,23 +578,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
             ),
           );
         }),
-      ),
-    );
-  }
-}
-
-class _DayNameHeader extends StatelessWidget {
-  final String text;
-  const _DayNameHeader(this.text);
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: const TextStyle(
-        fontSize: 13,
-        fontWeight: FontWeight.bold,
-        color: Color(0xFFA0C0E0),
       ),
     );
   }
