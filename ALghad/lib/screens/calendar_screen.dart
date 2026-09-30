@@ -201,30 +201,32 @@ class _CalendarScreenState extends State<CalendarScreen> {
             formatButtonVisible: false,
             titleCentered: true,
             titleTextStyle: const TextStyle(
-              fontSize: 16,
+              fontSize: 14,
               fontWeight: FontWeight.bold,
               color: Colors.white,
             ),
             leftChevronIcon: const Icon(
               Icons.chevron_left_rounded,
               color: gold,
-              size: 28,
+              size: 24,
             ),
             rightChevronIcon: const Icon(
               Icons.chevron_right_rounded,
               color: gold,
-              size: 28,
+              size: 24,
             ),
-            headerPadding: const EdgeInsets.symmetric(vertical: 8),
+            headerPadding: const EdgeInsets.symmetric(vertical: 4),
+            leftPadding: 0,
+            rightPadding: 0,
           ),
           daysOfWeekStyle: DaysOfWeekStyle(
             weekdayStyle: const TextStyle(
-              fontSize: 13,
+              fontSize: 11,
               fontWeight: FontWeight.bold,
               color: Color(0xFFA0C0E0),
             ),
             weekendStyle: const TextStyle(
-              fontSize: 13,
+              fontSize: 11,
               fontWeight: FontWeight.bold,
               color: Color(0xFFA0C0E0),
             ),
@@ -239,27 +241,27 @@ class _CalendarScreenState extends State<CalendarScreen> {
               shape: BoxShape.circle,
             ),
             todayTextStyle: const TextStyle(
-              fontSize: 14,
+              fontSize: 13,
               fontWeight: FontWeight.w600,
               color: Colors.white,
             ),
             selectedTextStyle: const TextStyle(
-              fontSize: 14,
+              fontSize: 13,
               fontWeight: FontWeight.w900,
               color: navyDark,
             ),
             defaultTextStyle: const TextStyle(
-              fontSize: 14,
+              fontSize: 13,
               fontWeight: FontWeight.w600,
               color: Colors.white,
             ),
             weekendTextStyle: const TextStyle(
-              fontSize: 14,
+              fontSize: 13,
               fontWeight: FontWeight.w600,
               color: Colors.white,
             ),
             outsideTextStyle: TextStyle(
-              fontSize: 13,
+              fontSize: 12,
               color: Colors.white.withOpacity(0.3),
             ),
             markerDecoration: BoxDecoration(
@@ -267,10 +269,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
               shape: BoxShape.circle,
             ),
             markersMaxCount: 3,
-            markerSize: 6,
-            rowDecoration: BoxDecoration(
-              color: Colors.transparent,
-            ),
+            markerSize: 4,
+            cellMargin: const EdgeInsets.all(2),
+            cellPadding: const EdgeInsets.all(4),
           ),
           onDaySelected: (selectedDay, focusedDay) {
             setState(() {
@@ -430,7 +431,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       child: Text(
                         event['title'],
                         style: const TextStyle(
-                          fontSize: 16,
+                          fontSize: 15,
                           fontWeight: FontWeight.w900,
                           color: navyDark,
                         ),
@@ -449,7 +450,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                             ? Icons.favorite_rounded
                             : Icons.favorite_border_rounded,
                         color: isFavorite ? const Color(0xFFE53935) : textGray,
-                        size: 20,
+                        size: 18,
                       ),
                     ),
                   ],
@@ -459,7 +460,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 Text(
                   event['subtitle'],
                   style: const TextStyle(
-                    fontSize: 13,
+                    fontSize: 12,
                     fontWeight: FontWeight.w700,
                     color: navyDark,
                   ),
@@ -471,7 +472,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 Text(
                   event['description'],
                   style: const TextStyle(
-                    fontSize: 11,
+                    fontSize: 10,
                     fontWeight: FontWeight.w500,
                     color: textGray,
                   ),
@@ -485,7 +486,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     Text(
                       '${event['dayName']} ${event['dayNumber']}',
                       style: const TextStyle(
-                        fontSize: 11,
+                        fontSize: 10,
                         fontWeight: FontWeight.w800,
                         color: navyDark,
                       ),
@@ -500,7 +501,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     Text(
                       '${event['views']} مشاهدة',
                       style: const TextStyle(
-                        fontSize: 11,
+                        fontSize: 10,
                         fontWeight: FontWeight.w600,
                         color: textGray,
                       ),
