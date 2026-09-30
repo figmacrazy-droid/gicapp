@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import 'home_screen.dart';
 import 'calendar_screen.dart';
 import 'profile_screen.dart';
@@ -15,14 +16,14 @@ class LocationScreen extends StatefulWidget {
 class _LocationScreenState extends State<LocationScreen> {
   int _currentNavIndex = 1; // 1 = Location tab active
   final TextEditingController _searchController = TextEditingController();
+  final MapController _mapController = MapController();
 
   double _calculatedDistance = 0.0;
   bool _isCalculating = false;
   bool _distanceCalculated = false;
 
   // إحداثيات الكلية في صنعاء
-  static const LatLng _collegeLocation = LatLng(15.3694, 44.1910);
-  Set<Marker> _markers = {};
+  static final LatLng _collegeLocation = LatLng(15.3694, 44.1910);
 
   static const Color navyDark = Color(0xFF0A2451);
   static const Color gold = Color(0xFFD39706);
@@ -33,31 +34,9 @@ class _LocationScreenState extends State<LocationScreen> {
       'https://www.google.com/maps/place/Alghad+International+College+for+Health+and+Technical+Sciences,+Airport+Rd,+Sanaa,+Yemen/data=!4m2!3m1!1s0x1603d9084afd580b:0x410f08966bf16efc!18m1!1e1?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI2LjI3LjUYACCenQoqnwEsOTQyNjc3MjcsOTQyOTIxOTUsOTQyOTk1MzIsMTAwNzk2NDk4LDEwMDc5Nzc2MSwxMDA3OTY1MzUsOTQyODA1NzYsOTQyMCczOTQsOTQy0c1MDYsOTQyMDg1MDYsOTQyMTg2NTMsOTQyMjk4MzksMTAwODA4NjU0LDk0Mjc1MTY4LDk0Mjc5NjE5LDEwMDgyMDIzNywxMDA4MjI0OTRCAllF&skid=0ca2778d-6407-4ec9-a083-30f793e0b961&g_st=aw&q=Alghad%2BInternational%2BCollege%2Bfor%2BHealth%2Band%2BTechnical%2BSciences%2C%2BAirport%2BRd%2C%2BSanaa%2C%2BYemen';
 
   @override
-  void initState() {
-    super.initState();
-    _addMarker();
-  }
-
-  @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
-  }
-
-  void _addMarker() {
-    setState(() {
-      _markers = {
-        Marker(
-          markerId: const MarkerId('college'),
-          position: _collegeLocation,
-          infoWindow: const InfoWindow(
-            title: 'كلية الغد الدولية',
-            snippet: 'شارع المطار - صنعاء، اليمن',
-          ),
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
-        ),
-      };
-    });
   }
 
   // 🚀 فتح الموقع مباشرة على خرائط جوجل
@@ -101,19 +80,34 @@ class _LocationScreenState extends State<LocationScreen> {
             children: [
               // 1. الخريطة التفاعلية بالكامل مع دعم التكبير والتحريك
               Positioned.fill(
-                child: GoogleMap(
-                  initialCameraPosition: const CameraPosition(
-                    target: _collegeLocation,
-                    zoom: 15.0,
+                child: FlutterMap(
+                  mapController: _mapController,
+                  options: MapOptions(
+                    initialCenter: _collegeLocation,
+                    initialZoom: 15.0,
+                    minZoom: 10.0,
+                    maxZoom: 18.0,
                   ),
-                  markers: _markers,
-                  myLocationEnabled: true,
-                  myLocationButtonEnabled: false,
-                  zoomControlsEnabled: false,
-                  mapType: MapType.normal,
-                  onMapCreated: (GoogleMapController controller) {
-                    // يمكن حفظ controller للتحكم الإضافي
-                  },
+                  children: [
+                    TileLayer(
+                      urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      userAgentPackageName: 'com.example.alghad',
+                    ),
+                    MarkerLayer(
+                      markers: [
+                        Marker(
+                          point: _collegeLocation,
+                          width: 40,
+                          height: 40,
+                          child: const Icon(
+                            Icons.location_on,
+                            color: Colors.red,
+                            size: 40,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
 
