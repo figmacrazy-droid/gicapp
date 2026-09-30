@@ -203,7 +203,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
             titleTextStyle: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
-              color: navyDark,
+              color: Colors.white,
             ),
             leftChevronIcon: const Icon(
               Icons.chevron_left_rounded,
@@ -268,6 +268,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
             ),
             markersMaxCount: 3,
             markerSize: 6,
+            rowDecoration: BoxDecoration(
+              color: Colors.transparent,
+            ),
           ),
           onDaySelected: (selectedDay, focusedDay) {
             setState(() {
@@ -329,16 +332,15 @@ class _CalendarScreenState extends State<CalendarScreen> {
   // 4) كروت الأحداث والإجازات الرسمية (W: 312, H: 126)
   // ══════════════════════════════════════
   Widget _buildEventsList() {
-    final selectedEvents = _selectedDay != null
-        ? _getEventsForDay(_selectedDay!)
-        : _getEventsForDay(_focusedDay);
+    // عرض جميع الأحداث من جميع الأشهر
+    final allEvents = _events.values.expand((e) => e).toList();
 
-    if (selectedEvents.isEmpty) {
+    if (allEvents.isEmpty) {
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
         child: Center(
           child: Text(
-            'لا توجد أحداث في هذا اليوم',
+            'لا توجد أحداث',
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
@@ -352,9 +354,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
     return ListView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      itemCount: selectedEvents.length,
+      itemCount: allEvents.length,
       itemBuilder: (context, index) {
-        final event = selectedEvents[index];
+        final event = allEvents[index];
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 6),
           child: _buildEventCard(event),
