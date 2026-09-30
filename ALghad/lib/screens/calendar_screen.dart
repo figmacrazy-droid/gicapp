@@ -216,8 +216,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
               size: 24,
             ),
             headerPadding: const EdgeInsets.symmetric(vertical: 4),
-            leftPadding: 0,
-            rightPadding: 0,
           ),
           daysOfWeekStyle: DaysOfWeekStyle(
             weekdayStyle: const TextStyle(
