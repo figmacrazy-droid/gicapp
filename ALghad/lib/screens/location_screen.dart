@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'home_screen.dart';
 import 'calendar_screen.dart';
 import 'profile_screen.dart';
@@ -11,16 +12,17 @@ class LocationScreen extends StatefulWidget {
   State<LocationScreen> createState() => _LocationScreenState();
 }
 
-class _LocationScreenState extends State<LocationScreen>
-    with SingleTickerProviderStateMixin {
+class _LocationScreenState extends State<LocationScreen> {
   int _currentNavIndex = 1; // 1 = Location tab active
-  final TransformationController _transformationController =
-      TransformationController();
   final TextEditingController _searchController = TextEditingController();
 
   double _calculatedDistance = 0.0;
   bool _isCalculating = false;
   bool _distanceCalculated = false;
+
+  // إحداثيات الكلية في صنعاء
+  static const LatLng _collegeLocation = LatLng(15.3694, 44.1910);
+  Set<Marker> _markers = {};
 
   static const Color navyDark = Color(0xFF0A2451);
   static const Color gold = Color(0xFFD39706);
@@ -31,10 +33,31 @@ class _LocationScreenState extends State<LocationScreen>
       'https://www.google.com/maps/place/Alghad+International+College+for+Health+and+Technical+Sciences,+Airport+Rd,+Sanaa,+Yemen/data=!4m2!3m1!1s0x1603d9084afd580b:0x410f08966bf16efc!18m1!1e1?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI2LjI3LjUYACCenQoqnwEsOTQyNjc3MjcsOTQyOTIxOTUsOTQyOTk1MzIsMTAwNzk2NDk4LDEwMDc5Nzc2MSwxMDA3OTY1MzUsOTQyODA1NzYsOTQyMCczOTQsOTQy0c1MDYsOTQyMDg1MDYsOTQyMTg2NTMsOTQyMjk4MzksMTAwODA4NjU0LDk0Mjc1MTY4LDk0Mjc5NjE5LDEwMDgyMDIzNywxMDA4MjI0OTRCAllF&skid=0ca2778d-6407-4ec9-a083-30f793e0b961&g_st=aw&q=Alghad%2BInternational%2BCollege%2Bfor%2BHealth%2Band%2BTechnical%2BSciences%2C%2BAirport%2BRd%2C%2BSanaa%2C%2BYemen';
 
   @override
+  void initState() {
+    super.initState();
+    _addMarker();
+  }
+
+  @override
   void dispose() {
-    _transformationController.dispose();
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _addMarker() {
+    setState(() {
+      _markers = {
+        Marker(
+          markerId: const MarkerId('college'),
+          position: _collegeLocation,
+          infoWindow: const InfoWindow(
+            title: 'كلية الغد الدولية',
+            snippet: 'شارع المطار - صنعاء، اليمن',
+          ),
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+        ),
+      };
+    });
   }
 
   // 🚀 فتح الموقع مباشرة على خرائط جوجل
@@ -67,16 +90,6 @@ class _LocationScreenState extends State<LocationScreen>
     });
   }
 
-  void _zoomIn() {
-    final Matrix4 currentMatrix = _transformationController.value;
-    _transformationController.value = currentMatrix.scaled(1.25, 1.25, 1.0);
-  }
-
-  void _zoomOut() {
-    final Matrix4 currentMatrix = _transformationController.value;
-    _transformationController.value = currentMatrix.scaled(0.8, 0.8, 1.0);
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -88,31 +101,19 @@ class _LocationScreenState extends State<LocationScreen>
             children: [
               // 1. الخريطة التفاعلية بالكامل مع دعم التكبير والتحريك
               Positioned.fill(
-                child: InteractiveViewer(
-                  transformationController: _transformationController,
-                  minScale: 0.8,
-                  maxScale: 4.5,
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      Image.asset(
-                        'assets/images/map_location_screen.png',
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                            color: const Color(0xFFE5ECEF),
-                            child: const Center(
-                              child: Icon(
-                                Icons.map_rounded,
-                                size: 80,
-                                color: navyDark,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ],
+                child: GoogleMap(
+                  initialCameraPosition: const CameraPosition(
+                    target: _collegeLocation,
+                    zoom: 15.0,
                   ),
+                  markers: _markers,
+                  myLocationEnabled: true,
+                  myLocationButtonEnabled: false,
+                  zoomControlsEnabled: false,
+                  mapType: MapType.normal,
+                  onMapCreated: (GoogleMapController controller) {
+                    // يمكن حفظ controller للتحكم الإضافي
+                  },
                 ),
               ),
 
@@ -168,30 +169,6 @@ class _LocationScreenState extends State<LocationScreen>
                 ),
               ),
 
-              // 3. أزرار التحكم في التكبير (+ و -) على يمين الخريطة
-              Positioned(
-                left: 16,
-                top: 90,
-                child: Column(
-                  children: [
-                    FloatingActionButton.small(
-                      heroTag: 'zoomIn',
-                      onPressed: _zoomIn,
-                      backgroundColor: Colors.white,
-                      elevation: 4,
-                      child: const Icon(Icons.add_rounded, color: navyDark),
-                    ),
-                    const SizedBox(height: 8),
-                    FloatingActionButton.small(
-                      heroTag: 'zoomOut',
-                      onPressed: _zoomOut,
-                      backgroundColor: Colors.white,
-                      elevation: 4,
-                      child: const Icon(Icons.remove_rounded, color: navyDark),
-                    ),
-                  ],
-                ),
-              ),
 
               // 4. البطاقة السفلية التفاعلية (معلومات الكلية + زر تحديد المسافة وخرائط جوجل)
               Positioned(
