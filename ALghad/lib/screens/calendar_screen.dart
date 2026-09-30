@@ -176,7 +176,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       child: Container(
         width: 312,
         height: 302,
-        padding: const EdgeInsets.all(10),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: navyDark,
           borderRadius: BorderRadius.circular(20),
@@ -357,7 +357,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       itemBuilder: (context, index) {
         final event = allEvents[index];
         return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
           child: _buildEventCard(event),
         );
       },
