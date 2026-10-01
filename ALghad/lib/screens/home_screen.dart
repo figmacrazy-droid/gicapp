@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'all_specialties_screen.dart';
 import 'notifications_screen.dart';
 import 'admission_screen.dart';
@@ -33,7 +32,6 @@ class _HomeScreenState extends State<HomeScreen>
 
   static const double _cardWidth = 222;
   static const double _cardHeight = 278;
-  static const double _cardMargin = 0;
   static const int _initialPage = 5000;
 
   // 🎨 ألوان التصميم

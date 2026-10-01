@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:table_calendar/table_calendar.dart';
 import 'profile_screen.dart';
 import 'location_screen.dart';
 
@@ -11,77 +10,93 @@ class CalendarScreen extends StatefulWidget {
 }
 
 class _CalendarScreenState extends State<CalendarScreen> {
-  int _currentNavIndex = 2; // 2 = Calendar tab active
-  DateTime _focusedDay = DateTime.now();
-  DateTime? _selectedDay;
-  CalendarFormat _calendarFormat = CalendarFormat.month;
+  // التاريخ المعروض والمحدد
+  late DateTime _focusedDate;
+  late DateTime _selectedDate;
 
-  static const Color navyDark = Color(0xFF0A2451);
-  static const Color gold = Color(0xFFD39706);
-  static const Color textGray = Color(0xFF6B6B6B);
+  // فرز الأحداث
+  bool _sortAscending = true;
 
-  // 🗓️ قائمة إجازات السنة والأحداث الأكاديمية مرتبطة بالتواريخ
-  final Map<DateTime, List<Map<String, dynamic>>> _events = {
-    DateTime(2026, 9, 26): [
-      {
-        'id': '1',
-        'title': 'إجازة رسمية',
-        'subtitle': 'بمناسبة عيد ثورة 26 سبتمبر',
-        'description': 'نتمنى لكم إجازة سعيدة',
-        'dayName': 'السبت',
-        'dayNumber': '26',
-        'views': '450',
-        'isFavorite': true,
-        'isHoliday': true,
-        'dateTag': '26 سبتمبر 2026',
-      },
-    ],
-    DateTime(2026, 9, 30): [
-      {
-        'id': '2',
-        'title': 'حفل تكريم الأوائل',
-        'subtitle': 'جميع المستويات',
-        'description': 'الدعوة عامة لجميع الطلاب',
-        'dayName': 'الأربعاء',
-        'dayNumber': '30',
-        'views': '602',
-        'isFavorite': false,
-        'isHoliday': false,
-        'dateTag': '30 سبتمبر 2026',
-      },
-    ],
-    DateTime(2026, 10, 14): [
-      {
-        'id': '3',
-        'title': 'إجازة عيد الجلاء 14 أكتوبر',
-        'subtitle': 'إجازة رسمية لجميع الكليات',
-        'description': 'تعطل الدراسة في جميع الأقسام',
-        'dayName': 'الأربعاء',
-        'dayNumber': '14',
-        'views': '512',
-        'isFavorite': true,
-        'isHoliday': true,
-        'dateTag': '14 أكتوبر 2026',
-      },
-    ],
-    DateTime(2026, 10, 18): [
-      {
-        'id': '4',
-        'title': 'بدء الاختبارات النصفية',
-        'subtitle': 'الفصل الدراسي الأول',
-        'description': 'جدول الاختبارات معلن في شؤون الطلاب',
-        'dayName': 'الأحد',
-        'dayNumber': '18',
-        'views': '780',
-        'isFavorite': false,
-        'isHoliday': false,
-        'dateTag': '18 أكتوبر 2026',
-      },
-    ],
-  };
+  // ألوان التصميم المطابقة للصورة المطلوبة بدقة
+  static const Color navyDark = Color(0xFF071B42);
+  static const Color goldYellow = Color(0xFFE5A912);
+  static const Color textGray = Color(0xFF6B7280);
+  static const Color cardBorder = Color(0xFFEDEDED);
 
-  List<Map<String, dynamic>> _getEventsForDay(DateTime day) {
-    return _events[DateTime(day.year, day.month, day.day)] ?? [];
+  // أسماء الشهور بالإنجليزية كما في التصميم (Sep, Oct, ...)
+  final List<String> _monthNames = const [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+  ];
+
+  // أسماء الأيام بالإنجليزية وباللون الذهبي
+  final List<String> _weekDays = const [
+    'Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'
+  ];
+
+  // قاعدة بيانات الأحداث والفعاليات
+  late Map<String, List<Map<String, dynamic>>> _eventsData;
+
+  @override
+  void initState() {
+    super.initState();
+    // ضبط التاريخ الافتراضي على سبتمبر 2026 واليوم 25 كما في التصميم المطلوب
+    _focusedDate = DateTime(2026, 9, 25);
+    _selectedDate = DateTime(2026, 9, 25);
+
+    _eventsData = {
+      '2026-09-26': [
+        {
+          'id': '1',
+          'title': 'إجازة رسمية',
+          'subtitle': 'بمناسبة عيد ثورة 26 سبتمبر',
+          'highlight': 'نتمنى لكم إجازة سعيدة.',
+          'footer': 'السبت 26  |  450 مشاهدة',
+          'isFavorite': true,
+          'dayNumber': 26,
+        }
+      ],
+      '2026-09-30': [
+        {
+          'id': '2',
+          'title': 'حفل تكريم الأوائل',
+          'subtitle': 'جميع المستويات',
+          'highlight': 'الدعوة عامة.',
+          'footer': 'الأربعاء 30  |  602 مشاهدة',
+          'isFavorite': false,
+          'dayNumber': 30,
+        }
+      ],
+    };
+  }
+
+  String _dateKey(DateTime d) {
+    return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+  }
+
+  bool _hasEventOnDay(DateTime day) {
+    return _eventsData.containsKey(_dateKey(day));
+  }
+
+  void _onPrevMonth() {
+    setState(() {
+      _focusedDate = DateTime(_focusedDate.year, _focusedDate.month - 1, 1);
+    });
+  }
+
+  void _onNextMonth() {
+    setState(() {
+      _focusedDate = DateTime(_focusedDate.year, _focusedDate.month + 1, 1);
+    });
+  }
+
+  void _selectDay(DateTime day) {
+    setState(() {
+      _selectedDate = day;
+      if (day.month != _focusedDate.month) {
+        _focusedDate = DateTime(day.year, day.month, 1);
+      }
+    });
   }
 
   @override
@@ -100,30 +115,29 @@ class _CalendarScreenState extends State<CalendarScreen> {
               Expanded(
                 child: SingleChildScrollView(
                   physics: const BouncingScrollPhysics(),
+                  padding: const EdgeInsets.only(bottom: 20),
                   child: Column(
                     children: [
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 6),
 
-                      // 3. تقويم الشهر (Rectangle 371)
-                      _buildCalendarBox(),
+                      // بطاقة التقويم الكحلية التفاعلية
+                      _buildCalendarCard(),
 
-                      const SizedBox(height: 19), // 19px حسب مقاسات Figma
+                      const SizedBox(height: 22),
 
-                      // 4. رأس شريط الأحداث والقوائم
+                      // عنوان "أحداث قادمة" و "سجل الأحداث"
                       _buildEventsHeader(),
 
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 14),
 
-                      // 5. قائمة كروت الإجازات والأحداث
+                      // قائمة كروت الأحداث
                       _buildEventsList(),
-
-                      const SizedBox(height: 20),
                     ],
                   ),
                 ),
               ),
 
-              // 6. شريط التنقل السفلي
+              // 3. شريط التنقل السفلي
               _buildBottomNav(),
             ],
           ),
@@ -133,7 +147,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   // ══════════════════════════════════════
-  // 1) الشريط العلوي
+  // 1) الشريط العلوي (App Bar)
   // ══════════════════════════════════════
   Widget _buildTopAppBar() {
     return Padding(
@@ -144,18 +158,18 @@ class _CalendarScreenState extends State<CalendarScreen> {
           Row(
             children: [
               GestureDetector(
-                onTap: () => Navigator.pop(context),
+                onTap: () => Navigator.maybePop(context),
                 child: const Icon(
                   Icons.arrow_forward_rounded,
                   color: navyDark,
                   size: 26,
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 14),
               const Text(
                 'تقويم الغد',
                 style: TextStyle(
-                  fontSize: 20,
+                  fontSize: 22,
                   fontWeight: FontWeight.w900,
                   color: navyDark,
                 ),
@@ -168,120 +182,302 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   // ══════════════════════════════════════
-  // 2) مربع التقويم الأكاديمي (W: 312, H: 302)
+  // 2) بطاقة التقويم التفاعلية
   // ══════════════════════════════════════
-  Widget _buildCalendarBox() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Container(
-        width: 312,
-        height: 302,
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: navyDark,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: navyDark.withOpacity(0.25),
-              blurRadius: 15,
-              offset: const Offset(0, 8),
+  Widget _buildCalendarCard() {
+    return Container(
+      width: 320,
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
+      decoration: BoxDecoration(
+        color: navyDark,
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+            color: navyDark.withValues(alpha: 0.35),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // شريط اختيار الشهر والسنة
+          _buildMonthYearHeader(),
+
+          const SizedBox(height: 16),
+
+          // شريط أسماء الأيام بالإنجليزية وباللون الذهبي
+          _buildDaysOfWeek(),
+
+          const SizedBox(height: 10),
+
+          // شبكة أيام الشهر التفاعلية
+          _buildDaysGrid(),
+        ],
+      ),
+    );
+  }
+
+  // ترويسة التقويم (الأسهم والكبسولات الذهبية)
+  Widget _buildMonthYearHeader() {
+    final currentMonthName = _monthNames[_focusedDate.month - 1];
+    final currentYear = _focusedDate.year.toString();
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        // سهم السابق <
+        IconButton(
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+          icon: const Icon(
+            Icons.chevron_left_rounded,
+            color: goldYellow,
+            size: 28,
+          ),
+          onPressed: _onPrevMonth,
+        ),
+
+        // كبسولة الشهر وكبسولة السنة
+        Row(
+          children: [
+            // زر اختيار الشهر
+            GestureDetector(
+              onTap: _showMonthPicker,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+                decoration: BoxDecoration(
+                  color: goldYellow,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  children: [
+                    Text(
+                      currentMonthName,
+                      style: const TextStyle(
+                        color: navyDark,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    const Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      color: navyDark,
+                      size: 18,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(width: 10),
+
+            // زر اختيار السنة
+            GestureDetector(
+              onTap: _showYearPicker,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+                decoration: BoxDecoration(
+                  color: goldYellow,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  children: [
+                    Text(
+                      currentYear,
+                      style: const TextStyle(
+                        color: navyDark,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    const Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      color: navyDark,
+                      size: 18,
+                    ),
+                  ],
+                ),
+              ),
             ),
           ],
         ),
-        child: TableCalendar(
-          locale: 'ar_SA',
-          firstDay: DateTime(2026, 1, 1),
-          lastDay: DateTime(2027, 12, 31),
-          focusedDay: _focusedDay,
-          selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-          calendarFormat: _calendarFormat,
-          eventLoader: _getEventsForDay,
-          startingDayOfWeek: StartingDayOfWeek.sunday,
-          headerStyle: HeaderStyle(
-            formatButtonVisible: false,
-            titleCentered: true,
-            titleTextStyle: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-            leftChevronIcon: const Icon(
-              Icons.chevron_left_rounded,
-              color: gold,
-              size: 18,
-            ),
-            rightChevronIcon: const Icon(
-              Icons.chevron_right_rounded,
-              color: gold,
-              size: 18,
-            ),
-            headerPadding: const EdgeInsets.symmetric(vertical: 2),
+
+        // سهم التالي >
+        IconButton(
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+          icon: const Icon(
+            Icons.chevron_right_rounded,
+            color: goldYellow,
+            size: 28,
           ),
-          daysOfWeekStyle: DaysOfWeekStyle(
-            weekdayStyle: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFFA0C0E0),
-            ),
-            weekendStyle: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFFA0C0E0),
+          onPressed: _onNextMonth,
+        ),
+      ],
+    );
+  }
+
+  // صف أيام الأسبوع (Su Mo Tu We Th Fr Sa)
+  Widget _buildDaysOfWeek() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceAround,
+      children: _weekDays.map((day) {
+        return SizedBox(
+          width: 36,
+          child: Text(
+            day,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: goldYellow,
+              fontWeight: FontWeight.w700,
+              fontSize: 13,
             ),
           ),
-          calendarStyle: CalendarStyle(
-            todayDecoration: BoxDecoration(
-              color: gold.withOpacity(0.3),
-              shape: BoxShape.circle,
+        );
+      }).toList(),
+    );
+  }
+
+  // شبكة الأيام التفاعلية المحسوبة بدقة
+  Widget _buildDaysGrid() {
+    final year = _focusedDate.year;
+    final month = _focusedDate.month;
+
+    final firstDayOfMonth = DateTime(year, month, 1);
+    final daysInMonth = DateTime(year, month + 1, 0).day;
+
+    // في التقويم ذو البداية بالأحد (Sunday = 7 في Dart -> 0 في نظامنا)
+    final startingWeekday = firstDayOfMonth.weekday % 7; // الأحد = 0, الاثنين = 1 ...
+
+    final totalCells = ((startingWeekday + daysInMonth) > 35) ? 42 : 35;
+
+    final List<Widget> dayWidgets = [];
+
+    for (int i = 0; i < totalCells; i++) {
+      if (i < startingWeekday) {
+        // أيام الشهر السابق
+        final prevMonthLastDay = DateTime(year, month, 0).day;
+        final dayNum = prevMonthLastDay - (startingWeekday - i - 1);
+        final date = DateTime(year, month - 1, dayNum);
+        dayWidgets.add(_buildOutsideDayCell(date));
+      } else if (i < startingWeekday + daysInMonth) {
+        // أيام الشهر الحالي
+        final dayNum = i - startingWeekday + 1;
+        final date = DateTime(year, month, dayNum);
+        dayWidgets.add(_buildCurrentMonthDayCell(date));
+      } else {
+        // أيام الشهر التالي
+        final dayNum = i - (startingWeekday + daysInMonth) + 1;
+        final date = DateTime(year, month + 1, dayNum);
+        dayWidgets.add(_buildOutsideDayCell(date));
+      }
+    }
+
+    return GridView.count(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisCount: 7,
+      mainAxisSpacing: 8,
+      crossAxisSpacing: 2,
+      childAspectRatio: 1.0,
+      children: dayWidgets,
+    );
+  }
+
+  // خلية اليوم في الشهر الحالي
+  Widget _buildCurrentMonthDayCell(DateTime date) {
+    final isSelected = date.year == _selectedDate.year &&
+        date.month == _selectedDate.month &&
+        date.day == _selectedDate.day;
+
+    final hasEvent = _hasEventOnDay(date);
+
+    return GestureDetector(
+      onTap: () => _selectDay(date),
+      behavior: HitTestBehavior.opaque,
+      child: Stack(
+        alignment: Alignment.center,
+        clipBehavior: Clip.none,
+        children: [
+          // في حال كان هذا اليوم هو المحدد، نعرض الدرع الذهبي
+          if (isSelected)
+            Container(
+              width: 32,
+              height: 36,
+              decoration: const BoxDecoration(
+                color: goldYellow,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(8),
+                  topRight: Radius.circular(8),
+                  bottomLeft: Radius.circular(16),
+                  bottomRight: Radius.circular(16),
+                ),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                '${date.day}',
+                style: const TextStyle(
+                  color: navyDark,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            )
+          else
+            Text(
+              '${date.day}',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
             ),
-            selectedDecoration: const BoxDecoration(
-              color: gold,
-              shape: BoxShape.circle,
+
+          // جرس التنبيه الذهبي في زاوية اليوم الذي يحتوي على حدث
+          if (hasEvent)
+            Positioned(
+              top: 0,
+              right: 4,
+              child: Stack(
+                children: const [
+                  Icon(
+                    Icons.notifications_active_rounded,
+                    color: goldYellow,
+                    size: 13,
+                  ),
+                  Positioned(
+                    top: 1,
+                    right: 1,
+                    child: CircleAvatar(
+                      radius: 2,
+                      backgroundColor: Colors.red,
+                    ),
+                  ),
+                ],
+              ),
             ),
-            todayTextStyle: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: Colors.white,
-            ),
-            selectedTextStyle: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w900,
-              color: navyDark,
-            ),
-            defaultTextStyle: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: Colors.white,
-            ),
-            weekendTextStyle: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: Colors.white,
-            ),
-            outsideTextStyle: TextStyle(
-              fontSize: 12,
-              color: Colors.white.withOpacity(0.3),
-            ),
-            markerDecoration: BoxDecoration(
-              color: gold,
-              shape: BoxShape.circle,
-            ),
-            markersMaxCount: 3,
-            markerSize: 4,
-            cellMargin: EdgeInsets.zero,
-            cellPadding: EdgeInsets.zero,
+        ],
+      ),
+    );
+  }
+
+  // خلية الأيام خارج الشهر
+  Widget _buildOutsideDayCell(DateTime date) {
+    return GestureDetector(
+      onTap: () => _selectDay(date),
+      behavior: HitTestBehavior.opaque,
+      child: Center(
+        child: Text(
+          '${date.day}',
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.35),
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
           ),
-          onDaySelected: (selectedDay, focusedDay) {
-            setState(() {
-              _selectedDay = selectedDay;
-              _focusedDay = focusedDay;
-            });
-          },
-          onPageChanged: (focusedDay) {
-            setState(() {
-              _focusedDay = focusedDay;
-            });
-          },
         ),
       ),
     );
@@ -292,35 +488,42 @@ class _CalendarScreenState extends State<CalendarScreen> {
   // ══════════════════════════════════════
   Widget _buildEventsHeader() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
+      padding: const EdgeInsets.symmetric(horizontal: 26),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           const Text(
             'أحداث قادمة',
             style: TextStyle(
-              fontSize: 17,
+              fontSize: 18,
               fontWeight: FontWeight.w900,
               color: navyDark,
             ),
           ),
-          Row(
-            children: const [
-              Text(
-                'سجل الأحداث',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
+          GestureDetector(
+            onTap: () {
+              setState(() {
+                _sortAscending = !_sortAscending;
+              });
+            },
+            child: Row(
+              children: const [
+                Icon(
+                  Icons.swap_vert_rounded,
+                  size: 18,
                   color: textGray,
                 ),
-              ),
-              SizedBox(width: 4),
-              Icon(
-                Icons.swap_vert_rounded,
-                size: 18,
-                color: textGray,
-              ),
-            ],
+                SizedBox(width: 4),
+                Text(
+                  'سجل الأحداث',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: textGray,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -328,39 +531,25 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   // ══════════════════════════════════════
-  // 4) كروت الأحداث والإجازات الرسمية (W: 312, H: 126)
+  // 4) قائمة كروت الأحداث والإجازات
   // ══════════════════════════════════════
   Widget _buildEventsList() {
-    // عرض جميع الأحداث من جميع الأشهر
-    final allEvents = _events.values.expand((e) => e).toList();
+    List<Map<String, dynamic>> list = [];
 
-    if (allEvents.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-        child: Center(
-          child: Text(
-            'لا توجد أحداث',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: textGray,
-            ),
-          ),
-        ),
-      );
+    // إذا تم تحديد يوم يحتوي على حدث، نظهره أولاً
+    final selectedEvents = _eventsData[_dateKey(_selectedDate)];
+    if (selectedEvents != null && selectedEvents.isNotEmpty) {
+      list = List.from(selectedEvents);
+    } else {
+      list = _eventsData.values.expand((e) => e).toList();
     }
 
-    return ListView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: allEvents.length,
-      itemBuilder: (context, index) {
-        final event = allEvents[index];
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-          child: _buildEventCard(event),
-        );
-      },
+    if (!_sortAscending) {
+      list = list.reversed.toList();
+    }
+
+    return Column(
+      children: list.map((event) => _buildEventCard(event)).toList(),
     );
   }
 
@@ -368,30 +557,30 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final bool isFavorite = event['isFavorite'] ?? false;
 
     return Container(
-      width: 312,
-      height: 126,
+      width: 320,
+      margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: const Color(0xFFE5E5E5),
-          width: 1,
+          color: cardBorder,
+          width: 1.2,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 10,
-            offset: const Offset(0, 4),
+            offset: const Offset(0, 3),
           ),
         ],
       ),
       child: Row(
         children: [
-          // القسم الأيمن: شعار الكلية داخل مربع كحلي مميز
+          // صورة شعار الكلية داخل المربع الكحلي المميز
           Container(
-            width: 95,
-            height: 102,
+            width: 88,
+            height: 94,
             decoration: BoxDecoration(
               color: navyDark,
               borderRadius: BorderRadius.circular(14),
@@ -399,13 +588,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
             child: Center(
               child: Image.asset(
                 'assets/images/gic_shield.png',
-                width: 70,
-                height: 70,
+                width: 65,
+                height: 65,
                 fit: BoxFit.contain,
                 errorBuilder: (context, error, stackTrace) {
                   return const Icon(
                     Icons.school_rounded,
-                    color: gold,
+                    color: goldYellow,
                     size: 40,
                   );
                 },
@@ -415,26 +604,21 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
           const SizedBox(width: 12),
 
-          // القسم الأيسر: تفاصيل الإجازة / الحدث
+          // النصوص والتفاصيل
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // السطر العلوي: العنوان والمفضلة
+                // العنوان وزر القلب التفاعلي
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Expanded(
-                      child: Text(
-                        event['title'],
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w900,
-                          color: navyDark,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                    Text(
+                      event['title'],
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                        color: navyDark,
                       ),
                     ),
                     GestureDetector(
@@ -447,64 +631,49 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         isFavorite
                             ? Icons.favorite_rounded
                             : Icons.favorite_border_rounded,
-                        color: isFavorite ? const Color(0xFFE53935) : textGray,
-                        size: 18,
+                        color: isFavorite
+                            ? const Color(0xFFE53935)
+                            : textGray,
+                        size: 20,
                       ),
                     ),
                   ],
                 ),
 
-                // العنوان الفرعي
+                const SizedBox(height: 3),
+
+                // الوصف الفرعي
                 Text(
                   event['subtitle'],
                   style: const TextStyle(
                     fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: navyDark,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-
-                // الوصف
-                Text(
-                  event['description'],
-                  style: const TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.w600,
                     color: textGray,
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                 ),
 
-                // السطر السفلي: اليوم وتعداد المشاهدات
-                Row(
-                  children: [
-                    Text(
-                      '${event['dayName']} ${event['dayNumber']}',
-                      style: const TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        color: navyDark,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      width: 1,
-                      height: 10,
-                      color: const Color(0xFFD0D0D0),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      '${event['views']} مشاهدة',
-                      style: const TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        color: textGray,
-                      ),
-                    ),
-                  ],
+                const SizedBox(height: 3),
+
+                // النص المميز باللون الذهبي
+                Text(
+                  event['highlight'],
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: goldYellow,
+                  ),
+                ),
+
+                const SizedBox(height: 8),
+
+                // السطر السفلي (التاريخ وعدد المشاهدات)
+                Text(
+                  event['footer'],
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: textGray,
+                  ),
                 ),
               ],
             ),
@@ -515,71 +684,162 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   // ══════════════════════════════════════
-  // 5) شريط التنقل السفلي
+  // 5) شريط التنقل السفلي المطابق للتصميم
   // ══════════════════════════════════════
   Widget _buildBottomNav() {
-    final items = [
-      {'icon': Icons.home_rounded},
-      {'icon': Icons.location_on_outlined},
-      {'icon': Icons.calendar_today_outlined},
-      {'icon': Icons.person_outline_rounded},
-    ];
-
     return Container(
-      height: 72,
+      height: 70,
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            blurRadius: 15,
-            offset: const Offset(0, -4),
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 10,
+            offset: const Offset(0, -3),
           ),
         ],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: List.generate(items.length, (i) {
-          final isActive = i == _currentNavIndex;
-          return GestureDetector(
-            onTap: () {
-              if (i == 0) {
-                Navigator.popUntil(context, (route) => route.isFirst);
-              } else if (i == 1) {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const LocationScreen(),
-                  ),
-                );
-              } else if (i == 3) {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const ProfileScreen(),
-                  ),
-                );
-              } else {
-                setState(() => _currentNavIndex = i);
-              }
-            },
-            behavior: HitTestBehavior.opaque,
-            child: Container(
-              width: 46,
-              height: 46,
-              decoration: BoxDecoration(
-                color: isActive ? const Color(0xFFF2F5F8) : Colors.transparent,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                items[i]['icon'] as IconData,
-                color: isActive ? navyDark : const Color(0xFFB0B0B0),
-                size: 24,
-              ),
-            ),
-          );
-        }),
+        children: [
+          // بروفايل
+          _buildNavItem(Icons.person_outline_rounded, () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const ProfileScreen()),
+            );
+          }),
+
+          // تقويم (مفعل بالدائرة الرمادية الزرقاء الفاتحة)
+          _buildNavItem(
+            Icons.calendar_month_rounded,
+            () {},
+            isActive: true,
+          ),
+
+          // خريطة / موقع
+          _buildNavItem(Icons.location_on_outlined, () {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const LocationScreen()),
+            );
+          }),
+
+          // الرئيسية
+          _buildNavItem(Icons.home_outlined, () {
+            Navigator.popUntil(context, (route) => route.isFirst);
+          }),
+        ],
       ),
+    );
+  }
+
+  Widget _buildNavItem(IconData icon, VoidCallback onTap, {bool isActive = false}) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          color: isActive ? const Color(0xFFEFF4F9) : Colors.transparent,
+          shape: BoxShape.circle,
+        ),
+        child: Icon(
+          icon,
+          size: 24,
+          color: isActive ? navyDark : const Color(0xFFA0A5AE),
+        ),
+      ),
+    );
+  }
+
+  // ══════════════════════════════════════
+  // نوافذ اختيار الشهر والسنة السريعة
+  // ══════════════════════════════════════
+  void _showMonthPicker() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) {
+        return Container(
+          padding: const EdgeInsets.all(16),
+          height: 250,
+          child: GridView.builder(
+            itemCount: 12,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 4,
+              childAspectRatio: 2,
+            ),
+            itemBuilder: (ctx, i) {
+              final isCurrent = (_focusedDate.month - 1) == i;
+              return GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _focusedDate = DateTime(_focusedDate.year, i + 1, 1);
+                  });
+                  Navigator.pop(ctx);
+                },
+                child: Container(
+                  margin: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: isCurrent ? goldYellow : Colors.transparent,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    _monthNames[i],
+                    style: TextStyle(
+                      color: isCurrent ? navyDark : Colors.black87,
+                      fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  void _showYearPicker() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) {
+        return Container(
+          padding: const EdgeInsets.all(16),
+          height: 250,
+          child: ListView.builder(
+            itemCount: 10,
+            itemBuilder: (ctx, i) {
+              final year = 2024 + i;
+              final isCurrent = _focusedDate.year == year;
+              return ListTile(
+                title: Text(
+                  '$year',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: isCurrent ? goldYellow : Colors.black87,
+                    fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
+                  ),
+                ),
+                onTap: () {
+                  setState(() {
+                    _focusedDate = DateTime(year, _focusedDate.month, 1);
+                  });
+                  Navigator.pop(ctx);
+                },
+              );
+            },
+          ),
+        );
+      },
     );
   }
 }

@@ -1,0 +1,6 @@
+current_0|C:\Users\crazy\Downloads\ALghad\الواجهات الحاليه\الشاشه الرىيسيه الاتص تحت الايقونات ونص التخصصات.jpeg
+current_1|C:\Users\crazy\Downloads\ALghad\الواجهات الحاليه\شاشه الحساب.jpeg
+current_2|C:\Users\crazy\Downloads\ALghad\الواجهات الحاليه\شاشه تسجيل الدخول.jpeg
+required_0|C:\Users\crazy\Downloads\ALghad\الواجهات المطلوبه\الشاشه الرىيسيه الاتص تحت الايقونات ونص التخصصات (2).jpeg
+required_1|C:\Users\crazy\Downloads\ALghad\الواجهات المطلوبه\شاشه الحساب.jpeg
+required_2|C:\Users\crazy\Downloads\ALghad\الواجهات المطلوبه\شاشه تسجيل الدخول.jpeg
