@@ -2,7 +2,13 @@ import 'package:flutter/material.dart';
 
 class ProfileScreen extends StatelessWidget {
   final bool hideBottomNav;
-  const ProfileScreen({super.key, this.hideBottomNav = false});
+  final String studentFullName;
+
+  const ProfileScreen({
+    super.key,
+    this.hideBottomNav = false,
+    this.studentFullName = 'عبدالله حمود محمد أبوطالب',
+  });
 
   static const Color navyDark = Color(0xFF0A2451);
   static const Color textGray = Color(0xFF6B6B6B);
@@ -203,9 +209,9 @@ class ProfileScreen extends StatelessWidget {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Text(
-                          'عبدالله حمود محمد أبوطالب',
-                          style: TextStyle(
+                        Text(
+                          studentFullName,
+                          style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w900,
                             color: navyDark,

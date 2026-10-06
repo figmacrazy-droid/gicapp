@@ -16,8 +16,14 @@ import 'alumni_screen.dart';
 import 'achievements_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  final String userName;
-  const HomeScreen({super.key, this.userName = 'مصطفى'});
+  final String studentFullName;
+  final String? userName;
+
+  const HomeScreen({
+    super.key,
+    this.studentFullName = 'عبدالله حمود محمد أبوطالب',
+    this.userName,
+  });
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -27,6 +33,14 @@ class _HomeScreenState extends State<HomeScreen>
     with TickerProviderStateMixin {
   int _currentSlide = 0;
   int _currentNavIndex = 0;
+
+  String get _effectiveFullName => widget.userName ?? widget.studentFullName;
+
+  String get _firstName =>
+      _effectiveFullName.trim().split(RegExp(r'\s+')).first;
+
+  String get _greeting =>
+      DateTime.now().hour < 12 ? 'صباح الخير' : 'مساء الخير';
 
   Timer? _autoPlayTimer;
   late AnimationController _syncController;
@@ -204,7 +218,10 @@ class _HomeScreenState extends State<HomeScreen>
                       _buildHomeContent(),
                       const LocationScreen(hideBottomNav: true),
                       const CalendarScreen(hideBottomNav: true),
-                      const ProfileScreen(hideBottomNav: true),
+                      ProfileScreen(
+                        hideBottomNav: true,
+                        studentFullName: _effectiveFullName,
+                      ),
                     ],
                   ),
                 ),
@@ -277,21 +294,21 @@ class _HomeScreenState extends State<HomeScreen>
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text(
-                'مساء الخير',
-                style: TextStyle(
+              Text(
+                _greeting,
+                style: const TextStyle(
                   fontSize: 22,
-                  fontWeight: FontWeight.w800,   // ← من w700 إلى w800
+                  fontWeight: FontWeight.w800,
                   color: navyDark,
                   height: 1.2,
                 ),
               ),
               const SizedBox(height: 4),
               Text(
-                widget.userName,
+                _firstName,
                 style: const TextStyle(
                   fontSize: 16,
-                  fontWeight: FontWeight.w500,   // ← من w400 إلى w500
+                  fontWeight: FontWeight.w500,
                   color: navyDark,
                   height: 1.2,
                 ),
