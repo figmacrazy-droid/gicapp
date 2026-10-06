@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 
 class ProfileScreen extends StatelessWidget {
-  const ProfileScreen({super.key});
+  final bool hideBottomNav;
+  const ProfileScreen({super.key, this.hideBottomNav = false});
 
   static const Color navyDark = Color(0xFF0A2451);
   static const Color textGray = Color(0xFF6B6B6B);
@@ -31,7 +32,7 @@ class ProfileScreen extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         GestureDetector(
-                          onTap: () => Navigator.pop(context),
+                          onTap: () => Navigator.maybePop(context),
                           child: const Icon(
                             Icons.arrow_forward_rounded,
                             color: Colors.white,

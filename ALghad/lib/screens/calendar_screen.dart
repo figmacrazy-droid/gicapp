@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'profile_screen.dart';
 import 'location_screen.dart';
+import 'home_screen.dart';
 
 class CalendarScreen extends StatefulWidget {
-  const CalendarScreen({super.key});
+  final bool hideBottomNav;
+  const CalendarScreen({super.key, this.hideBottomNav = false});
 
   @override
   State<CalendarScreen> createState() => _CalendarScreenState();
@@ -138,7 +140,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
               ),
 
               // 3. شريط التنقل السفلي
-              _buildBottomNav(),
+              if (!widget.hideBottomNav) _buildBottomNav(),
             ],
           ),
         ),
@@ -702,11 +704,23 @@ class _CalendarScreenState extends State<CalendarScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          // بروفايل
-          _buildNavItem(Icons.person_outline_rounded, () {
-            Navigator.push(
+          // الرئيسية (يمين في RTL)
+          _buildNavItem(Icons.home_outlined, () {
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            } else {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const HomeScreen()),
+              );
+            }
+          }),
+
+          // خريطة / موقع
+          _buildNavItem(Icons.location_on_outlined, () {
+            Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (_) => const ProfileScreen()),
+              MaterialPageRoute(builder: (_) => const LocationScreen()),
             );
           }),
 
@@ -717,17 +731,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
             isActive: true,
           ),
 
-          // خريطة / موقع
-          _buildNavItem(Icons.location_on_outlined, () {
+          // بروفايل (يسار في RTL)
+          _buildNavItem(Icons.person_outline_rounded, () {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (_) => const LocationScreen()),
+              MaterialPageRoute(builder: (_) => const ProfileScreen()),
             );
-          }),
-
-          // الرئيسية
-          _buildNavItem(Icons.home_outlined, () {
-            Navigator.popUntil(context, (route) => route.isFirst);
           }),
         ],
       ),

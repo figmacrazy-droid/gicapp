@@ -12,6 +12,8 @@ import 'finance_screen.dart';
 import 'profile_screen.dart';
 import 'calendar_screen.dart';
 import 'location_screen.dart';
+import 'alumni_screen.dart';
+import 'achievements_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final String userName;
@@ -179,59 +181,86 @@ class _HomeScreenState extends State<HomeScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: whiteBg,
-      body: SafeArea(
-        bottom: false,
-        child: Directionality(
-          textDirection: TextDirection.rtl,
-          child: Column(
-            children: [
-              Container(
-                color: whiteBg,
-                padding: const EdgeInsets.only(top: 14, bottom: 6),
-                child: _buildTopBar(),
-              ),
-              Expanded(
-                child: NotificationListener<ScrollNotification>(
-                  onNotification: (notification) {
-                    if (notification is ScrollStartNotification) {
-                      _syncController.repeat();
-                    } else if (notification is ScrollEndNotification) {
-                      _syncController.forward(from: 0).then((_) {
-                        if (mounted) _syncController.stop();
-                      });
-                    }
-                    return false;
-                  },
-                  child: SingleChildScrollView(
-                    physics: const BouncingScrollPhysics(),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        const SizedBox(height: 4),
-                        _buildWelcome(),
-                        const SizedBox(height: 8),
-                        _buildSlider(),
-                        const SizedBox(height: 8),
-                        _buildDots(),
-                        const SizedBox(height: 10),
-                        _buildServicesGrid(),
-                        const SizedBox(height: 8),
-                        _buildSpecialtiesHeader(),
-                        const SizedBox(height: 6),
-                        _buildSpecialtyCards(),
-                        const SizedBox(height: 20),
-                      ],
-                    ),
+    return PopScope(
+      canPop: _currentNavIndex == 0,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        if (_currentNavIndex != 0) {
+          setState(() => _currentNavIndex = 0);
+        }
+      },
+      child: Scaffold(
+        backgroundColor: whiteBg,
+        body: SafeArea(
+          bottom: false,
+          child: Directionality(
+            textDirection: TextDirection.rtl,
+            child: Column(
+              children: [
+                Expanded(
+                  child: IndexedStack(
+                    index: _currentNavIndex,
+                    children: [
+                      _buildHomeContent(),
+                      const LocationScreen(hideBottomNav: true),
+                      const CalendarScreen(hideBottomNav: true),
+                      const ProfileScreen(hideBottomNav: true),
+                    ],
                   ),
                 ),
-              ),
-              _buildBottomNav(),
-            ],
+                _buildBottomNav(),
+              ],
+            ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildHomeContent() {
+    return Column(
+      children: [
+        Container(
+          color: whiteBg,
+          padding: const EdgeInsets.only(top: 14, bottom: 6),
+          child: _buildTopBar(),
+        ),
+        Expanded(
+          child: NotificationListener<ScrollNotification>(
+            onNotification: (notification) {
+              if (notification is ScrollStartNotification) {
+                _syncController.repeat();
+              } else if (notification is ScrollEndNotification) {
+                _syncController.forward(from: 0).then((_) {
+                  if (mounted) _syncController.stop();
+                });
+              }
+              return false;
+            },
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SizedBox(height: 4),
+                  _buildWelcome(),
+                  const SizedBox(height: 8),
+                  _buildSlider(),
+                  const SizedBox(height: 8),
+                  _buildDots(),
+                  const SizedBox(height: 10),
+                  _buildServicesGrid(),
+                  const SizedBox(height: 8),
+                  _buildSpecialtiesHeader(),
+                  const SizedBox(height: 6),
+                  _buildSpecialtyCards(),
+                  const SizedBox(height: 20),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -633,8 +662,8 @@ class _HomeScreenState extends State<HomeScreen>
       {'iconPath': 'assets/new_icons/student_affairs.png', 'label': 'شؤون الطلاب', 'route': 'student_affairs'},
       {'iconPath': 'assets/new_icons/control.png', 'label': 'الكنترول', 'route': 'control'},
       {'iconPath': 'assets/new_icons/finance.png', 'label': 'المالية', 'route': 'finance'},
-      {'iconPath': 'assets/new_icons/alumni.png', 'label': 'خريجي الغد', 'route': null},
-      {'iconPath': 'assets/new_icons/achievements.png', 'label': 'إنجازاتنا', 'route': null},
+      {'iconPath': 'assets/new_icons/alumni.png', 'label': 'خريجي الغد', 'route': 'alumni'},
+      {'iconPath': 'assets/new_icons/achievements.png', 'label': 'إنجازاتنا', 'route': 'achievements'},
       {'iconPath': 'assets/new_icons/general_request.png', 'label': 'تقديم طلب\nعام', 'route': 'general_request'},
     ];
 
@@ -699,6 +728,20 @@ class _HomeScreenState extends State<HomeScreen>
             context,
             MaterialPageRoute(
               builder: (context) => const FinanceScreen(),
+            ),
+          );
+        } else if (route == 'alumni') {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const AlumniScreen(),
+            ),
+          );
+        } else if (route == 'achievements') {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const AchievementsScreen(),
             ),
           );
         } else if (route == 'general_request') {
@@ -1028,10 +1071,22 @@ class _HomeScreenState extends State<HomeScreen>
   // ══════════════════════════════════════
   Widget _buildBottomNav() {
     final items = [
-      {'icon': Icons.home_rounded},
-      {'icon': Icons.location_on_outlined},
-      {'icon': Icons.calendar_today_outlined},
-      {'icon': Icons.person_outline_rounded},
+      {
+        'activeIcon': Icons.home_rounded,
+        'inactiveIcon': Icons.home_outlined,
+      },
+      {
+        'activeIcon': Icons.location_on_rounded,
+        'inactiveIcon': Icons.location_on_outlined,
+      },
+      {
+        'activeIcon': Icons.calendar_month_rounded,
+        'inactiveIcon': Icons.calendar_today_outlined,
+      },
+      {
+        'activeIcon': Icons.person_rounded,
+        'inactiveIcon': Icons.person_outline_rounded,
+      },
     ];
 
     return Container(
@@ -1050,43 +1105,24 @@ class _HomeScreenState extends State<HomeScreen>
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: List.generate(items.length, (i) {
           final isActive = i == _currentNavIndex;
+          final iconData = isActive
+              ? items[i]['activeIcon'] as IconData
+              : items[i]['inactiveIcon'] as IconData;
+
           return GestureDetector(
             onTap: () {
-              if (i == 1) {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const LocationScreen(),
-                  ),
-                );
-              } else if (i == 2) {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const CalendarScreen(),
-                  ),
-                );
-              } else if (i == 3) {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const ProfileScreen(),
-                  ),
-                );
-              } else {
-                setState(() => _currentNavIndex = i);
-              }
+              setState(() => _currentNavIndex = i);
             },
             behavior: HitTestBehavior.opaque,
             child: Container(
               width: 46,
               height: 46,
               decoration: BoxDecoration(
-                color: isActive ? const Color(0xFFF2F5F8) : Colors.transparent,
+                color: isActive ? const Color(0xFFEFF4F9) : Colors.transparent,
                 shape: BoxShape.circle,
               ),
               child: Icon(
-                items[i]['icon'] as IconData,
+                iconData,
                 color: isActive ? navyDark : const Color(0xFFB0B0B0),
                 size: 24,
               ),

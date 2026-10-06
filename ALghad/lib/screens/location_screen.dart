@@ -7,7 +7,8 @@ import 'calendar_screen.dart';
 import 'profile_screen.dart';
 
 class LocationScreen extends StatefulWidget {
-  const LocationScreen({super.key});
+  final bool hideBottomNav;
+  const LocationScreen({super.key, this.hideBottomNav = false});
 
   @override
   State<LocationScreen> createState() => _LocationScreenState();
@@ -261,12 +262,13 @@ class _LocationScreenState extends State<LocationScreen>
               _buildFloatingDetailsCard(),
 
               // 5. شريط التنقل السفلي الثابت المطابق للتصميم
-              Positioned(
-                bottom: 0,
-                left: 0,
-                right: 0,
-                child: _buildBottomNav(),
-              ),
+              if (!widget.hideBottomNav)
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  child: _buildBottomNav(),
+                ),
             ],
           ),
         ),
@@ -984,17 +986,15 @@ class _LocationScreenState extends State<LocationScreen>
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _buildNavItem(Icons.person_outline_rounded, () {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => const ProfileScreen()),
-            );
-          }),
-          _buildNavItem(Icons.calendar_today_outlined, () {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => const CalendarScreen()),
-            );
+          _buildNavItem(Icons.home_outlined, () {
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            } else {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const HomeScreen()),
+              );
+            }
           }),
           // تبويب الموقع نشط بدائرة مميزة مع أيقونة كحلية بارزة
           _buildNavItem(
@@ -1002,10 +1002,16 @@ class _LocationScreenState extends State<LocationScreen>
             () {},
             isActive: true,
           ),
-          _buildNavItem(Icons.home_outlined, () {
+          _buildNavItem(Icons.calendar_today_outlined, () {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (_) => const HomeScreen()),
+              MaterialPageRoute(builder: (_) => const CalendarScreen()),
+            );
+          }),
+          _buildNavItem(Icons.person_outline_rounded, () {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const ProfileScreen()),
             );
           }),
         ],
