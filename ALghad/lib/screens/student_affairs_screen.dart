@@ -38,6 +38,12 @@ class StudentAffairsScreen extends StatelessWidget {
                     const SizedBox(height: 14),
                     _buildCard(
                       context,
+                      title: 'تقديم طلب تحويل\n(من تخصص إلى تخصص آخر)',
+                      onTap: () {},
+                    ),
+                    const SizedBox(height: 14),
+                    _buildCard(
+                      context,
                       title: 'تقديم طلب وقف قيد',
                       onTap: () {},
                     ),
@@ -56,7 +62,19 @@ class StudentAffairsScreen extends StatelessWidget {
                     const SizedBox(height: 14),
                     _buildCard(
                       context,
+                      title: 'تقديم طلب تجميد ملف',
+                      onTap: () {},
+                    ),
+                    const SizedBox(height: 14),
+                    _buildCard(
+                      context,
                       title: 'تقديم طلب سحب ملف',
+                      onTap: () {},
+                    ),
+                    const SizedBox(height: 14),
+                    _buildCard(
+                      context,
+                      title: 'شؤون الخريجين',
                       onTap: () {},
                     ),
                   ],

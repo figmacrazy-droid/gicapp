@@ -26,13 +26,13 @@ class ControlScreen extends StatelessWidget {
                   children: [
                     _buildCard(
                       context,
-                      title: 'جداول الإمتحانات النصفية',
+                      title: 'جداول الإمتحانات النصفيّة',
                       onTap: () {},
                     ),
                     const SizedBox(height: 14),
                     _buildCard(
                       context,
-                      title: 'جداول الإمتحانات النهائية',
+                      title: 'جداول الإمتحانات النهائيّة',
                       onTap: () {},
                     ),
                     const SizedBox(height: 14),

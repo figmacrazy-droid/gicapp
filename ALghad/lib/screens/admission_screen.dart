@@ -40,20 +40,19 @@ class AdmissionScreen extends StatelessWidget {
                     const SizedBox(height: 14),
                     _buildCard(
                       context,
+                      title: 'التسجيل في مقر الكلية',
+                      onTap: () {},
+                    ),
+                    const SizedBox(height: 14),
+                    _buildCard(
+                      context,
                       title: 'التسجيل اونلاين',
                       onTap: () {},
                     ),
                     const SizedBox(height: 14),
                     _buildCard(
                       context,
-                      title:
-                      'بوابة التنسيق الالكتروني لوزارة التربية والتعليم والبحث العلمي',
-                      onTap: () {},
-                    ),
-                    const SizedBox(height: 14),
-                    _buildCard(
-                      context,
-                      title: 'نظام الإنسحاب',
+                      title: 'التسجيل عبر البوابة الالكترونية لوزارة التربية والتعليم والبحث العلمي',
                       onTap: () {},
                     ),
                   ],
