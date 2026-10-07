@@ -13,7 +13,6 @@ class _SplashScreenState extends State<SplashScreen>
   late AnimationController _controller;
 
   // 🎬 مراحل الأنيميشن
-  late Animation<double> _whiteBackgroundOpacity;
   late Animation<double> _logoOpacity;
   late Animation<double> _logoScale;
 
@@ -49,14 +48,6 @@ class _SplashScreenState extends State<SplashScreen>
       vsync: this,
       duration: const Duration(milliseconds: 2700),
     );
-
-    // ==========================================
-    // المرحلة 0: ظهور الخلفية البيضاء
-    // ==========================================
-    _whiteBackgroundOpacity = Tween<double>(
-      begin: 1.0,
-      end: 1.0,
-    ).animate(_controller);
 
     // ==========================================
     // المرحلة 1 و 2: ظهور الشعار وتكبره على الشفافية ثم صغره تدريجياً ليدخل داخل الدائرة الذهبية
@@ -200,14 +191,6 @@ class _SplashScreenState extends State<SplashScreen>
             fit: StackFit.expand,
             alignment: Alignment.center,
             children: [
-              // 0️⃣ الخلفية البيضاء المتلاشية تدريجياً من الشفافية
-              if (_whiteBackgroundOpacity.value > 0)
-                Opacity(
-                  opacity: _whiteBackgroundOpacity.value,
-                  child: Container(
-                    color: Colors.white,
-                  ),
-                ),
               // 1️⃣ موجة التوسع الكلي للتدرج الكحلي الداكن
               if (_rippleProgress.value > 0)
                 CustomPaint(

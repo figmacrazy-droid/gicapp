@@ -1,2 +1,2 @@
-# Trigger build after sub-services routing, logo padding, and splash precaching fix
-Build trigger timestamp: 2026-10-07T23:55:00
+# Trigger build after removing white background from splash screen (transparent launcher start)
+Build trigger timestamp: 2026-10-08T01:14:15
