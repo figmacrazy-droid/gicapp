@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'empty_screens.dart';
 
 class AcademyScreen extends StatelessWidget {
   const AcademyScreen({super.key});
@@ -27,13 +28,31 @@ class AcademyScreen extends StatelessWidget {
                     _buildCard(
                       context,
                       title: 'الكادر الأكاديمي والتدريسي',
-                      onTap: () {},
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const SubServicePlaceholderScreen(
+                              title: 'الكادر الأكاديمي والتدريسي',
+                            ),
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(height: 14),
                     _buildCard(
                       context,
                       title: 'التدريب الميداني',
-                      onTap: () {},
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const SubServicePlaceholderScreen(
+                              title: 'التدريب الميداني',
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),

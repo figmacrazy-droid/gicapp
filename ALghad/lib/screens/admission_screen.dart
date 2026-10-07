@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'empty_screens.dart';
 
 class AdmissionScreen extends StatelessWidget {
   const AdmissionScreen({super.key});
@@ -31,8 +32,9 @@ class AdmissionScreen extends StatelessWidget {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) =>
-                            const AdmissionRequirementsScreen(),
+                            builder: (context) => const SubServicePlaceholderScreen(
+                              title: 'متطلبات القبول والتسجيل في الكلية',
+                            ),
                           ),
                         );
                       },
@@ -41,19 +43,46 @@ class AdmissionScreen extends StatelessWidget {
                     _buildCard(
                       context,
                       title: 'التسجيل في مقر الكلية',
-                      onTap: () {},
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const SubServicePlaceholderScreen(
+                              title: 'التسجيل في مقر الكلية',
+                            ),
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(height: 14),
                     _buildCard(
                       context,
                       title: 'التسجيل اونلاين',
-                      onTap: () {},
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const SubServicePlaceholderScreen(
+                              title: 'التسجيل اونلاين',
+                            ),
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(height: 14),
                     _buildCard(
                       context,
                       title: 'التسجيل عبر البوابة الالكترونية لوزارة التربية والتعليم والبحث العلمي',
-                      onTap: () {},
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const SubServicePlaceholderScreen(
+                              title: 'التسجيل عبر البوابة الالكترونية لوزارة التربية والتعليم والبحث العلمي',
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),

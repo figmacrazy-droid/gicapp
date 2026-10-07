@@ -39,7 +39,7 @@ class LoginScreen extends StatelessWidget {
                       ),
                     ),
                     child: Padding(
-                      padding: const EdgeInsets.only(top: 7, bottom: 6, left: 8, right: 5),
+                      padding: const EdgeInsets.all(5),
                       child: Container(
                         width: 100,
                         height: 100,

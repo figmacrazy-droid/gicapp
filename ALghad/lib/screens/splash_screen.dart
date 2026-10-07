@@ -23,6 +23,24 @@ class _SplashScreenState extends State<SplashScreen>
 
   late Animation<double> _rippleProgress;
 
+  bool _isPrecached = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_isPrecached) {
+      _isPrecached = true;
+      Future.wait([
+        precacheImage(const AssetImage('assets/images/logo.png'), context),
+        precacheImage(const AssetImage('assets/images/gic_shield.png'), context),
+      ]).then((_) {
+        if (mounted && !_controller.isAnimating && !_controller.isCompleted) {
+          _controller.forward(from: 0.0);
+        }
+      });
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -33,18 +51,12 @@ class _SplashScreenState extends State<SplashScreen>
     );
 
     // ==========================================
-    // المرحلة 0: تأخر قليل على الخلفية الشفافة ثم ظهور الخلفية البيضاء تدريجياً
-    // (الشفافية من 0.0s إلى 1.0s ثم التلاشي الأبيض من 1.0s إلى 1.5s)
+    // المرحلة 0: ظهور الخلفية البيضاء
     // ==========================================
     _whiteBackgroundOpacity = Tween<double>(
-      begin: 0.0,
+      begin: 1.0,
       end: 1.0,
-    ).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: const Interval(0.370, 0.555, curve: Curves.easeInOut),
-      ),
-    );
+    ).animate(_controller);
 
     // ==========================================
     // المرحلة 1 و 2: ظهور الشعار وتكبره على الشفافية ثم صغره تدريجياً ليدخل داخل الدائرة الذهبية
@@ -53,7 +65,7 @@ class _SplashScreenState extends State<SplashScreen>
     _logoOpacity = TweenSequence<double>([
       TweenSequenceItem(
         tween: Tween<double>(begin: 0.0, end: 1.0),
-        weight: 30, // ظهور الشعار السلس أولاً على الخلفية الشفافة للهاتف
+        weight: 30, // ظهور الشعار السلس أولاً
       ),
       TweenSequenceItem(
         tween: Tween<double>(begin: 1.0, end: 1.0),
@@ -150,8 +162,6 @@ class _SplashScreenState extends State<SplashScreen>
         _navigateToLogin();
       }
     });
-
-    _controller.forward();
   }
 
   void _navigateToLogin() {

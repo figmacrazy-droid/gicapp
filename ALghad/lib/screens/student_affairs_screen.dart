@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'empty_screens.dart';
 
 class StudentAffairsScreen extends StatelessWidget {
   const StudentAffairsScreen({super.key});
@@ -27,55 +28,136 @@ class StudentAffairsScreen extends StatelessWidget {
                     _buildCard(
                       context,
                       title: 'الجداول الدراسية',
-                      onTap: () {},
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const SubServicePlaceholderScreen(
+                              title: 'الجداول الدراسية',
+                            ),
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(height: 14),
                     _buildCard(
                       context,
                       title: 'الأنشطة والفعاليات',
-                      onTap: () {},
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const SubServicePlaceholderScreen(
+                              title: 'الأنشطة والفعاليات',
+                            ),
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(height: 14),
                     _buildCard(
                       context,
                       title: 'تقديم طلب تحويل\n(من تخصص إلى تخصص آخر)',
-                      onTap: () {},
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const SubServicePlaceholderScreen(
+                              title: 'تقديم طلب تحويل (من تخصص إلى تخصص آخر)',
+                            ),
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(height: 14),
                     _buildCard(
                       context,
                       title: 'تقديم طلب وقف قيد',
-                      onTap: () {},
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const SubServicePlaceholderScreen(
+                              title: 'تقديم طلب وقف قيد',
+                            ),
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(height: 14),
                     _buildCard(
                       context,
                       title: 'تقديم طلب فتح قيد',
-                      onTap: () {},
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const SubServicePlaceholderScreen(
+                              title: 'تقديم طلب فتح قيد',
+                            ),
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(height: 14),
                     _buildCard(
                       context,
                       title: 'تقديم طلب مقاصصة',
-                      onTap: () {},
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const SubServicePlaceholderScreen(
+                              title: 'تقديم طلب مقاصصة',
+                            ),
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(height: 14),
                     _buildCard(
                       context,
                       title: 'تقديم طلب تجميد ملف',
-                      onTap: () {},
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const SubServicePlaceholderScreen(
+                              title: 'تقديم طلب تجميد ملف',
+                            ),
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(height: 14),
                     _buildCard(
                       context,
                       title: 'تقديم طلب سحب ملف',
-                      onTap: () {},
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const SubServicePlaceholderScreen(
+                              title: 'تقديم طلب سحب ملف',
+                            ),
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(height: 14),
                     _buildCard(
                       context,
                       title: 'شؤون الخريجين',
-                      onTap: () {},
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const SubServicePlaceholderScreen(
+                              title: 'شؤون الخريجين',
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),

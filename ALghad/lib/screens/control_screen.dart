@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'empty_screens.dart';
 
 class ControlScreen extends StatelessWidget {
   const ControlScreen({super.key});
@@ -27,43 +28,106 @@ class ControlScreen extends StatelessWidget {
                     _buildCard(
                       context,
                       title: 'جداول الإمتحانات النصفيّة',
-                      onTap: () {},
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const SubServicePlaceholderScreen(
+                              title: 'جداول الإمتحانات النصفيّة',
+                            ),
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(height: 14),
                     _buildCard(
                       context,
                       title: 'جداول الإمتحانات النهائيّة',
-                      onTap: () {},
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const SubServicePlaceholderScreen(
+                              title: 'جداول الإمتحانات النهائيّة',
+                            ),
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(height: 14),
                     _buildCard(
                       context,
                       title: 'أرقام الجلوس',
-                      onTap: () {},
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const SubServicePlaceholderScreen(
+                              title: 'أرقام الجلوس',
+                            ),
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(height: 14),
                     _buildCard(
                       context,
                       title: 'اللجان الامتحانية',
-                      onTap: () {},
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const SubServicePlaceholderScreen(
+                              title: 'اللجان الامتحانية',
+                            ),
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(height: 14),
                     _buildCard(
                       context,
                       title: 'أوائل الطلاب',
-                      onTap: () {},
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const SubServicePlaceholderScreen(
+                              title: 'أوائل الطلاب',
+                            ),
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(height: 14),
                     _buildCard(
                       context,
                       title: 'النتائج',
-                      onTap: () {},
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const SubServicePlaceholderScreen(
+                              title: 'النتائج',
+                            ),
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(height: 14),
                     _buildCard(
                       context,
                       title: 'تقديم طلب تظلم',
-                      onTap: () {},
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const SubServicePlaceholderScreen(
+                              title: 'تقديم طلب تظلم',
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),

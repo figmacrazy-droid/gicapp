@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'empty_screens.dart';
 
 class FinanceScreen extends StatelessWidget {
   const FinanceScreen({super.key});
@@ -27,31 +28,76 @@ class FinanceScreen extends StatelessWidget {
                     _buildCard(
                       context,
                       title: 'طلب كشف حساب تفصيلي',
-                      onTap: () {},
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const SubServicePlaceholderScreen(
+                              title: 'طلب كشف حساب تفصيلي',
+                            ),
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(height: 14),
                     _buildCard(
                       context,
                       title: 'سند تسديد الرسوم الدراسية',
-                      onTap: () {},
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const SubServicePlaceholderScreen(
+                              title: 'سند تسديد الرسوم الدراسية',
+                            ),
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(height: 14),
                     _buildCard(
                       context,
                       title: 'تسديد رسوم',
-                      onTap: () {},
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const SubServicePlaceholderScreen(
+                              title: 'تسديد رسوم',
+                            ),
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(height: 14),
                     _buildCard(
                       context,
                       title: 'تحويل رسوم',
-                      onTap: () {},
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const SubServicePlaceholderScreen(
+                              title: 'تحويل رسوم',
+                            ),
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(height: 14),
                     _buildCard(
                       context,
                       title: 'سحب رسوم',
-                      onTap: () {},
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const SubServicePlaceholderScreen(
+                              title: 'سحب رسوم',
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),
