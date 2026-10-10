@@ -1,329 +1,91 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
-import '../theme/app_colors.dart';
+import '../models/app_models.dart';
+import '../services/auth_service.dart';
 import 'home_screen.dart';
 
 class VerificationScreen extends StatefulWidget {
-  const VerificationScreen({super.key});
+  final StudentProfileModel student;
+
+  const VerificationScreen({super.key, required this.student});
 
   @override
   State<VerificationScreen> createState() => _VerificationScreenState();
 }
 
-class _VerificationScreenState extends State<VerificationScreen>
-    with SingleTickerProviderStateMixin {
-  final List<TextEditingController> _otpControllers =
-  List.generate(4, (_) => TextEditingController());
-  final List<FocusNode> _focusNodes = List.generate(4, (_) => FocusNode());
+class _VerificationScreenState extends State<VerificationScreen> {
+  static const Color navyDark = Color(0xFF0B1E3D);
 
-  // ⏱️ العد التنازلي
-  int _secondsRemaining = 60;
-  Timer? _timer;
-
-  // ✨ لمعة الزر
-  late AnimationController _shimmerController;
-
-  @override
-  void initState() {
-    super.initState();
-    // ✅ تهيئة الـ controller أولاً
-    _shimmerController = AnimationController(
-      duration: const Duration(seconds: 5),
-      vsync: this,
-    )..repeat();
-    // ✅ بعدها العد التنازلي
-    _startCountdown();
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    _shimmerController.dispose();
-    for (final c in _otpControllers) {
-      c.dispose();
-    }
-    for (final f in _focusNodes) {
-      f.dispose();
-    }
-    super.dispose();
-  }
-
-  // ============================
-  // بدء العد التنازلي
-  // ============================
-  void _startCountdown() {
-    _timer?.cancel();
-    setState(() => _secondsRemaining = 60);
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (!mounted) {
-        timer.cancel();
-        return;
-      }
-      if (_secondsRemaining <= 1) {
-        timer.cancel();
-        setState(() => _secondsRemaining = 0);
-      } else {
-        setState(() => _secondsRemaining--);
-      }
-    });
-  }
-
-  String get _formattedTime {
-    final m = (_secondsRemaining ~/ 60).toString().padLeft(2, '0');
-    final s = (_secondsRemaining % 60).toString().padLeft(2, '0');
-    return '$m:$s';
-  }
-
-  // ============================
-  // التحقق من اكتمال الرمز
-  // ============================
-  void _onOtpChanged() {
-    final code = _otpControllers.map((c) => c.text).join();
-    if (code.length == 4) {
-      _verifyCode(code);
-    }
-  }
-
-  void _verifyCode(String code) {
-    // ✅ الانتقال للشاشة الرئيسية
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => const HomeScreen()),
-    );
-  }
+  final _otpController = TextEditingController();
+  final String _mockOtp = '1234';
+  bool _isVerifying = false;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      resizeToAvoidBottomInset: true,
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: AppColors.backgroundGradient,
-        ),
-        child: SafeArea(
-          child: Directionality(
-            textDirection: TextDirection.rtl,
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                return SingleChildScrollView(
-                  physics: const ClampingScrollPhysics(),
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      minHeight: constraints.maxHeight,
-                    ),
-                    child: IntrinsicHeight(
-                      child: Column(
-                        children: [
-                          // ============================
-                          // الجزء العلوي الكحلي — النصوص في الوسط
-                          // ============================
-                          Expanded(
-                            flex: 40,
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 24,
-                                vertical: 20,
-                              ),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                        children: [
-                                          const SizedBox(
-                                            width: double.infinity,
-                                            child: Text(
-                                              'التحقق مطلوب',
-                                              textAlign: TextAlign.right,
-                                              style: TextStyle(
-                                                fontSize: 24,
-                                                fontWeight: FontWeight.bold,
-                                                color: Colors.white,
-                                                height: 1.3,
-                                                letterSpacing: 0.0,
-                                              ),
-                                            ),
-                                          ),
-                                          const SizedBox(height: 12),
-                                          const SizedBox(
-                                            width: double.infinity,
-                                            child: Text(
-                                              'لقد أرسلنا رمز التحقق لمرة واحدة (OTP)\nإلى بريدك الإلكتروني، يرجى إدخاله\nأدناه لإتمام عملية التحقق.',
-                                              textAlign: TextAlign.right,
-                                              style: TextStyle(
-                                                fontSize: 18,
-                                                fontWeight: FontWeight.w600,
-                                                color: AppColors.gold,
-                                                height: 1.5,
-                                                letterSpacing: 0.0,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                              ),
-                            ),
-                          ),
-
-                          // ============================
-                          // الجزء السفلي الأبيض
-                          // ============================
-                          Expanded(
-                            flex: 60,
-                            child: Container(
-                              width: double.infinity,
-                              decoration: const BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.only(
-                                  topLeft: Radius.circular(45),
-                                  topRight: Radius.circular(45),
-                                ),
-                              ),
-                              child: Padding(
-                                padding: const EdgeInsets.fromLTRB(
-                                  28,
-                                  30,
-                                  28,
-                                  16,
-                                ),
-                                child: Column(
-                                  mainAxisAlignment:
-                                  MainAxisAlignment.spaceEvenly,
-                                  children: [
-                                    const Text(
-                                      'Verification Required',
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w500,
-                                        color: Color(0xFF9E9E9E),
-                                        letterSpacing: 0.3,
-                                      ),
-                                    ),
-
-                                    Text(
-                                      _formattedTime,
-                                      textAlign: TextAlign.center,
-                                      style: const TextStyle(
-                                        fontSize: 22,
-                                        fontWeight: FontWeight.bold,
-                                        color: Color(0xFF1976D2),
-                                        letterSpacing: 1.5,
-                                      ),
-                                    ),
-
-                                    Row(
-                                      mainAxisAlignment:
-                                      MainAxisAlignment.spaceEvenly,
-                                      children: List.generate(4, (i) {
-                                        return _buildOtpBox(i);
-                                      }),
-                                    ),
-
-                                    // ✅ زر تأكيد — مع لمعة وزجاج
-                                    Center(
-                                      child: _buildGlassButton(),
-                                    ),
-
-                                    if (_secondsRemaining == 0)
-                                      TextButton(
-                                        onPressed: _startCountdown,
-                                        child: const Text(
-                                          'إعادة إرسال الرمز',
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            color: AppColors.gold,
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                        ),
-                                      )
-                                    else
-                                      Row(
-                                        mainAxisAlignment:
-                                        MainAxisAlignment.center,
-                                        children: const [
-                                          Icon(
-                                            Icons.screen_lock_landscape,
-                                            size: 18,
-                                            color: Color(0xFF0A2451),
-                                          ),
-                                          SizedBox(width: 8),
-                                          Text(
-                                            'Secured Data, Assured Future',
-                                            style: TextStyle(
-                                              fontSize: 13,
-                                              fontWeight: FontWeight.w600,
-                                              color: Color(0xFF0A2451),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: navyDark),
+          onPressed: () => Navigator.pop(context),
         ),
       ),
-    );
-  }
-
-  // ============================
-  // زر تأكيد — بنفس مقاس وحجم زر شاشة تسجيل الدخول (261x45)
-  // ============================
-  Widget _buildGlassButton() {
-    return Container(
-      width: 261,
-      height: 45,
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.centerRight,
-          end: Alignment.centerLeft,
-          colors: [
-            Color(0xFF0A2451),
-            Color(0xFF03102E),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(25),
-        border: Border.all(
-          color: AppColors.gold,
-          width: 1.0,
-        ),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(25),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(25),
-          onTap: () {
-            final code = _otpControllers.map((c) => c.text).join();
-            if (code.length == 4) {
-              _verifyCode(code);
-            }
-          },
-          splashColor: const Color(0xFF03102E).withOpacity(0.85),
-          highlightColor: const Color(0xFF03102E).withOpacity(0.45),
-          splashFactory: InkRipple.splashFactory,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(25),
-            child: const Center(
-              child: Text(
-                'تأكيد',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  letterSpacing: 0.0,
+      body: SafeArea(
+        child: Directionality(
+          textDirection: TextDirection.rtl,
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                const Icon(Icons.mark_email_read_outlined, size: 72, color: navyDark),
+                const SizedBox(height: 20),
+                const Text(
+                  'كود التحقق من البريد الإلكتروني',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: navyDark),
                 ),
-              ),
+                const SizedBox(height: 8),
+                Text(
+                  'تم إرسال رمز التحقق المؤلف من 4 أرقام إلى بريدك الإلكتروني:\n${widget.student.email}',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 13, color: Colors.grey, height: 1.5),
+                ),
+                const SizedBox(height: 30),
+                TextField(
+                  controller: _otpController,
+                  keyboardType: TextInputType.number,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 8),
+                  maxLength: 4,
+                  decoration: InputDecoration(
+                    hintText: '----',
+                    filled: true,
+                    fillColor: const Color(0xFFF8F9FA),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'رمز التفعيل التجريبي للاختبار: $_mockOtp',
+                  style: const TextStyle(fontSize: 12, color: Colors.amber, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 30),
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton(
+                    onPressed: _isVerifying ? null : _verifyOtp,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: navyDark,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
+                    ),
+                    child: _isVerifying
+                        ? const CircularProgressIndicator(color: Colors.white)
+                        : const Text('تأكيد والدخول للتطبيق', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -331,53 +93,26 @@ class _VerificationScreenState extends State<VerificationScreen>
     );
   }
 
-  // ============================
-  // خانة OTP واحدة
-  // ============================
-  Widget _buildOtpBox(int index) {
-    return SizedBox(
-      width: 50,
-      height: 75,
-      child: TextField(
-        controller: _otpControllers[index],
-        focusNode: _focusNodes[index],
-        keyboardType: TextInputType.number,
-        textAlign: TextAlign.center,
-        maxLength: 1,
-        style: const TextStyle(
-          fontSize: 22,
-          fontWeight: FontWeight.bold,
-          color: Color(0xFF0A2451),
-        ),
-        decoration: InputDecoration(
-          counterText: '',
-          contentPadding: EdgeInsets.zero,
-          filled: true,
-          fillColor: Colors.white,
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(
-              color: Color(0xFF9E9E9E),
-              width: 2.0,
-            ),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(
-              color: AppColors.gold,
-              width: 2.5,
-            ),
-          ),
-        ),
-        onChanged: (value) {
-          if (value.isNotEmpty && index < 3) {
-            _focusNodes[index + 1].requestFocus();
-          } else if (value.isEmpty && index > 0) {
-            _focusNodes[index - 1].requestFocus();
-          }
-          _onOtpChanged();
-        },
-      ),
-    );
+  void _verifyOtp() async {
+    final input = _otpController.text.trim();
+    if (input != _mockOtp) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('رمز التحقق غير صحيح. يرجى التأكد وإعادة المحاولة.'), backgroundColor: Colors.red),
+      );
+      return;
+    }
+
+    setState(() => _isVerifying = true);
+
+    // حفظ الجلسة محلياً ليعود إليها المستخدم بدون إدخال البيانات في المرات القادمة
+    await AuthService.saveStudentSession(widget.student);
+
+    if (mounted) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const HomeScreen()),
+        (route) => false,
+      );
+    }
   }
 }

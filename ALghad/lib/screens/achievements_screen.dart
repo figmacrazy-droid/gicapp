@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../models/app_models.dart';
+import '../services/data_service.dart';
 
 class AchievementsScreen extends StatefulWidget {
   const AchievementsScreen({super.key});
@@ -8,277 +11,144 @@ class AchievementsScreen extends StatefulWidget {
 }
 
 class _AchievementsScreenState extends State<AchievementsScreen> {
-  static const Color whiteBg = Colors.white;
   static const Color navyDark = Color(0xFF0B1E3D);
-  static const Color goldColor = Color(0xFFD39706);
+  static const Color accentGold = Color(0xFFD39706);
 
-  // Favorite states for items
-  final Map<int, bool> _favorites = {
-    0: true,  // First card favorite by default
-    1: false, // Second card unfavorite by default
-  };
+  final Map<String, bool> _expandedState = {};
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: whiteBg,
-      body: SafeArea(
-        bottom: false,
-        child: Directionality(
-          textDirection: TextDirection.rtl,
-          child: Column(
-            children: [
-              _buildAppBar(context),
-              const Divider(height: 1, color: Color(0xFFF0F0F0)),
-              Expanded(
-                child: ListView(
-                  physics: const BouncingScrollPhysics(),
-                  padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-                  children: [
-                    // Card 1: المركز الأول وكأس البطولة (Width: 312, Height: 327)
-                    Center(
-                      child: _buildAchievementCard(
-                        id: 0,
-                        title: 'المركز الأول وكأس البطولة 🥇🏆',
-                        dateText: 'September 25, 2026',
-                        description: 'للطالب عبدالله عبد العزيز من كلية الغد الدولية 😎\nفي البطولة الخامسة للسباحة بين طلبة الجامعات\nوالكليات اليمنية.',
-                        bannerImagePath: 'assets/images/achievements_banner_1.png',
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    // Card 2: عنوان الخبر (Width: 312, Height: 327)
-                    Center(
-                      child: _buildAchievementCard(
-                        id: 1,
-                        title: 'عنوان الخبر',
-                        dateText: 'تاريخ الخبر',
-                        description: 'نص الخبر',
-                        bannerImagePath: 'assets/images/achievements_banner_2.png',
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+      backgroundColor: const Color(0xFFF8F9FA),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0.5,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: navyDark),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text(
+          'إنجازاتنا',
+          style: TextStyle(
+            color: navyDark,
+            fontSize: 17,
+            fontWeight: FontWeight.bold,
           ),
         ),
+        centerTitle: true,
       ),
-    );
-  }
+      body: SafeArea(
+        child: Directionality(
+          textDirection: TextDirection.rtl,
+          child: FutureBuilder<List<AchievementModel>>(
+            future: DataService.getAchievements(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              final achievements = snapshot.data ?? [];
+              return ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: achievements.length,
+                itemBuilder: (context, index) {
+                  final item = achievements[index];
+                  final isExpanded = _expandedState[item.id] ?? false;
 
-  Widget _buildAppBar(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      child: Row(
-        children: [
-          InkWell(
-            onTap: () => Navigator.pop(context),
-            borderRadius: BorderRadius.circular(8),
-            child: const Padding(
-              padding: EdgeInsets.all(4.0),
-              child: Icon(
-                Icons.arrow_forward_rounded,
-                color: navyDark,
-                size: 24,
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          const Text(
-            'إنجازاتنا',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-              color: navyDark,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAchievementCard({
-    required int id,
-    required String title,
-    required String dateText,
-    required String description,
-    required String bannerImagePath,
-  }) {
-    final isFav = _favorites[id] ?? false;
-
-    return Container(
-      width: 312.0,
-      height: 327.0,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.07),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(14),
-        child: Column(
-          children: [
-            // Top Banner Image section (Height: 145)
-            SizedBox(
-              height: 145,
-              width: double.infinity,
-              child: Stack(
-                children: [
-                  Positioned.fill(
-                    child: Image.asset(
-                      bannerImagePath,
-                      fit: BoxFit.cover,
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(14),
+                      boxShadow: [
+                        BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 3)),
+                      ],
                     ),
-                  ),
-                  // Heart Favorite Icon Button
-                  Positioned(
-                    left: 10,
-                    top: 10,
-                    child: GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _favorites[id] = !isFav;
-                        });
-                      },
-                      child: Container(
-                        width: 28,
-                        height: 28,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFE2E7EA).withOpacity(0.85),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Center(
-                          child: Icon(
-                            isFav ? Icons.favorite : Icons.favorite_border,
-                            size: 16,
-                            color: isFav ? const Color(0xFFE53935) : navyDark,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        ClipRRect(
+                          borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
+                          child: Container(
+                            height: 150,
+                            width: double.infinity,
+                            color: Colors.grey.shade200,
+                            child: Image.asset(
+                              item.imageUrl,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => const Icon(Icons.star, size: 50, color: accentGold),
+                            ),
                           ),
                         ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // Middle Content section
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 2),
-                    // Title
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: navyDark,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    // Date line
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.calendar_today_outlined,
-                          size: 13,
-                          color: goldColor,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          dateText,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: goldColor,
+                        Padding(
+                          padding: const EdgeInsets.all(14),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      item.title,
+                                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: navyDark),
+                                    ),
+                                  ),
+                                  Text(
+                                    item.date,
+                                    style: const TextStyle(fontSize: 11, color: Colors.grey),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                item.description,
+                                maxLines: isExpanded ? 100 : 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontSize: 13, color: Color(0xFF4A4A4A), height: 1.5),
+                              ),
+                              const SizedBox(height: 10),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  TextButton(
+                                    onPressed: () {
+                                      setState(() {
+                                        _expandedState[item.id] = !isExpanded;
+                                      });
+                                    },
+                                    child: Text(
+                                      isExpanded ? 'عرض أقل' : 'قراءة المزيد',
+                                      style: const TextStyle(color: accentGold, fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
+                                  if (item.youtubeUrl != null) ...[
+                                    ElevatedButton.icon(
+                                      onPressed: () async {
+                                        final Uri uri = Uri.parse(item.youtubeUrl!);
+                                        if (await canLaunchUrl(uri)) {
+                                          await launchUrl(uri, mode: LaunchMode.externalApplication);
+                                        }
+                                      },
+                                      icon: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 18),
+                                      label: const Text('مشاهدة', style: TextStyle(color: Colors.white, fontSize: 12)),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.red.shade700,
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ],
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 6),
-                    // Description
-                    Text(
-                      description,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: Color(0xFF6E6E6E),
-                        height: 1.35,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            const Divider(height: 1, color: Color(0xFFEEEEEE)),
-
-            // Bottom Action Bar (Height: 46)
-            SizedBox(
-              height: 46,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 14),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    // Read More Details Action
-                    InkWell(
-                      onTap: () {},
-                      child: const Row(
-                        children: [
-                          Icon(
-                            Icons.menu_book_outlined,
-                            size: 16,
-                            color: navyDark,
-                          ),
-                          SizedBox(width: 5),
-                          Text(
-                            'قراءة المزيد من التفاصيل',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: navyDark,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    // Watch Video Action
-                    InkWell(
-                      onTap: () {},
-                      child: const Row(
-                        children: [
-                          Icon(
-                            Icons.play_circle_outline_rounded,
-                            size: 16,
-                            color: navyDark,
-                          ),
-                          SizedBox(width: 5),
-                          Text(
-                            'مشاهدة',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: navyDark,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
+                  );
+                },
+              );
+            },
+          ),
         ),
       ),
     );

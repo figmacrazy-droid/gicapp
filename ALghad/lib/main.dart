@@ -1,9 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'screens/splash_screen.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // تهيئة قاعدة البيانات (مفتاح Publishable لتطبيق الطلاب)
+  await Supabase.initialize(
+    url: 'https://mpcyblhdfecveamaessd.supabase.co',
+    anonKey: 'sb_publishable__JN9KI2E5PMF680CUF-ydQ_DijaqBYH',
+  );
+
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,

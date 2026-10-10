@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import 'empty_screens.dart';
+import '../services/data_service.dart';
+import 'academic_staff_screen.dart';
+import 'dynamic_instruction_screen.dart';
 
 class AcademyScreen extends StatelessWidget {
   const AcademyScreen({super.key});
@@ -32,9 +34,7 @@ class AcademyScreen extends StatelessWidget {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => const SubServicePlaceholderScreen(
-                              title: 'الكادر الأكاديمي والتدريسي',
-                            ),
+                            builder: (context) => const AcademicStaffScreen(),
                           ),
                         );
                       },
@@ -43,15 +43,16 @@ class AcademyScreen extends StatelessWidget {
                     _buildCard(
                       context,
                       title: 'التدريب الميداني',
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const SubServicePlaceholderScreen(
-                              title: 'التدريب الميداني',
+                      onTap: () async {
+                        final info = await DataService.getFieldTrainingInfo();
+                        if (context.mounted) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => DynamicInstructionScreen(info: info),
                             ),
-                          ),
-                        );
+                          );
+                        }
                       },
                     ),
                   ],

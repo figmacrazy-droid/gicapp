@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
-import 'empty_screens.dart';
+import '../services/data_service.dart';
+import 'dynamic_instruction_screen.dart';
+import 'schedules_view_screen.dart';
+import 'seating_numbers_screen.dart';
+import 'student_results_screen.dart';
+import 'top_students_screen.dart';
 
 class ControlScreen extends StatelessWidget {
   const ControlScreen({super.key});
@@ -32,8 +37,9 @@ class ControlScreen extends StatelessWidget {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => const SubServicePlaceholderScreen(
+                            builder: (context) => const SchedulesViewScreen(
                               title: 'جداول الإمتحانات النصفيّة',
+                              scheduleType: 'midterm',
                             ),
                           ),
                         );
@@ -47,8 +53,9 @@ class ControlScreen extends StatelessWidget {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => const SubServicePlaceholderScreen(
+                            builder: (context) => const SchedulesViewScreen(
                               title: 'جداول الإمتحانات النهائيّة',
+                              scheduleType: 'final',
                             ),
                           ),
                         );
@@ -62,28 +69,12 @@ class ControlScreen extends StatelessWidget {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => const SubServicePlaceholderScreen(
-                              title: 'أرقام الجلوس',
-                            ),
+                            builder: (context) => const SeatingNumbersScreen(),
                           ),
                         );
                       },
                     ),
-                    const SizedBox(height: 14),
-                    _buildCard(
-                      context,
-                      title: 'اللجان الامتحانية',
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const SubServicePlaceholderScreen(
-                              title: 'اللجان الامتحانية',
-                            ),
-                          ),
-                        );
-                      },
-                    ),
+                    // "اللجان الامتحانية" removed per user instruction!
                     const SizedBox(height: 14),
                     _buildCard(
                       context,
@@ -92,9 +83,7 @@ class ControlScreen extends StatelessWidget {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => const SubServicePlaceholderScreen(
-                              title: 'أوائل الطلاب',
-                            ),
+                            builder: (context) => const TopStudentsScreen(),
                           ),
                         );
                       },
@@ -107,9 +96,7 @@ class ControlScreen extends StatelessWidget {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => const SubServicePlaceholderScreen(
-                              title: 'النتائج',
-                            ),
+                            builder: (context) => const StudentResultsScreen(),
                           ),
                         );
                       },
@@ -118,15 +105,16 @@ class ControlScreen extends StatelessWidget {
                     _buildCard(
                       context,
                       title: 'تقديم طلب تظلم',
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const SubServicePlaceholderScreen(
-                              title: 'تقديم طلب تظلم',
+                      onTap: () async {
+                        final info = await DataService.getStudentAffairsServiceInfo('تقديم طلب تظلم');
+                        if (context.mounted) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => DynamicInstructionScreen(info: info),
                             ),
-                          ),
-                        );
+                          );
+                        }
                       },
                     ),
                   ],

@@ -903,9 +903,16 @@ class _HomeScreenState extends State<HomeScreen>
     required String visits,
     required String imagePath,
   }) {
-    return Container(
-      width: 232,
-      decoration: BoxDecoration(
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const AdmissionScreen()),
+        );
+      },
+      child: Container(
+        width: 232,
+        decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(

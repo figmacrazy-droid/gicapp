@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../services/auth_service.dart';
+import 'home_screen.dart';
 import 'login_screen.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -155,12 +157,16 @@ class _SplashScreenState extends State<SplashScreen>
     });
   }
 
-  void _navigateToLogin() {
+  void _navigateToLogin() async {
     if (!mounted) return;
+    final savedSession = await AuthService.getSavedSession();
+    if (!mounted) return;
+
+    final Widget targetScreen = savedSession != null ? const HomeScreen() : const LoginScreen();
+
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            const LoginScreen(),
+        pageBuilder: (context, animation, secondaryAnimation) => targetScreen,
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return FadeTransition(
             opacity: animation,

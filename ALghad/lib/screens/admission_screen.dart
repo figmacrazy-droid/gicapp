@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import 'empty_screens.dart';
+import '../services/data_service.dart';
+import 'dynamic_instruction_screen.dart';
+import 'online_registration_screen.dart';
 
 class AdmissionScreen extends StatelessWidget {
   const AdmissionScreen({super.key});
@@ -27,14 +29,12 @@ class AdmissionScreen extends StatelessWidget {
                   children: [
                     _buildCard(
                       context,
-                      title: 'متطلبات القبول التسجيل في الكلية',
+                      title: 'متطلبات القبول والتسجيل في الكلية',
                       onTap: () {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => const SubServicePlaceholderScreen(
-                              title: 'متطلبات القبول والتسجيل في الكلية',
-                            ),
+                            builder: (context) => const AdmissionRequirementsScreen(),
                           ),
                         );
                       },
@@ -43,15 +43,16 @@ class AdmissionScreen extends StatelessWidget {
                     _buildCard(
                       context,
                       title: 'التسجيل في مقر الكلية',
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const SubServicePlaceholderScreen(
-                              title: 'التسجيل في مقر الكلية',
+                      onTap: () async {
+                        final info = await DataService.getCampusRegistrationInfo();
+                        if (context.mounted) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => DynamicInstructionScreen(info: info),
                             ),
-                          ),
-                        );
+                          );
+                        }
                       },
                     ),
                     const SizedBox(height: 14),
@@ -62,9 +63,7 @@ class AdmissionScreen extends StatelessWidget {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => const SubServicePlaceholderScreen(
-                              title: 'التسجيل اونلاين',
-                            ),
+                            builder: (context) => const OnlineRegistrationScreen(),
                           ),
                         );
                       },
@@ -73,15 +72,16 @@ class AdmissionScreen extends StatelessWidget {
                     _buildCard(
                       context,
                       title: 'التسجيل عبر البوابة الالكترونية لوزارة التربية والتعليم والبحث العلمي',
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const SubServicePlaceholderScreen(
-                              title: 'التسجيل عبر البوابة الالكترونية لوزارة التربية والتعليم والبحث العلمي',
+                      onTap: () async {
+                        final info = await DataService.getMinistryPortalInfo();
+                        if (context.mounted) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => DynamicInstructionScreen(info: info),
                             ),
-                          ),
-                        );
+                          );
+                        }
                       },
                     ),
                   ],
@@ -126,10 +126,10 @@ class AdmissionScreen extends StatelessWidget {
   }
 
   Widget _buildCard(
-      BuildContext context, {
-        required String title,
-        required VoidCallback onTap,
-      }) {
+    BuildContext context, {
+    required String title,
+    required VoidCallback onTap,
+  }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -196,9 +196,6 @@ class AdmissionScreen extends StatelessWidget {
   }
 }
 
-// ═══════════════════════════════════════════════
-// صفحة متطلبات القبول والتسجيل
-// ═══════════════════════════════════════════════
 class AdmissionRequirementsScreen extends StatelessWidget {
   const AdmissionRequirementsScreen({super.key});
 
@@ -254,31 +251,24 @@ class AdmissionRequirementsScreen extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      _buildRequirementItem(
-                        '1- أصل الشهادة وصورة طبق الأصل من الثانوية العامة.',
-                      ),
-                      _buildRequirementItem(
-                        '2- صورة البطاقة الشخصية أو جواز السفر.',
-                      ),
-                      _buildRequirementItem(
-                        '3- صور شخصية حديثة عدد (10) صور مقاس 4×6.',
-                      ),
-                      _buildRequirementItem(
-                        '4- أن يقوم المتقدم ببعثة إستمارة التسجيل.',
-                      ),
-                      _buildRequirementItem(
-                        '5- إرفاق سند رسوم التسجيل.',
-                      ),
-                      _buildRequirementItem(
-                        '6- يحصل الطالب على رقم أكاديمي وبطاقة الكلية تُحدد كل سنة.',
-                      ),
+                      _buildRequirementItem('1- أصل الشهادة وصورة طبق الأصل من الثانوية العامة.'),
+                      _buildRequirementItem('2- صورة البطاقة الشخصية أو جواز السفر.'),
+                      _buildRequirementItem('3- صور شخصية حديثة عدد (10) صور مقاس 4×6.'),
+                      _buildRequirementItem('4- أن يقوم المتقدم ببعثة إستمارة التسجيل.'),
+                      _buildRequirementItem('5- إرفاق سند رسوم التسجيل.'),
+                      _buildRequirementItem('6- يحصل الطالب على رقم أكاديمي وبطاقة الكلية تُحدد كل سنة.'),
                       const SizedBox(height: 32),
                       Center(
                         child: SizedBox(
                           width: double.infinity,
                           height: 52,
                           child: ElevatedButton(
-                            onPressed: () {},
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (context) => const OnlineRegistrationScreen()),
+                              );
+                            },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: navyDark,
                               shape: RoundedRectangleBorder(
@@ -287,7 +277,7 @@ class AdmissionRequirementsScreen extends StatelessWidget {
                               elevation: 0,
                             ),
                             child: const Text(
-                              'إرفاق الوثائق',
+                              'الانتقال للتسجيل الإلكتروني',
                               style: TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w800,

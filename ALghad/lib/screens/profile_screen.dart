@@ -1,382 +1,255 @@
 import 'package:flutter/material.dart';
+import '../models/app_models.dart';
+import '../services/auth_service.dart';
+import '../services/data_service.dart';
+import 'dynamic_instruction_screen.dart';
+import 'login_screen.dart';
+import 'settings_screen.dart';
+import 'social_media_screen.dart';
+import 'university_guide_screen.dart';
 
-class ProfileScreen extends StatelessWidget {
-  final bool hideBottomNav;
-  final String studentFullName;
+class ProfileScreen extends StatefulWidget {
+  const ProfileScreen({super.key});
 
-  const ProfileScreen({
-    super.key,
-    this.hideBottomNav = false,
-    this.studentFullName = 'عبدالله حمود محمد أبوطالب',
-  });
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
 
-  static const Color navyDark = Color(0xFF0A2451);
-  static const Color textGray = Color(0xFF6B6B6B);
-  static const Color gold = Color(0xFFD39706);
+class _ProfileScreenState extends State<ProfileScreen> {
+  static const Color navyDark = Color(0xFF0B1E3D);
+  static const Color accentGold = Color(0xFFD39706);
+
+  StudentProfileModel? _student;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
+
+  void _loadProfile() async {
+    final session = await AuthService.getSavedSession();
+    setState(() {
+      _student = session ??
+          const StudentProfileModel(
+            academicId: '2024000001',
+            fullName: 'عبد الله أحمد الطالب',
+            password: 'studentpassword',
+            email: 'abdallah@alghad.edu.ye',
+            specialty: 'علوم مختبرات طبية',
+            level: 'المستوى الثاني',
+            batch: 'الدفعة الخامسة',
+            semester: 'الفصل الأول',
+            group: 'المجموعة الأولى',
+            studyShift: 'الفترة الصباحية',
+          );
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: Directionality(
-        textDirection: TextDirection.rtl,
-        child: SingleChildScrollView(
-          child: Stack(
-            children: [
-              // 1. Background Layers
-              _buildBackgrounds(),
-
-              // 2. Main Content
-              Column(
-                children: [
-                  const SizedBox(height: 55), // Top padding
-                  
-                  // AppBar Area
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        GestureDetector(
-                          onTap: () => Navigator.maybePop(context),
-                          child: const Icon(
-                            Icons.arrow_forward_rounded,
-                            color: Colors.white,
-                            size: 28,
-                            textDirection: TextDirection.ltr, // Force pointing right
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0.5,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: navyDark),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text(
+          'الملف الشخصي للطالب',
+          style: TextStyle(
+            color: navyDark,
+            fontSize: 17,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        centerTitle: true,
+      ),
+      body: SafeArea(
+        child: Directionality(
+          textDirection: TextDirection.rtl,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              children: [
+                // 1. Top Card with Student Details
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: navyDark,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 10, offset: const Offset(0, 4)),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const CircleAvatar(
+                            radius: 26,
+                            backgroundColor: accentGold,
+                            child: Icon(Icons.person, color: Colors.white, size: 30),
                           ),
-                        ),
-                        const Expanded(
-                          child: Text(
-                            'ملفي الشخصي',
-                            textAlign: TextAlign.right,
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w500,
-                              color: Colors.white,
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _student?.fullName ?? 'طالب الغد المشرق',
+                                  style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'الرقم الأكاديمي: ${_student?.academicId ?? '----------'}',
+                                  style: const TextStyle(color: Colors.white70, fontSize: 13),
+                                ),
+                              ],
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 28), // Placeholder on the left to center text
-                      ],
-                    ),
+                        ],
+                      ),
+                      const Divider(color: Colors.white24, height: 24),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          _buildProfileMetaItem('التخصص:', _student?.specialty ?? 'علوم مختبرات'),
+                          _buildProfileMetaItem('المستوى:', _student?.level ?? 'المستوى الثاني'),
+                        ],
+                      ),
+                    ],
                   ),
+                ),
+                const SizedBox(height: 24),
 
-                  // The card should start exactly at 175.25 from top.
-                  // 55 (SizedBox) + 28 (AppBar approx) = 83.
-                  // 175.25 - 83 = 92.25.
-                  const SizedBox(height: 92.25),
-
-                  // Profile Card
-                  _buildProfileCard(),
-
-                  const SizedBox(height: 25),
-
-                  // Menu List
-                  _buildMenuItems(),
-                  
-                  const SizedBox(height: 40),
-                ],
-              ),
-            ],
+                // 2. Profile Options List
+                _buildOptionTile(
+                  icon: Icons.picture_as_pdf_outlined,
+                  title: 'دليل الطالب الجامعي',
+                  onTap: () {
+                    Navigator.push(context, MaterialPageRoute(builder: (c) => const UniversityGuideScreen()));
+                  },
+                ),
+                _buildOptionTile(
+                  icon: Icons.share_outlined,
+                  title: 'حسابات التواصل الاجتماعي',
+                  onTap: () {
+                    Navigator.push(context, MaterialPageRoute(builder: (c) => const SocialMediaScreen()));
+                  },
+                ),
+                _buildOptionTile(
+                  icon: Icons.info_outline_rounded,
+                  title: 'معلومات عنا',
+                  onTap: () async {
+                    final info = await DataService.getAboutUsInfo();
+                    if (context.mounted) {
+                      Navigator.push(context, MaterialPageRoute(builder: (c) => DynamicInstructionScreen(info: info)));
+                    }
+                  },
+                ),
+                _buildOptionTile(
+                  icon: Icons.settings_outlined,
+                  title: 'إعدادات التطبيق',
+                  onTap: () {
+                    Navigator.push(context, MaterialPageRoute(builder: (c) => const SettingsScreen()));
+                  },
+                ),
+                _buildOptionTile(
+                  icon: Icons.help_outline_rounded,
+                  title: 'المساعدة والدعم',
+                  onTap: () async {
+                    final info = await DataService.getHelpAndSupportInfo();
+                    if (context.mounted) {
+                      Navigator.push(context, MaterialPageRoute(builder: (c) => DynamicInstructionScreen(info: info)));
+                    }
+                  },
+                ),
+                const SizedBox(height: 16),
+                _buildOptionTile(
+                  icon: Icons.logout_rounded,
+                  title: 'تسجيل الخروج',
+                  titleColor: Colors.red,
+                  iconColor: Colors.red,
+                  onTap: _showLogoutConfirmationDialog,
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildBackgrounds() {
+  Widget _buildProfileMetaItem(String label, String value) {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          height: 240, // Reduced slightly to match the look
-          width: double.infinity,
-          decoration: const BoxDecoration(
-            color: navyDark,
-          ),
-          child: Stack(
-            children: [
-              Positioned(
-                top: -50,
-                right: -50,
-                child: Container(
-                  width: 200,
-                  height: 200,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.04),
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              ),
-              Positioned(
-                bottom: -20,
-                right: -20,
-                child: Container(
-                  width: 150,
-                  height: 150,
-                  decoration: const BoxDecoration(
-                    color: gold,
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(100),
-                      bottomLeft: Radius.circular(50),
-                      topRight: Radius.circular(40),
-                      bottomRight: Radius.circular(80),
-                    ),
-                  ),
-                ),
-              ),
-              Positioned(
-                bottom: 20,
-                left: -60,
-                child: Container(
-                  width: 180,
-                  height: 180,
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.12),
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        Container(
-          height: 600, // Background for the list part
-          color: Colors.white,
-        ),
+        Text(label, style: const TextStyle(color: Colors.white60, fontSize: 11)),
+        const SizedBox(height: 2),
+        Text(value, style: const TextStyle(color: accentGold, fontSize: 13, fontWeight: FontWeight.bold)),
       ],
     );
   }
 
-  Widget _buildProfileCard() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 18),
-      child: Stack(
-        clipBehavior: Clip.none,
-        alignment: Alignment.topCenter,
-        children: [
-          // The White Card (width: 324 based on horizontal padding 18 on a 360 width screen, height ~154)
-          Container(
-            width: double.infinity,
-            height: 154.76, // Setting height explicitly as requested
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(34),
-                topRight: Radius.circular(24),
-                bottomRight: Radius.circular(0),
-                bottomLeft: Radius.circular(0),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.06),
-                  blurRadius: 15,
-                  offset: const Offset(0, 5),
-                ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(34),
-                topRight: Radius.circular(24),
-                bottomRight: Radius.circular(0),
-                bottomLeft: Radius.circular(0),
-              ),
-              child: Stack(
-                children: [
-                  // Bottom Left Dark Blue Decoration
-                  Positioned(
-                    bottom: -15,
-                    left: -20,
-                    child: Container(
-                      width: 70,
-                      height: 70,
-                      decoration: const BoxDecoration(
-                        color: navyDark,
-                        borderRadius: BorderRadius.only(
-                          topRight: Radius.circular(50),
-                          bottomRight: Radius.circular(30),
-                          topLeft: Radius.circular(10),
-                          bottomLeft: Radius.circular(50),
-                        ),
-                      ),
-                    ),
-                  ),
-                  
-                  // Card Content
-                  Padding(
-                    padding: const EdgeInsets.only(top: 55, bottom: 10, left: 16, right: 16),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          studentFullName,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w900,
-                            color: navyDark,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        const Text(
-                          'الرقم الأكاديمي: 9876543210',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: const Color(0xFF6B6B6B),
-                          ),
-                        ),
-                        const Spacer(),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            const Text(
-                              'تخصص: إدارة أعمال',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: textGray,
-                              ),
-                            ),
-                            const Text(
-                              'خريج',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: textGray,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          
-          // Profile Avatar overlapping the top
-          Positioned(
-            top: -45.25,
-            child: Container(
-              width: 90.5,
-              height: 90.5,
-              padding: const EdgeInsets.all(3),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-              ),
-              child: CircleAvatar(
-                radius: 45.25,
-                backgroundColor: const Color(0xFFF2E8D0),
-                child: ClipOval(
-                  child: Image.asset(
-                    'assets/images/avatar.png',
-                    fit: BoxFit.cover,
-                    width: 90.5,
-                    height: 90.5,
-                    errorBuilder: (context, error, stackTrace) {
-                      return const Icon(Icons.person, size: 50, color: gold);
-                    },
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMenuItems() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Column(
-        children: [
-          _buildMenuItem(
-            icon: Icons.person_outline_rounded,
-            title: 'دليل الطالب الجامعي',
-          ),
-          _buildDivider(),
-          _buildMenuItem(
-            icon: Icons.favorite_border_rounded,
-            title: 'تواصل إجتماعي',
-          ),
-          _buildDivider(),
-          _buildMenuItem(
-            icon: Icons.notifications_none_rounded,
-            title: 'التنبيهات',
-          ),
-          _buildDivider(),
-          _buildMenuItem(
-            icon: Icons.shield_outlined,
-            title: 'معلومات عنا',
-          ),
-          _buildDivider(),
-          _buildMenuItem(
-            icon: Icons.settings_outlined,
-            title: 'إعدادات التطبيق',
-          ),
-          _buildDivider(),
-          _buildMenuItem(
-            icon: Icons.help_outline_rounded,
-            title: 'المساعدة والدعم',
-          ),
-          _buildDivider(),
-          _buildMenuItem(
-            icon: Icons.logout_rounded,
-            title: 'تسجيل الخروج',
-            isLogout: true,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMenuItem({
+  Widget _buildOptionTile({
     required IconData icon,
     required String title,
-    bool isLogout = false,
+    required VoidCallback onTap,
+    Color titleColor = navyDark,
+    Color iconColor = navyDark,
   }) {
-    return InkWell(
-      onTap: () {},
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        child: Row(
-          children: [
-            Icon(
-              icon,
-              color: isLogout ? Colors.black87 : const Color(0xFF4A4A4A),
-              size: 26,
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF4A4A4A),
-                ),
-              ),
-            ),
-            const Icon(
-              Icons.chevron_left_rounded,
-              color: Color(0xFFB0B0B0),
-              size: 24,
-            ),
-          ],
-        ),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFEEEEEE)),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 6, offset: const Offset(0, 2)),
+        ],
+      ),
+      child: ListTile(
+        leading: Icon(icon, color: iconColor),
+        title: Text(title, style: TextStyle(color: titleColor, fontWeight: FontWeight.bold, fontSize: 14)),
+        trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
+        onTap: onTap,
       ),
     );
   }
 
-  Widget _buildDivider() {
-    return const Divider(
-      height: 1,
-      thickness: 1,
-      color: Color(0xFFF0F0F0),
+  void _showLogoutConfirmationDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('تسجيل الخروج'),
+        content: const Text('هل أنت تأكد من تسجيل الخروج من التطبيق؟'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('إلغاء', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              await AuthService.clearSession();
+              if (mounted) {
+                Navigator.pop(ctx);
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (context) => const LoginScreen()),
+                  (route) => false,
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('تسجيل الخروج', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
     );
   }
 }

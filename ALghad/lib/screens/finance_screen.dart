@@ -1,210 +1,105 @@
 import 'package:flutter/material.dart';
-import 'empty_screens.dart';
+import '../models/app_models.dart';
+import '../services/data_service.dart';
 
 class FinanceScreen extends StatelessWidget {
   const FinanceScreen({super.key});
 
-  static const Color whiteBg = Colors.white;
   static const Color navyDark = Color(0xFF0B1E3D);
-  static const Color cardBg = Colors.white;
+  static const Color accentGold = Color(0xFFD39706);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: whiteBg,
+      backgroundColor: const Color(0xFFF8F9FA),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0.5,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: navyDark),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text(
+          'الخدمات والإشعارات المالية',
+          style: TextStyle(
+            color: navyDark,
+            fontSize: 17,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        centerTitle: true,
+      ),
       body: SafeArea(
-        bottom: false,
         child: Directionality(
           textDirection: TextDirection.rtl,
-          child: Column(
-            children: [
-              _buildAppBar(context),
-              const Divider(height: 1, color: Color(0xFFF0F0F0)),
-              Expanded(
-                child: ListView(
-                  physics: const BouncingScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
-                  children: [
-                    _buildCard(
-                      context,
-                      title: 'طلب كشف حساب تفصيلي',
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const SubServicePlaceholderScreen(
-                              title: 'طلب كشف حساب تفصيلي',
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 14),
-                    _buildCard(
-                      context,
-                      title: 'سند تسديد الرسوم الدراسية',
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const SubServicePlaceholderScreen(
-                              title: 'سند تسديد الرسوم الدراسية',
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 14),
-                    _buildCard(
-                      context,
-                      title: 'تسديد رسوم',
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const SubServicePlaceholderScreen(
-                              title: 'تسديد رسوم',
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 14),
-                    _buildCard(
-                      context,
-                      title: 'تحويل رسوم',
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const SubServicePlaceholderScreen(
-                              title: 'تحويل رسوم',
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 14),
-                    _buildCard(
-                      context,
-                      title: 'سحب رسوم',
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const SubServicePlaceholderScreen(
-                              title: 'سحب رسوم',
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+          child: FutureBuilder<List<FinanceNotificationModel>>(
+            future: DataService.getFinanceNotifications(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              final notifications = snapshot.data ?? [];
+              if (notifications.isEmpty) {
+                return const Center(child: Text('لا توجد إشعارات مالية حالياً'));
+              }
 
-  Widget _buildAppBar(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      child: Row(
-        children: [
-          InkWell(
-            onTap: () => Navigator.pop(context),
-            borderRadius: BorderRadius.circular(8),
-            child: const Padding(
-              padding: EdgeInsets.all(4.0),
-              child: Icon(
-                Icons.arrow_forward_rounded,
-                color: navyDark,
-                size: 24,
-              ),
-            ),
+              return ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: notifications.length,
+                itemBuilder: (context, index) {
+                  final item = notifications[index];
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6, offset: const Offset(0, 2)),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                item.title,
+                                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: navyDark),
+                              ),
+                            ),
+                            Text(
+                              item.date,
+                              style: const TextStyle(fontSize: 11, color: Colors.grey),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          item.details,
+                          style: const TextStyle(fontSize: 13, color: Color(0xFF4A4A4A), height: 1.4),
+                        ),
+                        if (item.amount != null) ...[
+                          const SizedBox(height: 10),
+                          Row(
+                            children: [
+                              const Text('المبلغ المقرر: ', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
+                              Text(
+                                '${item.amount} ريال يمني',
+                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: accentGold),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ],
+                    ),
+                  );
+                },
+              );
+            },
           ),
-          const SizedBox(width: 8),
-          const Text(
-            'المالية',
-            style: TextStyle(
-              fontSize: 17,
-              fontWeight: FontWeight.w900,
-              color: navyDark,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCard(
-    BuildContext context, {
-    required String title,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        decoration: BoxDecoration(
-          color: cardBg,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.06),
-              blurRadius: 10,
-              offset: const Offset(0, 3),
-            ),
-          ],
-          border: Border.all(
-            color: const Color(0xFFF2F2F2),
-            width: 1,
-          ),
-        ),
-        child: Row(
-          children: [
-            _buildGicBadge(),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Text(
-                title,
-                textAlign: TextAlign.right,
-                style: const TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w800,
-                  color: navyDark,
-                  height: 1.35,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildGicBadge() {
-    return Container(
-      width: 48,
-      height: 48,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: Image.asset(
-          'assets/images/gic_logo_new.png',
-          fit: BoxFit.cover,
         ),
       ),
     );

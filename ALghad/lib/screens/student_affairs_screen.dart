@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
-import 'empty_screens.dart';
+import '../services/data_service.dart';
+import 'alumni_services_screen.dart';
+import 'dynamic_instruction_screen.dart';
+import 'schedules_view_screen.dart';
 
 class StudentAffairsScreen extends StatelessWidget {
   const StudentAffairsScreen({super.key});
@@ -32,8 +35,9 @@ class StudentAffairsScreen extends StatelessWidget {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => const SubServicePlaceholderScreen(
+                            builder: (context) => const SchedulesViewScreen(
                               title: 'الجداول الدراسية',
+                              scheduleType: 'study',
                             ),
                           ),
                         );
@@ -43,106 +47,43 @@ class StudentAffairsScreen extends StatelessWidget {
                     _buildCard(
                       context,
                       title: 'الأنشطة والفعاليات',
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const SubServicePlaceholderScreen(
-                              title: 'الأنشطة والفعاليات',
-                            ),
-                          ),
-                        );
-                      },
+                      onTap: () => _openInstructionScreen(context, 'الأنشطة والفعاليات'),
                     ),
                     const SizedBox(height: 14),
                     _buildCard(
                       context,
                       title: 'تقديم طلب تحويل\n(من تخصص إلى تخصص آخر)',
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const SubServicePlaceholderScreen(
-                              title: 'تقديم طلب تحويل (من تخصص إلى تخصص آخر)',
-                            ),
-                          ),
-                        );
-                      },
+                      onTap: () => _openInstructionScreen(context, 'تقديم طلب تحويل (من تخصص إلى تخصص آخر)'),
                     ),
                     const SizedBox(height: 14),
                     _buildCard(
                       context,
                       title: 'تقديم طلب وقف قيد',
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const SubServicePlaceholderScreen(
-                              title: 'تقديم طلب وقف قيد',
-                            ),
-                          ),
-                        );
-                      },
+                      onTap: () => _openInstructionScreen(context, 'تقديم طلب وقف قيد'),
                     ),
                     const SizedBox(height: 14),
                     _buildCard(
                       context,
                       title: 'تقديم طلب فتح قيد',
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const SubServicePlaceholderScreen(
-                              title: 'تقديم طلب فتح قيد',
-                            ),
-                          ),
-                        );
-                      },
+                      onTap: () => _openInstructionScreen(context, 'تقديم طلب فتح قيد'),
                     ),
                     const SizedBox(height: 14),
                     _buildCard(
                       context,
                       title: 'تقديم طلب مقاصصة',
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const SubServicePlaceholderScreen(
-                              title: 'تقديم طلب مقاصصة',
-                            ),
-                          ),
-                        );
-                      },
+                      onTap: () => _openInstructionScreen(context, 'تقديم طلب مقاصصة'),
                     ),
                     const SizedBox(height: 14),
                     _buildCard(
                       context,
                       title: 'تقديم طلب تجميد ملف',
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const SubServicePlaceholderScreen(
-                              title: 'تقديم طلب تجميد ملف',
-                            ),
-                          ),
-                        );
-                      },
+                      onTap: () => _openInstructionScreen(context, 'تقديم طلب تجميد ملف'),
                     ),
                     const SizedBox(height: 14),
                     _buildCard(
                       context,
                       title: 'تقديم طلب سحب ملف',
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const SubServicePlaceholderScreen(
-                              title: 'تقديم طلب سحب ملف',
-                            ),
-                          ),
-                        );
-                      },
+                      onTap: () => _openInstructionScreen(context, 'تقديم طلب سحب ملف'),
                     ),
                     const SizedBox(height: 14),
                     _buildCard(
@@ -152,9 +93,7 @@ class StudentAffairsScreen extends StatelessWidget {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => const SubServicePlaceholderScreen(
-                              title: 'شؤون الخريجين',
-                            ),
+                            builder: (context) => const AlumniServicesScreen(),
                           ),
                         );
                       },
@@ -167,6 +106,18 @@ class StudentAffairsScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  void _openInstructionScreen(BuildContext context, String title) async {
+    final info = await DataService.getStudentAffairsServiceInfo(title);
+    if (context.mounted) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => DynamicInstructionScreen(info: info),
+        ),
+      );
+    }
   }
 
   Widget _buildAppBar(BuildContext context) {

@@ -1,290 +1,218 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
-import '../theme/app_colors.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../models/app_models.dart';
+import '../services/auth_service.dart';
 
 class GeneralRequestScreen extends StatefulWidget {
-  const GeneralRequestScreen({Key? key}) : super(key: key);
+  const GeneralRequestScreen({super.key});
 
   @override
-  _GeneralRequestScreenState createState() => _GeneralRequestScreenState();
+  State<GeneralRequestScreen> createState() => _GeneralRequestScreenState();
 }
 
 class _GeneralRequestScreenState extends State<GeneralRequestScreen> {
-  final TextEditingController _subjectController = TextEditingController();
-  final TextEditingController _detailsController = TextEditingController();
-  String? _selectedCategory;
-  String? _selectedAttachment;
+  static const Color navyDark = Color(0xFF0B1E3D);
+
+  final _requestTextController = TextEditingController();
+  final ImagePicker _picker = ImagePicker();
+  File? _capturedImage;
+  StudentProfileModel? _student;
+  bool _isSending = false;
 
   @override
-  void dispose() {
-    _subjectController.dispose();
-    _detailsController.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    _loadStudentInfo();
   }
 
-  void _showSuccessDialog() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
+  void _loadStudentInfo() async {
+    final session = await AuthService.getSavedSession();
+    setState(() {
+      _student = session ??
+          const StudentProfileModel(
+            academicId: '2024000001',
+            fullName: 'عبد الله أحمد الطالب',
+            password: 'studentpassword',
+            email: 'abdallah@alghad.edu.ye',
+            specialty: 'علوم مختبرات طبية',
+            level: 'المستوى الثاني',
+            batch: 'الدفعة الخامسة',
+            semester: 'الفصل الأول',
+            group: 'المجموعة الأولى',
+            studyShift: 'الفترة الصباحية',
+          );
+    });
+  }
+
+  Future<void> _takeLiveCameraPhoto() async {
+    try {
+      final XFile? photo = await _picker.pickImage(
+        source: ImageSource.camera, // التقاط كاميرا لحظي مباشر فقط
+        preferredCameraDevice: CameraDevice.rear,
+      );
+      if (photo != null) {
+        setState(() {
+          _capturedImage = File(photo.path);
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('حدث خطأ أثناء فتح الكاميرا: $e')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0.5,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: navyDark),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text(
+          'تقديم طلب عام',
+          style: TextStyle(
+            color: navyDark,
+            fontSize: 17,
+            fontWeight: FontWeight.bold,
           ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+        ),
+        centerTitle: true,
+      ),
+      body: SafeArea(
+        child: Directionality(
+          textDirection: TextDirection.rtl,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
             child: Column(
-              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Student info header summary
                 Container(
-                  width: 120,
-                  height: 120,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF03102E),
-                    shape: BoxShape.circle,
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8F9FA),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.grey.shade300),
                   ),
-                  child: Center(
-                    child: Icon(
-                      Icons.verified_user, // Shield with checkmark
-                      color: Colors.white,
-                      size: 60,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'مقدم الطلب: ${_student?.fullName ?? "طالب الغد المشرق"}',
+                        style: const TextStyle(fontWeight: FontWeight.bold, color: navyDark, fontSize: 13),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'الرقم الأكاديمي: ${_student?.academicId ?? "----------"} | التخصص: ${_student?.specialty ?? ""}',
+                        style: const TextStyle(color: Colors.grey, fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                const Text('تفاصيل ومضمون الطلب:', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: navyDark)),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _requestTextController,
+                  maxLines: 5,
+                  decoration: InputDecoration(
+                    hintText: 'اكتب تفاصيل طلبك العام هنا بكل وضوح...',
+                    filled: true,
+                    fillColor: const Color(0xFFF8F9FA),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Live Camera Capture Section Only
+                const Text('إرفاق صورة الطلب (تصوير كاميرا لحظي مباشر حصراً):', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: navyDark)),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed: _takeLiveCameraPhoto,
+                  icon: const Icon(Icons.camera_alt, color: navyDark),
+                  label: const Text('التقاط صورة بالكاميرا الآن', style: TextStyle(color: navyDark, fontWeight: FontWeight.bold)),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+                if (_capturedImage != null) ...[
+                  const SizedBox(height: 12),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: Image.file(_capturedImage!, height: 160, width: double.infinity, fit: BoxFit.cover),
+                  ),
+                ],
+                const SizedBox(height: 30),
+
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton(
+                    onPressed: _isSending ? null : _sendRequestToWhatsApp,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: navyDark,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
                     ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                const Text(
-                  'تم إرسال الطلب!',
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF03102E),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  'سيتم مراجعة طلبك في اسرع وقت ممكن وسوف تتلقى منا إشعار عند الإنتهاء من المراجعة',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey,
-                    height: 1.5,
+                    child: _isSending
+                        ? const CircularProgressIndicator(color: Colors.white)
+                        : const Text('إرسال الطلب (عبر الواتساب)', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
                   ),
                 ),
               ],
             ),
           ),
-        );
-      },
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    const textColor = Color(0xFF03102E);
-    
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        centerTitle: true,
-        title: const Text(
-          'تقديم طلب عام',
-          style: TextStyle(
-            color: textColor,
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-          ),
-        ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: textColor),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Header Icon
-              Center(
-                child: SizedBox(
-                  width: 130,
-                  height: 110,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      Container(
-                        width: 110,
-                        height: 110,
-                        decoration: BoxDecoration(
-                          color: textColor,
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            _buildWhiteLine(60),
-                            const SizedBox(height: 12),
-                            _buildWhiteLine(60),
-                            const SizedBox(height: 12),
-                            _buildWhiteLine(60),
-                          ],
-                        ),
-                      ),
-                      Positioned(
-                        bottom: 5,
-                        right: 0,
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: AppColors.gold,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: const Icon(
-                            Icons.edit,
-                            color: Colors.white,
-                            size: 20,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 32),
-
-              // Category Dropdown
-              _buildDropdownField(
-                hint: 'فئة الطلب',
-                value: _selectedCategory,
-                items: ['فئة 1', 'فئة 2', 'فئة 3'],
-                onChanged: (val) => setState(() => _selectedCategory = val),
-              ),
-              const SizedBox(height: 16),
-
-              // Subject Field
-              _buildTextField(
-                controller: _subjectController,
-                hint: 'الموضوع',
-              ),
-              const SizedBox(height: 16),
-
-              // Details Field
-              _buildTextField(
-                controller: _detailsController,
-                hint: 'تفاصيل الطلب',
-                maxLines: 6,
-              ),
-              const SizedBox(height: 16),
-
-              // Attach Field
-              _buildDropdownField(
-                hint: 'إرفاق',
-                value: _selectedAttachment,
-                items: ['صورة', 'ملف PDF'],
-                onChanged: (val) => setState(() => _selectedAttachment = val),
-              ),
-              const SizedBox(height: 40),
-
-              // Submit Button
-              ElevatedButton(
-                onPressed: _showSuccessDialog,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: textColor,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: const Text(
-                  'إرسال الطلب',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ],
-          ),
         ),
       ),
     );
   }
 
-  Widget _buildWhiteLine(double width) {
-    return Container(
-      width: width,
-      height: 6,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(3),
-      ),
-    );
-  }
+  void _sendRequestToWhatsApp() async {
+    final text = _requestTextController.text.trim();
+    if (text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('يرجى كتابة تفاصيل ومضمون الطلب أولاً'), backgroundColor: Colors.red),
+      );
+      return;
+    }
 
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String hint,
-    int maxLines = 1,
-  }) {
-    return TextField(
-      controller: controller,
-      maxLines: maxLines,
-      textAlign: TextAlign.right,
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: Colors.grey.shade300),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: Colors.grey.shade300),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Color(0xFF03102E)),
-        ),
-      ),
-    );
-  }
+    setState(() => _isSending = true);
 
-  Widget _buildDropdownField({
-    required String hint,
-    String? value,
-    required List<String> items,
-    required void Function(String?) onChanged,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: value,
-          hint: Text(
-            hint,
-            style: TextStyle(color: Colors.grey.shade400, fontSize: 14),
-          ),
-          isExpanded: true,
-          icon: Icon(Icons.keyboard_arrow_down, color: Colors.grey.shade400),
-          items: items.map((String item) {
-            return DropdownMenuItem<String>(
-              value: item,
-              child: Align(
-                alignment: Alignment.centerRight,
-                child: Text(item),
-              ),
-            );
-          }).toList(),
-          onChanged: onChanged,
-        ),
-      ),
+    final String fullMsg = Uri.encodeComponent(
+      'تقديم طلب عام جديد - كلية الغد المشرق:\n'
+      '-----------------------------------------\n'
+      'اسم الطالب: ${_student?.fullName}\n'
+      'الرقم الأكاديمي: ${_student?.academicId}\n'
+      'التخصص: ${_student?.specialty}\n'
+      'مضمون الطلب:\n$text\n\n'
+      '${_capturedImage != null ? "تم التقاط صورة مرافقة بالكاميرا المباشرة للتطبيق." : "لم يتم التقاط صورة مرافقة."}',
     );
+
+    final String whatsappUrl = 'whatsapp://send?phone=967776166321&text=$fullMsg';
+    final Uri uri = Uri.parse(whatsappUrl);
+
+    try {
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri);
+      } else {
+        final Uri webUri = Uri.parse('https://api.whatsapp.com/send?phone=967776166321&text=$fullMsg');
+        await launchUrl(webUri, mode: LaunchMode.externalApplication);
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('تعذر فتح الواتساب: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _isSending = false);
+    }
   }
 }
