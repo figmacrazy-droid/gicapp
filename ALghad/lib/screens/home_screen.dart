@@ -217,11 +217,8 @@ class _HomeScreenState extends State<HomeScreen>
                     children: [
                       _buildHomeContent(),
                       const LocationScreen(hideBottomNav: true),
-                      const CalendarScreen(hideBottomNav: true),
-                      ProfileScreen(
-                        hideBottomNav: true,
-                        studentFullName: _effectiveFullName,
-                      ),
+                      const CalendarScreen(),
+                      const ProfileScreen(),
                     ],
                   ),
                 ),
@@ -1087,8 +1084,9 @@ class _HomeScreenState extends State<HomeScreen>
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   // ══════════════════════════════════════
   // 8) شريط التنقل السفلي

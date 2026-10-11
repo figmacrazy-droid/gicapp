@@ -96,7 +96,7 @@ class PdfService {
                   // Footer
                   pw.Divider(color: PdfColors.grey400),
                   pw.Row(
-                    main: pw.MainAxisAlignment.spaceBetween,
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                     children: [
                       pw.Text('تاريخ الإرسال: ${DateTime.now().toString().split(' ')[0]}', style: const pw.TextStyle(fontSize: 10)),
                       pw.Text('تم إنشاء هذا التقرير تلقائياً عبر تطبيق الغد المشرق', style: const pw.TextStyle(fontSize: 10)),

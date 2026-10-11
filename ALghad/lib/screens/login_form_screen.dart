@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
+import '../models/app_models.dart';
 import 'verification_screen.dart';
 
 class LoginFormScreen extends StatefulWidget {
@@ -205,7 +206,20 @@ class _LoginFormScreenState extends State<LoginFormScreen>
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const VerificationScreen(),
+                builder: (context) => const VerificationScreen(
+                  student: StudentProfileModel(
+                    academicId: '2024000001',
+                    fullName: 'طالب تجريبي',
+                    password: 'password',
+                    email: 'test@alghad.edu.ye',
+                    specialty: 'مختبرات',
+                    level: 'المستوى الأول',
+                    batch: 'الدفعة الأولى',
+                    semester: 'الفصل الأول',
+                    group: 'مجموعة A',
+                    studyShift: 'صباحي',
+                  ),
+                ),
               ),
             );
           },
