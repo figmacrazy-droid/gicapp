@@ -128,36 +128,92 @@ class _SeatingNumbersScreenState extends State<SeatingNumbersScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Row(
-                    children: [
-                      Icon(Icons.badge_outlined, color: navyDark, size: 22),
-                      SizedBox(width: 8),
-                      Text(
-                        'بطاقة كرت الجلوس الامتحاني',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: navyDark),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFBF8F0),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: accentGold.withOpacity(0.35)),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: navyDark.withOpacity(0.08),
+                        shape: BoxShape.circle,
                       ),
-                    ],
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: accentGold,
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(color: accentGold.withOpacity(0.3), blurRadius: 6, offset: const Offset(0, 2)),
-                      ],
+                      child: const Icon(Icons.badge_outlined, color: navyDark, size: 22),
                     ),
-                    child: Text(
-                      'رقم الجلوس: ${_resultData!.seatingNumber}',
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                    const SizedBox(width: 10),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'بطاقة الجلوس الامتحاني',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              color: navyDark,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          SizedBox(height: 2),
+                          Text(
+                            'جامعة الغد الدولية',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.black54,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: accentGold,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: accentGold.withOpacity(0.25),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          const Text(
+                            'رقم الجلوس',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          Text(
+                            _resultData!.seatingNumber,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              const Divider(height: 28),
+              const Divider(height: 24),
               _buildInfoRow('اسم الطالب:', _resultData!.studentName.isNotEmpty ? _resultData!.studentName : (_studentName ?? 'الطالب')),
               _buildInfoRow('الرقم الأكاديمي:', _resultData!.academicId),
               _buildInfoRow('التخصص الأكاديمي:', _resultData!.specialty),

@@ -59,8 +59,8 @@ class _HomeScreenState extends State<HomeScreen>
   late AnimationController _syncController;
   late PageController _pageController;
 
-  static const double _cardWidth = 222;
-  static const double _cardHeight = 278;
+  static const double _cardWidth = 240;
+  static const double _cardHeight = 295;
   static const int _initialPage = 5000;
 
   // 🎨 ألوان التصميم
@@ -178,7 +178,7 @@ class _HomeScreenState extends State<HomeScreen>
     super.initState();
 
     _pageController = PageController(
-      viewportFraction: 0.52,
+      viewportFraction: 0.76,
       initialPage: _initialPage,
     );
 
@@ -359,7 +359,7 @@ class _HomeScreenState extends State<HomeScreen>
         _pageController.animateToPage(
           currentPage + 1,
           duration: const Duration(milliseconds: 600),
-          curve: Curves.easeInOut,
+          curve: Curves.easeInOutCubic,
         );
       },
     );
@@ -632,7 +632,7 @@ class _HomeScreenState extends State<HomeScreen>
   // ══════════════════════════════════════
   Widget _buildSlider() {
     return SizedBox(
-      height: 321,
+      height: 325,
       child: Stack(
         alignment: Alignment.center,
         children: [
@@ -647,7 +647,7 @@ class _HomeScreenState extends State<HomeScreen>
             itemBuilder: (context, i) => const SizedBox.shrink(),
           ),
 
-          // 2) رسم البطاقات بترتيب Z-Index صحيح (المركز دائماً في الأمام)
+          // 2) رسم 3 بطاقات فقط مع تدوير ثلاثي الأبعاد 3D Turntable كما في فيقما (المركز دائماً في الأمام)
           IgnorePointer(
             child: AnimatedBuilder(
               animation: _pageController,
@@ -659,10 +659,8 @@ class _HomeScreenState extends State<HomeScreen>
 
                 int currentPage = page.round();
 
-                // نأخذ 5 عناصر (2 يمين، 2 يسار، والمركز)
+                // 3 كروت فقط في المساحة كما في تصميم فيقما (يمين، يسار، والمركز)
                 List<int> indices = [
-                  currentPage - 2,
-                  currentPage + 2,
                   currentPage - 1,
                   currentPage + 1,
                   currentPage,
@@ -677,38 +675,36 @@ class _HomeScreenState extends State<HomeScreen>
 
                 return LayoutBuilder(
                   builder: (context, constraints) {
-                    final itemWidth = constraints.maxWidth * 0.52; // نفس viewportFraction
+                     // تباعد البطاقات الأفقية لإظهار دوران ثلاثي الأبعاد متناسق
+                    final stepDistance = constraints.maxWidth * 0.32;
 
                     return Stack(
                       alignment: Alignment.center,
                       children: indices.map((i) {
-                        final imageIndex = i % _adImages.length;
+                        final imageIndex = ((i % _adImages.length) + _adImages.length) % _adImages.length;
                         final value = page - i;
                         final absValue = value.abs();
 
-                        if (absValue > 2.5) return const SizedBox.shrink();
+                        if (absValue > 1.35) return const SizedBox.shrink();
 
-                        final scale = (1.0 - absValue * 0.12).clamp(0.88, 1.0);
-                        final opacity = (1.0 - absValue * 0.15).clamp(0.85, 1.0);
-                        final blurAmount = (absValue * 2.5).clamp(0.0, 4.0);
+                        // تحجيم وتلاشي خفيف للبطاقات الجانبية
+                        final scale = (1.0 - absValue * 0.18).clamp(0.80, 1.0);
+                        final opacity = (1.0 - absValue * 0.15).clamp(0.80, 1.0);
 
-                        final translateY = (1 - absValue.clamp(0.0, 1.0)) * -4.0;
-                        
-                        // اتجاه اليمين واليسار (RTL)
-                        final dx = value * itemWidth;
+                        // إزاحة أفقية وعمق Z ثلاثي الأبعاد
+                        final dx = value * stepDistance;
+                        final depthZ = -absValue * 35.0;
+
+                        // زاوية التدوير ثلاثي الأبعاد (rotateY) لجعل البطاقات الجانبية مائلة باتجاه المركز
+                        final rotationAngle = value.clamp(-1.0, 1.0) * -0.28;
 
                         final matrix = Matrix4.identity()
-                          ..translate(dx, translateY, 0.0)
+                          ..setEntry(3, 2, 0.0014) // عمق المنظور 3D perspective
+                          ..translate(dx, 0.0, depthZ)
+                          ..rotateY(rotationAngle)
                           ..scale(scale, scale, 1.0);
 
-                        Widget card = _buildSlideCard(_adImages[imageIndex], isCenter: absValue < 0.4);
-
-                        if (blurAmount > 0.1) {
-                          card = ImageFiltered(
-                            imageFilter: ui.ImageFilter.blur(sigmaX: blurAmount, sigmaY: blurAmount),
-                            child: card,
-                          );
-                        }
+                        Widget card = _buildSlideCard(_adImages[imageIndex], isCenter: absValue < 0.35);
 
                         card = Opacity(
                           opacity: opacity,
