@@ -691,17 +691,11 @@ class _HomeScreenState extends State<HomeScreen>
                         final scale = (1.0 - absValue * 0.18).clamp(0.80, 1.0);
                         final opacity = (1.0 - absValue * 0.15).clamp(0.80, 1.0);
 
-                        // إزاحة أفقية وعمق Z ثلاثي الأبعاد
+                        // إزاحة أفقية وبطاقات مسطحة تماماً بدون أي انحناء
                         final dx = value * stepDistance;
-                        final depthZ = -absValue * 35.0;
-
-                        // زاوية التدوير ثلاثي الأبعاد (rotateY) لجعل البطاقات الجانبية مائلة باتجاه المركز
-                        final rotationAngle = value.clamp(-1.0, 1.0) * -0.28;
 
                         final matrix = Matrix4.identity()
-                          ..setEntry(3, 2, 0.0014) // عمق المنظور 3D perspective
-                          ..translate(dx, 0.0, depthZ)
-                          ..rotateY(rotationAngle)
+                          ..translate(dx, 0.0, 0.0)
                           ..scale(scale, scale, 1.0);
 
                         Widget card = _buildSlideCard(_adImages[imageIndex], isCenter: absValue < 0.35);

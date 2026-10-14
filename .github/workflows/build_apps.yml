@@ -68,20 +68,22 @@ jobs:
           if (-not $targetYaml) {
             throw "Could not locate gic-main pubspec.yaml"
           }
-          $adminPath = $targetYaml.Directory.FullName
-          Write-Host "Target Flutter directory is: $adminPath"
-          Set-Location -LiteralPath $adminPath
+          $sourceDir = $targetYaml.Directory.FullName
+          Write-Host "Found Control Panel at: $sourceDir"
+          $cleanDir = "C:\gic_admin"
+          if (Test-Path $cleanDir) { Remove-Item -Recurse -Force $cleanDir }
+          Copy-Item -Recurse -Path $sourceDir -Destination $cleanDir
+          Set-Location -LiteralPath $cleanDir
           flutter pub get
           flutter build windows --release
 
       - name: Package Windows Release as Zip
         shell: pwsh
         run: |
-          $targetYaml = Get-ChildItem -Recurse -Filter "pubspec.yaml" | Where-Object { $_.FullName -like "*gic-main*" } | Select-Object -First 1
-          $adminPath = $targetYaml.Directory.FullName
-          $releaseDir = Join-Path $adminPath "build\windows\x64\runner\Release"
+          $cleanDir = "C:\gic_admin"
+          $releaseDir = Join-Path $cleanDir "build\windows\x64\runner\Release"
           if (-not (Test-Path $releaseDir)) {
-            $releaseDir = (Get-ChildItem -Recurse -Directory -Path $adminPath | Where-Object { $_.FullName -like "*runner*Release" } | Select-Object -First 1).FullName
+            $releaseDir = (Get-ChildItem -Recurse -Directory -Path $cleanDir | Where-Object { $_.FullName -like "*runner*Release" } | Select-Object -First 1).FullName
           }
           Write-Host "Compressing release from: $releaseDir"
           Compress-Archive -Path "$releaseDir\*" -DestinationPath "$env:GITHUB_WORKSPACE\GIC-ControlPanel-Windows-Release.zip" -Force
