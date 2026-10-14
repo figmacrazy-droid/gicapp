@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../services/auth_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -14,6 +16,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _oldPassController = TextEditingController();
   final _newPassController = TextEditingController();
   final _confirmPassController = TextEditingController();
+  bool _isSavingPassword = false;
+
+  @override
+  void dispose() {
+    _oldPassController.dispose();
+    _newPassController.dispose();
+    _confirmPassController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -87,6 +98,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   'تغيير كلمة السر:',
                   style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: navyDark),
                 ),
+                const SizedBox(height: 6),
+                const Text(
+                  'مسموح بالأحرف والأرقام والرموز (! @ #) فقط.',
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                ),
                 const SizedBox(height: 12),
                 Container(
                   padding: const EdgeInsets.all(16),
@@ -106,7 +122,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       TextField(
                         controller: _newPassController,
                         obscureText: true,
-                        decoration: _inputDecoration('كلمة السر الجديدة (أحرف فقط)'),
+                        decoration: _inputDecoration('كلمة السر الجديدة (أحرف، أرقام، !@# فقط)'),
                       ),
                       const SizedBox(height: 12),
                       TextField(
@@ -119,12 +135,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         width: double.infinity,
                         height: 48,
                         child: ElevatedButton(
-                          onPressed: _changePassword,
+                          onPressed: _isSavingPassword ? null : _changePassword,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: navyDark,
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
                           ),
-                          child: const Text('حفظ كلمة السر الجديدة', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                          child: _isSavingPassword
+                              ? const SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                                )
+                              : const Text('حفظ كلمة السر الجديدة', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                         ),
                       ),
                     ],
@@ -138,38 +160,90 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  void _changePassword() {
+  Future<void> _changePassword() async {
     final oldP = _oldPassController.text.trim();
     final newP = _newPassController.text.trim();
     final confP = _confirmPassController.text.trim();
 
     if (oldP.isEmpty || newP.isEmpty || confP.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('يرجى تعبئة جميع حقول كلمة السر'), backgroundColor: Colors.red),
-      );
+      _showMsg('يرجى تعبئة جميع حقول كلمة السر', isError: true);
       return;
     }
 
-    if (!RegExp(r'^[a-zA-Z\u0600-\u06FF\s]+$').hasMatch(newP)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('كلمة السر يجب أن تحتوي على أحرف فقط ولا تقبل أرقام أو رموز'), backgroundColor: Colors.red),
-      );
+    if (newP.length < 6) {
+      _showMsg('كلمة السر الجديدة يجب أن تكون 6 خانات على الأقل', isError: true);
+      return;
+    }
+
+    // السماح فقط بالأحرف، الأرقام، وهذه الرموز الثلاثة فقط: ! @ #
+    final validRegex = RegExp(r'^[a-zA-Z0-9\u0600-\u06FF!@#]+$');
+    if (!validRegex.hasMatch(newP)) {
+      _showMsg('كلمة السر تقبل فقط الأحرف، الأرقام، والرموز (! @ #) فقط', isError: true);
       return;
     }
 
     if (newP != confP) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('كلمة السر الجديدة غير متطابقة مع التأكيد'), backgroundColor: Colors.red),
-      );
+      _showMsg('كلمة السر الجديدة غير متطابقة مع التأكيد', isError: true);
       return;
     }
 
+    setState(() => _isSavingPassword = true);
+
+    try {
+      final session = await AuthService.getSavedSession();
+      if (session == null || session.academicId.isEmpty) {
+        _showMsg('تعذر التعرف على جلسة الطالب الحالية، يرجى إعادة تسجيل الدخول', isError: true);
+        return;
+      }
+
+      // 1. التحقق من مطابقة كلمة السر القديمة مع المسجل في Supabase
+      final studentRes = await Supabase.instance.client
+          .from('students')
+          .select('id, academic_id, password')
+          .eq('academic_id', session.academicId)
+          .maybeSingle();
+
+      if (studentRes == null) {
+        _showMsg('لم يتم العثور على حساب الطالب في قاعدة البيانات', isError: true);
+        return;
+      }
+
+      final dbPassword = (studentRes['password'] ?? '').toString();
+      if (dbPassword != oldP) {
+        _showMsg('كلمة السر الحالية غير صحيحة', isError: true);
+        return;
+      }
+
+      // 2. تحديث كلمة السر في جدول students في Supabase
+      await Supabase.instance.client
+          .from('students')
+          .update({'password': newP})
+          .eq('academic_id', session.academicId);
+
+      // 3. تحديث الجلسة المحفوظة في الهاتف
+      final updatedProfile = session.copyWith(password: newP);
+      await AuthService.saveStudentSession(updatedProfile);
+
+      _showMsg('تم تغيير وتحديث كلمة السر في قاعدة البيانات بنجاح!');
+      _oldPassController.clear();
+      _newPassController.clear();
+      _confirmPassController.clear();
+    } catch (e) {
+      _showMsg('فشل تحديث كلمة السر: $e', isError: true);
+    } finally {
+      if (mounted) setState(() => _isSavingPassword = false);
+    }
+  }
+
+  void _showMsg(String msg, {bool isError = false}) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('تم تحديث كلمة السر بنجاح!'), backgroundColor: Colors.green),
+      SnackBar(
+        content: Text(msg, textDirection: TextDirection.rtl),
+        backgroundColor: isError ? Colors.red.shade700 : Colors.green.shade700,
+        behavior: SnackBarBehavior.floating,
+      ),
     );
-    _oldPassController.clear();
-    _newPassController.clear();
-    _confirmPassController.clear();
   }
 
   InputDecoration _inputDecoration(String label) {

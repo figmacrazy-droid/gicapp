@@ -5,6 +5,7 @@ import '../models/app_models.dart';
 import '../services/auth_service.dart';
 import '../services/email_otp_service.dart';
 import 'home_screen.dart';
+import '../services/system_notification_service.dart';
 
 class VerificationScreen extends StatefulWidget {
   final StudentProfileModel? student;
@@ -134,6 +135,7 @@ class _VerificationScreenState extends State<VerificationScreen>
 
     if (widget.student != null) {
       await AuthService.saveStudentSession(widget.student!);
+      SystemNotificationService.startRealtimeListener(widget.student!.academicId);
     }
 
     if (mounted) {

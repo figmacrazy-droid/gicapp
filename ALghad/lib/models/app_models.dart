@@ -401,6 +401,34 @@ class StudentProfileModel {
         'study_shift': studyShift,
         'is_permanently_blocked': isPermanentlyBlocked,
       };
+
+  StudentProfileModel copyWith({
+    String? academicId,
+    String? fullName,
+    String? password,
+    String? email,
+    String? specialty,
+    String? level,
+    String? batch,
+    String? semester,
+    String? group,
+    String? studyShift,
+    bool? isPermanentlyBlocked,
+  }) {
+    return StudentProfileModel(
+      academicId: academicId ?? this.academicId,
+      fullName: fullName ?? this.fullName,
+      password: password ?? this.password,
+      email: email ?? this.email,
+      specialty: specialty ?? this.specialty,
+      level: level ?? this.level,
+      batch: batch ?? this.batch,
+      semester: semester ?? this.semester,
+      group: group ?? this.group,
+      studyShift: studyShift ?? this.studyShift,
+      isPermanentlyBlocked: isPermanentlyBlocked ?? this.isPermanentlyBlocked,
+    );
+  }
 }
 
 class CalendarEventModel {

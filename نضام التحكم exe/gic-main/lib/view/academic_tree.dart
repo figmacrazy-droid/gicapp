@@ -73,6 +73,9 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
   bool isLoadingStudents = false;
   String studentSearchQuery = '';
   Set<String> selectedStudentIds = {};
+  final TextEditingController _genTitleCtrl = TextEditingController(text: 'إشعار أكاديمي هام');
+  final TextEditingController _genBodyCtrl = TextEditingController();
+  bool _isSendingGenNotif = false;
 
   SupabaseClient get supabase => AdminSupabase.client;
 
@@ -1044,14 +1047,15 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
                 final inserts = studentIds.map((id) => {
                   'academic_id': id,
                   'title': title,
-                  'message': msg,
-                  'created_at': DateTime.now().toIso8601String(),
+                  'body': msg,
+                  'notification_type': 'academic',
+                  'route_name': 'notifications',
                   'is_read': false,
                 }).toList();
                 await supabase.from('notifications').insert(inserts);
-                _showSnackbar('تم إرسال الإشعار بنجاح');
+                _showSnackbar('تم إرسال الإشعار بنجاح إلى ${studentIds.length} طالب');
               } catch (e) {
-                _showSnackbar('تم تسجيل الإشعار للطالب');
+                _showSnackbar('فشل إرسال الإشعار: $e', isError: true);
               }
             },
             icon: const Icon(Icons.send, color: Colors.white, size: 18),
@@ -1736,21 +1740,49 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
                   ],
                 ),
                 const SizedBox(height: 16),
-                const TextField(
-                  decoration: InputDecoration(hintText: 'اكتب عنوان الإشعار...', border: OutlineInputBorder()),
+                TextField(
+                  controller: _genTitleCtrl,
+                  textDirection: TextDirection.rtl,
+                  decoration: const InputDecoration(labelText: 'عنوان الإشعار', hintText: 'اكتب عنوان الإشعار...', border: OutlineInputBorder()),
                 ),
                 const SizedBox(height: 12),
-                const TextField(
+                TextField(
+                  controller: _genBodyCtrl,
+                  textDirection: TextDirection.rtl,
                   maxLines: 3,
-                  decoration: InputDecoration(hintText: 'اكتب محتوى الإشعار هنا...', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(labelText: 'محتوى الإشعار', hintText: 'اكتب محتوى الإشعار هنا...', border: OutlineInputBorder()),
                 ),
                 const SizedBox(height: 16),
                 ElevatedButton.icon(
-                  onPressed: () {
-                    _showSnackbar('تم إرسال الإشعار بنجاح');
+                  onPressed: _isSendingGenNotif ? null : () async {
+                    final title = _genTitleCtrl.text.trim();
+                    final body = _genBodyCtrl.text.trim();
+                    if (body.isEmpty) {
+                      _showSnackbar('يرجى كتابة محتوى الإشعار أولاً', isError: true);
+                      return;
+                    }
+                    setState(() => _isSendingGenNotif = true);
+                    try {
+                      await supabase.from('notifications').insert({
+                        'academic_id': null,
+                        'title': title.isEmpty ? 'إشعار من الكلية' : '$title (${selectedNode.title})',
+                        'body': body,
+                        'notification_type': 'academic',
+                        'route_name': 'notifications',
+                        'is_read': false,
+                      });
+                      _genBodyCtrl.clear();
+                      _showSnackbar('تم إرسال ونشر الإشعار العام لجميع الطلاب بنجاح');
+                    } catch (e) {
+                      _showSnackbar('فشل الإرسال: $e', isError: true);
+                    } finally {
+                      if (mounted) setState(() => _isSendingGenNotif = false);
+                    }
                   },
-                  icon: const Icon(Icons.send, color: Colors.white),
-                  label: const Text('إرسال الإشعار', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  icon: _isSendingGenNotif
+                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Icon(Icons.send, color: Colors.white),
+                  label: Text(_isSendingGenNotif ? 'جارِ الإرسال...' : 'إرسال الإشعار', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                   style: ElevatedButton.styleFrom(backgroundColor: Colors.green.shade700),
                 )
               ],

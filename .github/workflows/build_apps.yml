@@ -64,28 +64,27 @@ jobs:
       - name: Locate Control Panel and build Windows EXE
         shell: pwsh
         run: |
-          $adminDir = Get-ChildItem -Directory | Where-Object { $_.Name -like "*gic-main*" -or $_.Name -like "*التحكم*" } | Select-Object -First 1
-          if (-not $adminDir) {
-            $adminDir = Get-ChildItem -Recurse -Directory -Filter "gic-main" | Select-Object -First 1
+          $targetYaml = Get-ChildItem -Recurse -Filter "pubspec.yaml" | Where-Object { $_.FullName -like "*gic-main*" } | Select-Object -First 1
+          if (-not $targetYaml) {
+            throw "Could not locate gic-main pubspec.yaml"
           }
-          Write-Host "Found Control Panel dir: $($adminDir.FullName)"
-          Set-Location -LiteralPath $adminDir.FullName
+          $adminPath = $targetYaml.Directory.FullName
+          Write-Host "Target Flutter directory is: $adminPath"
+          Set-Location -LiteralPath $adminPath
           flutter pub get
           flutter build windows --release
 
       - name: Package Windows Release as Zip
         shell: pwsh
         run: |
-          $adminDir = Get-ChildItem -Directory | Where-Object { $_.Name -like "*gic-main*" -or $_.Name -like "*التحكم*" } | Select-Object -First 1
-          if (-not $adminDir) {
-            $adminDir = Get-ChildItem -Recurse -Directory -Filter "gic-main" | Select-Object -First 1
-          }
-          $releaseDir = Join-Path $adminDir.FullName "build\windows\x64\runner\Release"
+          $targetYaml = Get-ChildItem -Recurse -Filter "pubspec.yaml" | Where-Object { $_.FullName -like "*gic-main*" } | Select-Object -First 1
+          $adminPath = $targetYaml.Directory.FullName
+          $releaseDir = Join-Path $adminPath "build\windows\x64\runner\Release"
           if (-not (Test-Path $releaseDir)) {
-            $releaseDir = (Get-ChildItem -Recurse -Directory -Path $adminDir.FullName | Where-Object { $_.FullName -like "*runner*Release" } | Select-Object -First 1).FullName
+            $releaseDir = (Get-ChildItem -Recurse -Directory -Path $adminPath | Where-Object { $_.FullName -like "*runner*Release" } | Select-Object -First 1).FullName
           }
           Write-Host "Compressing release from: $releaseDir"
-          Compress-Archive -Path "$releaseDir\*" -DestinationPath "GIC-ControlPanel-Windows-Release.zip" -Force
+          Compress-Archive -Path "$releaseDir\*" -DestinationPath "$env:GITHUB_WORKSPACE\GIC-ControlPanel-Windows-Release.zip" -Force
 
       - name: Upload Windows Control Panel Zip
         uses: actions/upload-artifact@v4
