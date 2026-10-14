@@ -162,7 +162,12 @@ class _SplashScreenState extends State<SplashScreen>
     final savedSession = await AuthService.getSavedSession();
     if (!mounted) return;
 
-    final Widget targetScreen = savedSession != null ? const HomeScreen() : const LoginScreen();
+    final Widget targetScreen = savedSession != null
+        ? HomeScreen(
+            studentFullName: savedSession.fullName,
+            userName: savedSession.fullName,
+          )
+        : const LoginScreen();
 
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(

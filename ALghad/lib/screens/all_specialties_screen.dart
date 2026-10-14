@@ -1,4 +1,7 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class AllSpecialtiesScreen extends StatefulWidget {
   const AllSpecialtiesScreen({super.key});
@@ -11,6 +14,74 @@ class _AllSpecialtiesScreenState extends State<AllSpecialtiesScreen> {
   static const Color whiteBg = Colors.white;
   static const Color navyDark = Color(0xFF0A2451);
   static const Color textGray = Color(0xFF6B6B6B);
+
+  List<Map<String, String>> _dynamicSpecialties = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSpecialties();
+  }
+
+  Future<void> _loadSpecialties() async {
+    try {
+      final res = await Supabase.instance.client
+          .from('specialties')
+          .select()
+          .order('display_order', ascending: true);
+      final list = res as List;
+      if (list.isNotEmpty && mounted) {
+        setState(() {
+          _dynamicSpecialties = list.map((item) {
+            final degree = item['degree_type'] ?? 'بكالوريوس';
+            final title = item['title'] ?? '';
+            String loc = item['location']?.toString() ?? 'صنعاء - دارس';
+            String yt = '';
+            if (loc.contains('|')) {
+              final parts = loc.split('|');
+              loc = parts[0];
+              yt = parts.sublist(1).join('|');
+            } else if (loc.startsWith('http')) {
+              yt = loc;
+              loc = 'صنعاء - دارس';
+            }
+            return {
+              'title': '$degree\n$title',
+              'visits': '${item['visits_count'] ?? '1,200'}',
+              'image': (item['image_url'] != null && item['image_url'].toString().isNotEmpty)
+                  ? item['image_url'].toString()
+                  : 'assets/images/specialty_1.png',
+              'youtube_url': yt,
+            };
+          }).toList();
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _openSpecialtyVideo(String? url, String title) async {
+    if (url != null && url.trim().isNotEmpty) {
+      final uri = Uri.parse(url.trim());
+      try {
+        final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+        if (!launched) {
+          await launchUrl(uri, mode: LaunchMode.platformDefault);
+        }
+        return;
+      } catch (e) {
+        debugPrint('Could not launch youtube url: $e');
+      }
+    }
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('سيتم توفير فيديو استكشاف لتخصص ($title) قريباً'),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
 
   final List<Map<String, String>> _specialties = const [
     {
@@ -102,23 +173,29 @@ class _AllSpecialtiesScreenState extends State<AllSpecialtiesScreen> {
             children: [
               _buildAppBar(),
               Expanded(
-                child: GridView.builder(
-                  physics: const BouncingScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-                  itemCount: _specialties.length,
-                  gridDelegate:
-                  const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    mainAxisSpacing: 14,
-                    crossAxisSpacing: 14,
-                    childAspectRatio: 0.62,
-                  ),
-                  itemBuilder: (context, i) {
-                    final item = _specialties[i];
-                    return _buildSpecialtyCard(
-                      title: item['title']!,
-                      visits: item['visits']!,
-                      imagePath: item['image']!,
+                child: Builder(
+                  builder: (context) {
+                    final items = _dynamicSpecialties.isNotEmpty ? _dynamicSpecialties : _specialties;
+                    return GridView.builder(
+                      physics: const BouncingScrollPhysics(),
+                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+                      itemCount: items.length,
+                      gridDelegate:
+                      const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        mainAxisSpacing: 14,
+                        crossAxisSpacing: 14,
+                        childAspectRatio: 0.62,
+                      ),
+                      itemBuilder: (context, i) {
+                        final item = items[i];
+                        return _buildSpecialtyCard(
+                          title: item['title']!,
+                          visits: item['visits']!,
+                          imagePath: item['image']!,
+                          youtubeUrl: item['youtube_url'],
+                        );
+                      },
                     );
                   },
                 ),
@@ -178,50 +255,96 @@ class _AllSpecialtiesScreenState extends State<AllSpecialtiesScreen> {
     required String title,
     required String visits,
     required String imagePath,
+    String? youtubeUrl,
   }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: const Color(0xFFE5E5E5),
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+    return GestureDetector(
+      onTap: () => _openSpecialtyVideo(youtubeUrl, title),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: const Color(0xFFE5E5E5),
+            width: 1,
           ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // ── الصورة (تملأ المربع كامل) ──
-            Expanded(
-              flex: 5,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  Image.asset(
-                    imagePath,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        color: const Color(0xFFF2E8D0),
-                        child: const Center(
-                          child: Icon(
-                            Icons.image_outlined,
-                            size: 36,
-                            color: Color(0xFF9E7A2F),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // ── الصورة (تملأ المربع كامل) ──
+              Expanded(
+                flex: 5,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    imagePath.startsWith('data:image')
+                        ? Builder(
+                            builder: (context) {
+                              try {
+                                final commaIdx = imagePath.indexOf(',');
+                                final b64 = commaIdx != -1 ? imagePath.substring(commaIdx + 1) : imagePath;
+                                return Image.memory(
+                                  base64Decode(b64),
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => Container(
+                                    color: const Color(0xFFF2E8D0),
+                                    child: const Center(
+                                      child: Icon(Icons.image_outlined, size: 36, color: Color(0xFF9E7A2F)),
+                                    ),
+                                  ),
+                                );
+                              } catch (_) {
+                                return Container(
+                                  color: const Color(0xFFF2E8D0),
+                                  child: const Center(
+                                    child: Icon(Icons.image_outlined, size: 36, color: Color(0xFF9E7A2F)),
+                                  ),
+                                );
+                              }
+                            },
+                          )
+                        : imagePath.startsWith('http')
+                            ? Image.network(
+                                imagePath,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Container(
+                                    color: const Color(0xFFF2E8D0),
+                                    child: const Center(
+                                      child: Icon(
+                                        Icons.image_outlined,
+                                        size: 36,
+                                        color: Color(0xFF9E7A2F),
+                                      ),
+                                    ),
+                                  );
+                                },
+                              )
+                            : Image.asset(
+                                imagePath,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Container(
+                                    color: const Color(0xFFF2E8D0),
+                                    child: const Center(
+                                      child: Icon(
+                                        Icons.image_outlined,
+                                        size: 36,
+                                        color: Color(0xFF9E7A2F),
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
                   Positioned(
                     top: 8,
                     right: 8,
@@ -331,8 +454,8 @@ class _AllSpecialtiesScreenState extends State<AllSpecialtiesScreen> {
                             borderRadius: BorderRadius.circular(5),
                           ),
                           child: const Icon(
-                            Icons.login_rounded,
-                            size: 12,
+                            Icons.play_arrow_rounded,
+                            size: 14,
                             color: Colors.white,
                           ),
                         ),
@@ -345,6 +468,7 @@ class _AllSpecialtiesScreenState extends State<AllSpecialtiesScreen> {
           ],
         ),
       ),
+    ),
     );
   }
 }

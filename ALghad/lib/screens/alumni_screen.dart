@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/app_models.dart';
@@ -66,10 +67,34 @@ class AlumniScreen extends StatelessWidget {
                           child: SizedBox(
                             height: 140,
                             width: double.infinity,
-                            child: Image.asset(
-                              batch.bannerImagePath,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Container(color: navyDark, child: const Icon(Icons.school, color: Colors.white, size: 50)),
+                            child: Builder(
+                              builder: (context) {
+                                final img = batch.bannerImagePath;
+                                if (img.startsWith('data:image')) {
+                                  try {
+                                    final commaIdx = img.indexOf(',');
+                                    final b64 = commaIdx != -1 ? img.substring(commaIdx + 1) : img;
+                                    return Image.memory(
+                                      base64Decode(b64),
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) => Container(color: navyDark, child: const Icon(Icons.school, color: Colors.white, size: 50)),
+                                    );
+                                  } catch (_) {
+                                    return Container(color: navyDark, child: const Icon(Icons.school, color: Colors.white, size: 50));
+                                  }
+                                } else if (img.startsWith('http')) {
+                                  return Image.network(
+                                    img,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => Container(color: navyDark, child: const Icon(Icons.school, color: Colors.white, size: 50)),
+                                  );
+                                }
+                                return Image.asset(
+                                  img,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => Container(color: navyDark, child: const Icon(Icons.school, color: Colors.white, size: 50)),
+                                );
+                              },
                             ),
                           ),
                         ),
@@ -108,10 +133,14 @@ class AlumniScreen extends StatelessWidget {
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               InkWell(
-                                onTap: () {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('جارِ تحضير وقراءة مجلة ${batch.title}...')),
-                                  );
+                                onTap: () async {
+                                  final pdfUrl = batch.magazinePdfUrl;
+                                  if (pdfUrl != null && pdfUrl.trim().isNotEmpty) {
+                                    final Uri uri = Uri.parse(pdfUrl.trim());
+                                    if (await canLaunchUrl(uri)) {
+                                      await launchUrl(uri, mode: LaunchMode.externalApplication);
+                                    }
+                                  }
                                 },
                                 child: const Row(
                                   children: [
@@ -123,8 +152,9 @@ class AlumniScreen extends StatelessWidget {
                               ),
                               InkWell(
                                 onTap: () async {
-                                  if (batch.ceremonyYoutubeUrl != null) {
-                                    final Uri uri = Uri.parse(batch.ceremonyYoutubeUrl!);
+                                  final ytUrl = batch.ceremonyYoutubeUrl;
+                                  if (ytUrl != null && ytUrl.trim().isNotEmpty) {
+                                    final Uri uri = Uri.parse(ytUrl.trim());
                                     if (await canLaunchUrl(uri)) {
                                       await launchUrl(uri, mode: LaunchMode.externalApplication);
                                     }

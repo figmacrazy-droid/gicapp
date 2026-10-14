@@ -184,11 +184,56 @@ class TopStudentModel {
       };
 }
 
+class TermResultModel {
+  final String termName;
+  final String? academicYear;
+  final Map<String, double> subjects;
+  final double totalMarks;
+  final double gpa;
+  final String grade;
+
+  const TermResultModel({
+    required this.termName,
+    this.academicYear,
+    required this.subjects,
+    required this.totalMarks,
+    required this.gpa,
+    required this.grade,
+  });
+
+  factory TermResultModel.fromJson(Map<String, dynamic> json) {
+    final rawSubjects = json['subjects'] as Map<String, dynamic>? ?? {};
+    final Map<String, double> parsedSubjects = {};
+    rawSubjects.forEach((key, value) {
+      parsedSubjects[key] = (value as num?)?.toDouble() ?? 0.0;
+    });
+
+    return TermResultModel(
+      termName: json['term_name'] ?? 'نتيجة الفصل الدراسي',
+      academicYear: json['academic_year'],
+      subjects: parsedSubjects,
+      totalMarks: (json['total_marks'] as num?)?.toDouble() ?? 0.0,
+      gpa: (json['gpa'] as num?)?.toDouble() ?? 0.0,
+      grade: json['grade'] ?? 'ناجح',
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'term_name': termName,
+        'academic_year': academicYear,
+        'subjects': subjects,
+        'total_marks': totalMarks,
+        'gpa': gpa,
+        'grade': grade,
+      };
+}
+
 class StudentResultModel {
   final String academicId;
   final String studentName;
   final String specialty;
   final String batch;
+  final List<TermResultModel> terms;
   final Map<String, double> subjects;
   final double totalMarks;
   final double gpa;
@@ -199,6 +244,7 @@ class StudentResultModel {
     required this.studentName,
     required this.specialty,
     required this.batch,
+    this.terms = const [],
     required this.subjects,
     required this.totalMarks,
     required this.gpa,
@@ -212,11 +258,19 @@ class StudentResultModel {
       parsedSubjects[key] = (value as num).toDouble();
     });
 
+    List<TermResultModel> parsedTerms = [];
+    if (json['terms'] is List) {
+      parsedTerms = (json['terms'] as List)
+          .map((t) => TermResultModel.fromJson(t as Map<String, dynamic>))
+          .toList();
+    }
+
     return StudentResultModel(
       academicId: json['academic_id'] ?? '',
       studentName: json['student_name'] ?? '',
       specialty: json['specialty'] ?? '',
       batch: json['batch'] ?? '',
+      terms: parsedTerms,
       subjects: parsedSubjects,
       totalMarks: (json['total_marks'] as num?)?.toDouble() ?? 0.0,
       gpa: (json['gpa'] as num?)?.toDouble() ?? 0.0,
@@ -229,6 +283,7 @@ class StudentResultModel {
         'student_name': studentName,
         'specialty': specialty,
         'batch': batch,
+        'terms': terms.map((t) => t.toJson()).toList(),
         'subjects': subjects,
         'total_marks': totalMarks,
         'gpa': gpa,

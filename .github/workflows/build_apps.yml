@@ -1,0 +1,94 @@
+name: Build Android APK and Windows EXE
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-apk:
+    name: Build Android APK (Student App)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        working-directory: ALghad
+        run: flutter pub get
+
+      - name: Build APK
+        working-directory: ALghad
+        run: flutter build apk --release --no-tree-shake-icons --android-skip-build-dependency-validation
+
+      - name: Upload Student App APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ALghad-Student-App-release
+          path: ALghad/build/app/outputs/flutter-apk/app-release.apk
+
+  build-windows:
+    name: Build Windows EXE (Control Panel)
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Enable Windows Desktop
+        run: flutter config --enable-windows-desktop
+
+      - name: Locate Control Panel and build Windows EXE
+        shell: pwsh
+        run: |
+          $adminDir = Get-ChildItem -Directory | Where-Object { $_.Name -like "*gic-main*" -or $_.Name -like "*التحكم*" } | Select-Object -First 1
+          if (-not $adminDir) {
+            $adminDir = Get-ChildItem -Recurse -Directory -Filter "gic-main" | Select-Object -First 1
+          }
+          Write-Host "Found Control Panel dir: $($adminDir.FullName)"
+          Set-Location -LiteralPath $adminDir.FullName
+          flutter pub get
+          flutter build windows --release
+
+      - name: Package Windows Release as Zip
+        shell: pwsh
+        run: |
+          $adminDir = Get-ChildItem -Directory | Where-Object { $_.Name -like "*gic-main*" -or $_.Name -like "*التحكم*" } | Select-Object -First 1
+          if (-not $adminDir) {
+            $adminDir = Get-ChildItem -Recurse -Directory -Filter "gic-main" | Select-Object -First 1
+          }
+          $releaseDir = Join-Path $adminDir.FullName "build\windows\x64\runner\Release"
+          if (-not (Test-Path $releaseDir)) {
+            $releaseDir = (Get-ChildItem -Recurse -Directory -Path $adminDir.FullName | Where-Object { $_.FullName -like "*runner*Release" } | Select-Object -First 1).FullName
+          }
+          Write-Host "Compressing release from: $releaseDir"
+          Compress-Archive -Path "$releaseDir\*" -DestinationPath "GIC-ControlPanel-Windows-Release.zip" -Force
+
+      - name: Upload Windows Control Panel Zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: GIC-ControlPanel-Windows-Release
+          path: GIC-ControlPanel-Windows-Release.zip

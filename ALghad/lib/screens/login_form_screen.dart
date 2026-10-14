@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../models/app_models.dart';
+import '../services/auth_service.dart';
+import '../services/email_otp_service.dart';
 import 'verification_screen.dart';
 
 class LoginFormScreen extends StatefulWidget {
@@ -14,6 +16,11 @@ class _LoginFormScreenState extends State<LoginFormScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _shimmerController;
 
+  final TextEditingController _academicIdController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  bool _isLoading = false;
+
   @override
   void initState() {
     super.initState();
@@ -26,6 +33,9 @@ class _LoginFormScreenState extends State<LoginFormScreen>
   @override
   void dispose() {
     _shimmerController.dispose();
+    _academicIdController.dispose();
+    _passwordController.dispose();
+    _emailController.dispose();
     super.dispose();
   }
 
@@ -130,16 +140,22 @@ class _LoginFormScreenState extends State<LoginFormScreen>
                                               label: 'الرقم الأكاديمي للطالب',
                                               hint: '00000000000',
                                               icon: Icons.person_outline,
+                                              controller: _academicIdController,
+                                              keyboardType: TextInputType.number,
                                             ),
                                             _buildField(
                                               label: 'كلمة المرور',
                                               hint: '00000000000',
                                               icon: Icons.lock_outline,
+                                              controller: _passwordController,
+                                              obscureText: true,
                                             ),
                                             _buildField(
                                               label: 'البريد الإلكتروني',
                                               hint: 'name@example.com',
                                               icon: Icons.email_outlined,
+                                              controller: _emailController,
+                                              keyboardType: TextInputType.emailAddress,
                                             ),
                                             Center(
                                               child: _buildGlassButton(),
@@ -183,6 +199,69 @@ class _LoginFormScreenState extends State<LoginFormScreen>
   }
 
   // ============================
+  // دالة تسجيل الدخول والتحقق
+  // ============================
+  void _handleLogin() async {
+    final academicId = _academicIdController.text.trim();
+    final password = _passwordController.text.trim();
+    final email = _emailController.text.trim();
+
+    if (academicId.isEmpty || password.isEmpty || email.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('يرجى ملء جميع الحقول للمتابعة'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    final student = await AuthService.verifyCredentials(
+      academicId: academicId,
+      password: password,
+      email: email,
+    );
+
+    if (student == null) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('بيانات الدخول غير صحيحة، يرجى التأكد وإعادة المحاولة'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+
+    // توليد رمز تحقق عشوائي من 4 أرقام
+    final otpCode = EmailOtpService.generateOtp();
+
+    // إرسال الرمز عبر Resend إلى بريد الطالب
+    await EmailOtpService.sendOtpEmail(
+      targetEmail: student.email,
+      otpCode: otpCode,
+      studentName: student.fullName,
+    );
+
+    if (mounted) {
+      setState(() => _isLoading = false);
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => VerificationScreen(
+            student: student,
+            expectedOtp: otpCode,
+          ),
+        ),
+      );
+    }
+  }
+
+  // ============================
   // زر دخول — بنفس مقاس وحجم زر شاشة تسجيل الدخول (261x45)
   // ============================
   Widget _buildGlassButton() {
@@ -202,43 +281,32 @@ class _LoginFormScreenState extends State<LoginFormScreen>
         borderRadius: BorderRadius.circular(25),
         child: InkWell(
           borderRadius: BorderRadius.circular(25),
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const VerificationScreen(
-                  student: StudentProfileModel(
-                    academicId: '2024000001',
-                    fullName: 'طالب تجريبي',
-                    password: 'password',
-                    email: 'test@alghad.edu.ye',
-                    specialty: 'مختبرات',
-                    level: 'المستوى الأول',
-                    batch: 'الدفعة الأولى',
-                    semester: 'الفصل الأول',
-                    group: 'مجموعة A',
-                    studyShift: 'صباحي',
-                  ),
-                ),
-              ),
-            );
-          },
+          onTap: _isLoading ? null : _handleLogin,
           splashColor: const Color(0xFF091527).withOpacity(0.85),
           highlightColor: const Color(0xFF091527).withOpacity(0.45),
           splashFactory: InkRipple.splashFactory,
           child: ClipRRect(
             borderRadius: BorderRadius.circular(25),
-            child: const Center(
-              child: Text(
-                'دخول',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  letterSpacing: 0.0,
-                ),
-              ),
+            child: Center(
+              child: _isLoading
+                  ? const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2.5,
+                      ),
+                    )
+                  : const Text(
+                      'دخول',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        letterSpacing: 0.0,
+                      ),
+                    ),
             ),
           ),
         ),
@@ -253,6 +321,9 @@ class _LoginFormScreenState extends State<LoginFormScreen>
     required String label,
     required String hint,
     required IconData icon,
+    TextEditingController? controller,
+    bool obscureText = false,
+    TextInputType? keyboardType,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.end,
@@ -274,6 +345,9 @@ class _LoginFormScreenState extends State<LoginFormScreen>
         ),
         const SizedBox(height: 2),
         TextField(
+          controller: controller,
+          obscureText: obscureText,
+          keyboardType: keyboardType,
           textAlign: TextAlign.right,
           style: const TextStyle(
             fontSize: 16,

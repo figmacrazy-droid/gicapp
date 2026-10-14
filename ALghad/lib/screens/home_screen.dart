@@ -1,6 +1,10 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../services/auth_service.dart';
 import 'all_specialties_screen.dart';
 import 'notifications_screen.dart';
 import 'admission_screen.dart';
@@ -33,11 +37,20 @@ class _HomeScreenState extends State<HomeScreen>
     with TickerProviderStateMixin {
   int _currentSlide = 0;
   int _currentNavIndex = 0;
+  int _unreadNotificationsCount = 0;
+  String? _sessionFullName;
 
-  String get _effectiveFullName => widget.userName ?? widget.studentFullName;
+  String get _effectiveFullName =>
+      _sessionFullName ?? widget.userName ?? widget.studentFullName;
 
-  String get _firstName =>
-      _effectiveFullName.trim().split(RegExp(r'\s+')).first;
+  String get _firstName {
+    final parts = _effectiveFullName.trim().split(RegExp(r'\s+'));
+    if (parts.isEmpty) return '';
+    if (parts.length > 1 && (parts[0] == 'عبد' || parts[0] == 'أمة' || parts[0] == 'امانة')) {
+      return '${parts[0]} ${parts[1]}';
+    }
+    return parts.first;
+  }
 
   String get _greeting =>
       DateTime.now().hour < 12 ? 'صباح الخير' : 'مساء الخير';
@@ -58,90 +71,105 @@ class _HomeScreenState extends State<HomeScreen>
   static const Color iconColor = Color(0xFF1A1A1A);
   static const Color textGray = Color(0xFF6B6B6B);
 
-  // 🖼️ قائمة صور الإعلانات
-  final List<String> _adImages = const [
+  // 🖼️ قائمة صور الإعلانات (يتم جلبها وتحديثها سحابياً عبر الإنترنت)
+  List<String> _adImages = [
     'assets/images/1.jpg',
     'assets/images/2.jpg',
     'assets/images/3.jpg',
     'assets/images/4.jpg',
   ];
 
-  // 🎓 قائمة التخصصات — 15 تخصص
-  final List<Map<String, String>> _specialties = const [
+  // 🎓 قائمة التخصصات — 15 تخصص (يتم جلبها وتحديثها وروابطها سحابياً عبر الإنترنت)
+  List<Map<String, String>> _specialties = [
     {
       'title': 'بكالوريوس\nإدارة أعمال',
       'visits': '6,635',
       'image': 'assets/images/specialty_1.png',
+      'youtube_url': 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
     },
     {
       'title': 'بكالوريوس\nإدارة صحية',
       'visits': '5,420',
       'image': 'assets/images/specialty_2.png',
+      'youtube_url': 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
     },
     {
       'title': 'بكالوريوس الأمن\nالسيبراني والشبكات',
       'visits': '5,180',
       'image': 'assets/images/specialty_3.png',
+      'youtube_url': 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
     },
     {
       'title': 'بكالوريوس الجرافيكس\nوالوسائط المتعددة',
       'visits': '4,980',
       'image': 'assets/images/specialty_4.png',
+      'youtube_url': 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
     },
     {
       'title': 'بكالوريوس\nالمحاسبة',
       'visits': '4,750',
       'image': 'assets/images/specialty_5.png',
+      'youtube_url': 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
     },
     {
       'title': 'بكالوريوس\nتقنية المعلومات',
       'visits': '4,520',
       'image': 'assets/images/specialty_6.png',
+      'youtube_url': 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
     },
     {
       'title': 'بكالوريوس\nهندسة التعدين',
       'visits': '4,320',
       'image': 'assets/images/specialty_7.png',
+      'youtube_url': 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
     },
     {
       'title': 'بكالوريوس هندسة الديكور\nوالتصميم الداخلي',
       'visits': '3,980',
       'image': 'assets/images/specialty_8.png',
+      'youtube_url': 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
     },
     {
       'title': 'تخصص\nالتمريض',
       'visits': '3,750',
       'image': 'assets/images/specialty_9.png',
+      'youtube_url': 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
     },
     {
       'title': 'تخصص القبالة\nوالتوليد',
       'visits': '3,540',
       'image': 'assets/images/specialty_10.png',
+      'youtube_url': 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
     },
     {
       'title': 'تخصص المختبرات\nالطبية',
       'visits': '3,210',
       'image': 'assets/images/specialty_11.png',
+      'youtube_url': 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
     },
     {
       'title': 'تخصص\nالصيدلة',
       'visits': '2,980',
       'image': 'assets/images/specialty_12.png',
+      'youtube_url': 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
     },
     {
       'title': 'تخصص\nتصميم الأزياء',
       'visits': '2,650',
       'image': 'assets/images/specialty_13.png',
+      'youtube_url': 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
     },
     {
       'title': 'تخصص فني\nتخدير وإنعاش',
       'visits': '2,340',
       'image': 'assets/images/specialty_14.png',
+      'youtube_url': 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
     },
     {
       'title': 'تخصص فني\nعمليات',
       'visits': '2,180',
       'image': 'assets/images/specialty_15.png',
+      'youtube_url': 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
     },
   ];
 
@@ -164,6 +192,150 @@ class _HomeScreenState extends State<HomeScreen>
         _startAutoPlay();
       }
     });
+
+    _loadStudentProfile();
+    _checkUnreadNotifications();
+    _loadBannersFromSupabase();
+    _loadSpecialtiesFromSupabase();
+  }
+
+  Future<void> _loadBannersFromSupabase() async {
+    try {
+      final res = await Supabase.instance.client
+          .from('system_instructions')
+          .select()
+          .eq('service_key', 'ad_banners')
+          .maybeSingle();
+
+      List<String> list = [];
+      if (res != null && res['steps'] != null) {
+        final decoded = jsonDecode(res['steps'] as String);
+        if (decoded is List) {
+          list = decoded
+              .map((e) => (e['image_url'] ?? '').toString())
+              .where((p) => p.isNotEmpty)
+              .toList();
+        }
+      }
+      if (list.isEmpty) {
+        final adRes = await Supabase.instance.client
+            .from('ad_banners')
+            .select()
+            .order('display_order', ascending: true);
+        if (adRes is List && adRes.isNotEmpty) {
+          list = (adRes as List)
+              .map((e) => (e['image_url'] ?? '').toString())
+              .where((p) => p.isNotEmpty)
+              .toList();
+        }
+      }
+      if (list.isNotEmpty && mounted) {
+        setState(() {
+          _adImages = list;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading banners from Supabase: $e');
+    }
+  }
+
+  Future<void> _loadSpecialtiesFromSupabase() async {
+    try {
+      final res = await Supabase.instance.client
+          .from('specialties')
+          .select()
+          .order('display_order', ascending: true);
+      final List list = res as List;
+      if (list.isNotEmpty && mounted) {
+        setState(() {
+          _specialties = list.map((item) {
+            final degree = item['degree_type'] ?? 'بكالوريوس';
+            final title = item['title'] ?? '';
+            String loc = item['location']?.toString() ?? 'صنعاء - دارس';
+            String yt = '';
+            if (loc.contains('|')) {
+              final parts = loc.split('|');
+              loc = parts[0];
+              yt = parts.sublist(1).join('|');
+            } else if (loc.startsWith('http')) {
+              yt = loc;
+              loc = 'صنعاء - دارس';
+            }
+            return {
+              'title': '$degree\n$title',
+              'visits': '${item['visits_count'] ?? '1,200'}',
+              'image': (item['image_url'] ?? '').toString(),
+              'youtube_url': yt,
+              'location': loc,
+            };
+          }).toList();
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading specialties from Supabase: $e');
+    }
+  }
+
+  Future<void> _openSpecialtyVideo(String? url, String title) async {
+    if (url != null && url.trim().isNotEmpty) {
+      final uri = Uri.parse(url.trim());
+      try {
+        final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+        if (!launched) {
+          await launchUrl(uri, mode: LaunchMode.platformDefault);
+        }
+        return;
+      } catch (e) {
+        debugPrint('Could not launch youtube url: $e');
+      }
+    }
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('سيتم توفير فيديو استكشاف لتخصص ($title) قريباً'),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  Future<void> _loadStudentProfile() async {
+    try {
+      final session = await AuthService.getSavedSession();
+      if (session != null && session.fullName.isNotEmpty) {
+        if (mounted) {
+          setState(() {
+            _sessionFullName = session.fullName;
+          });
+        }
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _checkUnreadNotifications() async {
+    try {
+      final session = await AuthService.getSavedSession();
+      final String? currentId = session?.academicId;
+
+      var query = Supabase.instance.client
+          .from('notifications')
+          .select()
+          .eq('is_read', false);
+
+      if (currentId != null && currentId.isNotEmpty) {
+        query = query.or('academic_id.eq.$currentId,academic_id.is.null');
+      } else {
+        query = query.filter('academic_id', 'is', null);
+      }
+
+      final res = await query;
+      if (mounted) {
+        setState(() {
+          _unreadNotificationsCount = (res as List).length;
+        });
+      }
+    } catch (_) {}
   }
 
   @override
@@ -217,8 +389,15 @@ class _HomeScreenState extends State<HomeScreen>
                     children: [
                       _buildHomeContent(),
                       const LocationScreen(hideBottomNav: true),
-                      const CalendarScreen(),
-                      const ProfileScreen(),
+                      CalendarScreen(
+                        hideBottomNav: true,
+                        onBackToHome: () => setState(() => _currentNavIndex = 0),
+                      ),
+                      ProfileScreen(
+                        hideBottomNav: true,
+                        studentFullName: _effectiveFullName,
+                        onBackToHome: () => setState(() => _currentNavIndex = 0),
+                      ),
                     ],
                   ),
                 ),
@@ -326,13 +505,14 @@ class _HomeScreenState extends State<HomeScreen>
       clipBehavior: Clip.none,
       children: [
         GestureDetector(
-          onTap: () {
-            Navigator.push(
+          onTap: () async {
+            await Navigator.push(
               context,
               MaterialPageRoute(
                 builder: (context) => const NotificationsScreen(),
               ),
             );
+            _checkUnreadNotifications();
           },
           child: Container(
             width: 46,
@@ -348,19 +528,20 @@ class _HomeScreenState extends State<HomeScreen>
             ),
           ),
         ),
-        Positioned(
-          top: 8,
-          right: 10,
-          child: Container(
-            width: 10,
-            height: 10,
-            decoration: BoxDecoration(
-              color: const Color(0xFFE53935),
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.white, width: 1.5),
+        if (_unreadNotificationsCount > 0)
+          Positioned(
+            top: 8,
+            right: 10,
+            child: Container(
+              width: 10,
+              height: 10,
+              decoration: BoxDecoration(
+                color: const Color(0xFFE53935),
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 1.5),
+              ),
             ),
           ),
-        ),
       ],
     );
   }
@@ -595,22 +776,65 @@ class _HomeScreenState extends State<HomeScreen>
         child: Stack(
           fit: StackFit.expand,
           children: [
-            Image.asset(
-              imagePath,
-              fit: BoxFit.fill,
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  color: cardCream,
-                  child: const Center(
-                    child: Icon(
-                      Icons.image_outlined,
-                      size: 40,
-                      color: Color(0xFF9E7A2F),
-                    ),
-                  ),
-                );
-              },
-            ),
+            imagePath.startsWith('data:image')
+                ? Builder(
+                    builder: (context) {
+                      try {
+                        final commaIdx = imagePath.indexOf(',');
+                        final b64 = commaIdx != -1 ? imagePath.substring(commaIdx + 1) : imagePath;
+                        return Image.memory(
+                          base64Decode(b64),
+                          fit: BoxFit.fill,
+                          errorBuilder: (_, __, ___) => Container(
+                            color: cardCream,
+                            child: const Center(
+                              child: Icon(Icons.image_outlined, size: 40, color: Color(0xFF9E7A2F)),
+                            ),
+                          ),
+                        );
+                      } catch (_) {
+                        return Container(
+                          color: cardCream,
+                          child: const Center(
+                            child: Icon(Icons.image_outlined, size: 40, color: Color(0xFF9E7A2F)),
+                          ),
+                        );
+                      }
+                    },
+                  )
+                : imagePath.startsWith('http')
+                    ? Image.network(
+                        imagePath,
+                        fit: BoxFit.fill,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            color: cardCream,
+                            child: const Center(
+                              child: Icon(
+                                Icons.image_outlined,
+                                size: 40,
+                                color: Color(0xFF9E7A2F),
+                              ),
+                            ),
+                          );
+                        },
+                      )
+                    : Image.asset(
+                        imagePath,
+                        fit: BoxFit.fill,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            color: cardCream,
+                            child: const Center(
+                              child: Icon(
+                                Icons.image_outlined,
+                                size: 40,
+                                color: Color(0xFF9E7A2F),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
             Positioned.fill(
               child: IgnorePointer(
                 child: Container(
@@ -888,6 +1112,7 @@ class _HomeScreenState extends State<HomeScreen>
               title: item['title']!,
               visits: item['visits']!,
               imagePath: item['image']!,
+              youtubeUrl: item['youtube_url'],
             ),
           );
         },
@@ -899,14 +1124,10 @@ class _HomeScreenState extends State<HomeScreen>
     required String title,
     required String visits,
     required String imagePath,
+    String? youtubeUrl,
   }) {
     return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const AdmissionScreen()),
-        );
-      },
+      onTap: () => _openSpecialtyVideo(youtubeUrl, title),
       child: Container(
         width: 232,
         decoration: BoxDecoration(
@@ -934,22 +1155,65 @@ class _HomeScreenState extends State<HomeScreen>
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  Image.asset(
-                    imagePath,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        color: const Color(0xFFF2E8D0),
-                        child: const Center(
-                          child: Icon(
-                            Icons.image_outlined,
-                            size: 36,
-                            color: Color(0xFF9E7A2F),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
+                  imagePath.startsWith('data:image')
+                      ? Builder(
+                          builder: (context) {
+                            try {
+                              final commaIdx = imagePath.indexOf(',');
+                              final b64 = commaIdx != -1 ? imagePath.substring(commaIdx + 1) : imagePath;
+                              return Image.memory(
+                                base64Decode(b64),
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Container(
+                                  color: const Color(0xFFF2E8D0),
+                                  child: const Center(
+                                    child: Icon(Icons.image_outlined, size: 36, color: Color(0xFF9E7A2F)),
+                                  ),
+                                ),
+                              );
+                            } catch (_) {
+                              return Container(
+                                color: const Color(0xFFF2E8D0),
+                                child: const Center(
+                                  child: Icon(Icons.image_outlined, size: 36, color: Color(0xFF9E7A2F)),
+                                ),
+                              );
+                            }
+                          },
+                        )
+                      : imagePath.startsWith('http')
+                          ? Image.network(
+                              imagePath,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Container(
+                                  color: const Color(0xFFF2E8D0),
+                                  child: const Center(
+                                    child: Icon(
+                                      Icons.image_outlined,
+                                      size: 36,
+                                      color: Color(0xFF9E7A2F),
+                                    ),
+                                  ),
+                                );
+                              },
+                            )
+                          : Image.asset(
+                              imagePath,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Container(
+                                  color: const Color(0xFFF2E8D0),
+                                  child: const Center(
+                                    child: Icon(
+                                      Icons.image_outlined,
+                                      size: 36,
+                                      color: Color(0xFF9E7A2F),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
                   Positioned(
                     top: 6,
                     right: 6,
@@ -1060,17 +1324,17 @@ class _HomeScreenState extends State<HomeScreen>
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: const Icon(
-                            Icons.add,
-                            size: 14,
+                            Icons.play_arrow_rounded,
+                            size: 16,
                             color: Colors.white,
                           ),
                         ),
                         const SizedBox(width: 4),
                         const Text(
-                          'الالتحاق\nبالتخصص',
+                          'استكشاف\nالتخصص',
                           style: TextStyle(
                             fontSize: 9,
-                            fontWeight: FontWeight.w900,   // ← من w700
+                            fontWeight: FontWeight.w900,
                             color: navyDark,
                             height: 1.15,
                           ),

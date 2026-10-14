@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/app_models.dart';
@@ -72,10 +73,34 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
                             height: 150,
                             width: double.infinity,
                             color: Colors.grey.shade200,
-                            child: Image.asset(
-                              item.imageUrl,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => const Icon(Icons.star, size: 50, color: accentGold),
+                            child: Builder(
+                              builder: (context) {
+                                final img = item.imageUrl;
+                                if (img.startsWith('data:image')) {
+                                  try {
+                                    final commaIdx = img.indexOf(',');
+                                    final b64 = commaIdx != -1 ? img.substring(commaIdx + 1) : img;
+                                    return Image.memory(
+                                      base64Decode(b64),
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) => const Icon(Icons.star, size: 50, color: accentGold),
+                                    );
+                                  } catch (_) {
+                                    return const Icon(Icons.star, size: 50, color: accentGold);
+                                  }
+                                } else if (img.startsWith('http')) {
+                                  return Image.network(
+                                    img,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => const Icon(Icons.star, size: 50, color: accentGold),
+                                  );
+                                }
+                                return Image.asset(
+                                  img,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => const Icon(Icons.star, size: 50, color: accentGold),
+                                );
+                              },
                             ),
                           ),
                         ),

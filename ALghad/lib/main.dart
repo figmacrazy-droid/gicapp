@@ -5,8 +5,7 @@ import 'screens/splash_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // تهيئة قاعدة البيانات (مفتاح Publishable لتطبيق الطلاب)
+
   await Supabase.initialize(
     url: 'https://mpcyblhdfecveamaessd.supabase.co',
     anonKey: 'sb_publishable__JN9KI2E5PMF680CUF-ydQ_DijaqBYH',

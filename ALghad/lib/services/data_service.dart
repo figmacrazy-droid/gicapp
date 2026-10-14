@@ -1,9 +1,59 @@
+import 'dart:convert';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/app_models.dart';
 
 class DataService {
+  static SupabaseClient? get _supabase {
+    try {
+      return Supabase.instance.client;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  // --- جلب التعليمات والخطوات من Supabase مع بديل افتراضي ---
+  static Future<InstructionStepModel> getInstructionFromSupabase(
+    String serviceKey,
+    InstructionStepModel fallback,
+  ) async {
+    try {
+      final client = _supabase;
+      if (client != null) {
+        final res = await client
+            .from('system_instructions')
+            .select()
+            .eq('service_key', serviceKey)
+            .maybeSingle();
+
+        if (res != null) {
+          List<String> stepsList = [];
+          final rawSteps = res['steps'];
+          if (rawSteps is List) {
+            stepsList = rawSteps.map((e) => e.toString()).toList();
+          } else if (rawSteps is String) {
+            stepsList = rawSteps
+                .split('\n')
+                .map((s) => s.trim())
+                .where((s) => s.isNotEmpty)
+                .toList();
+          }
+          return InstructionStepModel(
+            id: res['id']?.toString() ?? fallback.id,
+            title: res['title'] ?? fallback.title,
+            subtitle: res['subtitle'] ?? fallback.subtitle,
+            steps: stepsList.isNotEmpty ? stepsList : fallback.steps,
+            note: res['note'] ?? fallback.note,
+            externalUrl: res['external_url'] ?? fallback.externalUrl,
+          );
+        }
+      }
+    } catch (_) {}
+    return fallback;
+  }
+
   // 1. التسجيل في مقر الكلية
   static Future<InstructionStepModel> getCampusRegistrationInfo() async {
-    return const InstructionStepModel(
+    const fallback = InstructionStepModel(
       id: 'campus_reg',
       title: 'التسجيل في مقر الكلية',
       subtitle: 'خطوات وإرشادات التسجيل المباشر بمقر الكلية',
@@ -18,11 +68,12 @@ class DataService {
       ],
       note: 'ملاحظة: الدوام الرسمي من الأحد إلى الخميس - من الساعة 8:00 صباحاً وحتى 2:00 ظهراً.',
     );
+    return getInstructionFromSupabase('التسجيل في مقر الكلية', fallback);
   }
 
   // التسجيل عبر بوابة الوزارة
   static Future<InstructionStepModel> getMinistryPortalInfo() async {
-    return const InstructionStepModel(
+    const fallback = InstructionStepModel(
       id: 'ministry_reg',
       title: 'التسجيل عبر البوابة الإلكترونية لوزارة التربية والتعليم والبحث العلمي',
       subtitle: 'الربط المباشر مع البوابة الموحدة للتنسيق الإلكتروني',
@@ -37,11 +88,12 @@ class DataService {
       externalUrl: 'https://oasyemen.net',
       note: 'يمكنك الانتقال المباشر لبوابة الوزارة عبر الضغط على الزر أدناه.',
     );
+    return getInstructionFromSupabase('التسجيل عبر البوابة الإلكترونية لوزارة التربية', fallback);
   }
 
   // 2. الكادر الأكاديمي والتدريس
   static Future<List<AcademicStaffModel>> getAcademicStaff() async {
-    return const [
+    const defaultStaff = [
       AcademicStaffModel(
         id: '1',
         name: 'د. عبد الله محمد علي',
@@ -75,11 +127,33 @@ class DataService {
         bio: 'ممتدة الخبرة في تطبيق برامج التدريب الميداني للتمريض العالي.',
       ),
     ];
+
+    try {
+      final client = _supabase;
+      if (client != null) {
+        final res = await client
+            .from('academic_staff')
+            .select()
+            .order('display_order', ascending: true);
+        final list = res as List;
+        if (list.isNotEmpty) {
+          return list.map((item) => AcademicStaffModel(
+            id: item['id']?.toString() ?? '',
+            name: item['name'] ?? '',
+            photoUrl: item['photo_url'] ?? 'assets/images/doctor_1.png',
+            experienceYears: item['experience_years'] ?? '',
+            specialty: item['specialty'] ?? '',
+            bio: item['bio'],
+          )).toList();
+        }
+      }
+    } catch (_) {}
+    return defaultStaff;
   }
 
   // التدريب الميداني
   static Future<InstructionStepModel> getFieldTrainingInfo() async {
-    return const InstructionStepModel(
+    const fallback = InstructionStepModel(
       id: 'field_training',
       title: 'التدريب الميداني',
       subtitle: 'تعليمات وضوابط برنامج التدريب السريري والميداني',
@@ -92,37 +166,41 @@ class DataService {
       ],
       note: 'يبدأ التسجيل في التدريب الميداني بداية كل فصل دراسي للمستويات المتقدمة.',
     );
+    return getInstructionFromSupabase('التدريب الميداني', fallback);
   }
 
   // 3. الجداول الدراسية وجداول الامتحانات
   static Future<List<ScheduleModel>> getSchedules(String type) async {
-    return [
-      ScheduleModel(
-        id: '1',
-        title: type == 'study'
-            ? 'جدول المحاضرات الدراسية - الفصل الأول 2024-2025'
-            : (type == 'midterm' ? 'جدول امتحانات النصف الأول' : 'جدول امتحانات النهائي'),
-        type: type,
-        fileUrl: 'assets/pdf/schedule_sample.pdf',
-        academicYear: '2024 - 2025',
-      ),
-      ScheduleModel(
-        id: '2',
-        title: type == 'study'
-            ? 'جدول المختبرات والمعامل التطبيقية'
-            : (type == 'midterm' ? 'جدول الامتحانات العملي للنصف' : 'جدول الامتحانات العملي النهائي'),
-        type: type,
-        fileUrl: 'assets/pdf/schedule_labs.pdf',
-        academicYear: '2024 - 2025',
-      ),
-    ];
+    try {
+      final client = _supabase;
+      if (client != null) {
+        final res = await client
+            .from('schedules')
+            .select()
+            .eq('type', type)
+            .order('created_at', ascending: false);
+        final list = res as List;
+        if (list.isNotEmpty) {
+          return list.map((item) => ScheduleModel(
+            id: item['id']?.toString() ?? '',
+            title: item['title'] ?? '',
+            type: item['type'] ?? type,
+            fileUrl: item['file_url'] ?? '',
+            isPdf: item['is_pdf'] ?? true,
+            academicYear: item['academic_year'] ?? '2024 - 2025',
+          )).toList();
+        }
+      }
+    } catch (_) {}
+    return [];
   }
 
   // تعليمات خدمات شؤون الطلاب الديناميكية
   static Future<InstructionStepModel> getStudentAffairsServiceInfo(String title) async {
+    InstructionStepModel fallback;
     switch (title) {
       case 'الأنشطة والفعاليات':
-        return const InstructionStepModel(
+        fallback = const InstructionStepModel(
           id: 'activities',
           title: 'الأنشطة والفعاليات',
           subtitle: 'جدول وخطة الأنشطة الطلابية والرياضية والثقافية',
@@ -133,9 +211,11 @@ class DataService {
             'تقديم مقترحات الفعاليات والأنشطة إلى مجلس الطلاب.',
           ],
         );
+        break;
 
       case 'تقديم طلب تحويل (من تخصص إلى تخصص آخر)':
-        return const InstructionStepModel(
+      case 'تقديم طلب تحويل من تخصص إلى تخصص آخر':
+        fallback = const InstructionStepModel(
           id: 'transfer',
           title: 'تقديم طلب تحويل من تخصص إلى تخصص آخر',
           subtitle: 'شروط وإجراءات التحويل بين الأقسام الأكاديمية',
@@ -146,9 +226,10 @@ class DataService {
             'موافقة عميد الكلية ورؤساء الأقسام المعنية.',
           ],
         );
+        break;
 
       case 'تقديم طلب وقف قيد':
-        return const InstructionStepModel(
+        fallback = const InstructionStepModel(
           id: 'stop_reg',
           title: 'تقديم طلب وقف قيد',
           subtitle: 'إجراءات التأجيل وتجميد الفصل الدراسي',
@@ -159,9 +240,10 @@ class DataService {
             'موافقة الشؤون الأكاديمية وصرف إشعار وقف القيد رسمياً.',
           ],
         );
+        break;
 
       case 'تقديم طلب فتح قيد':
-        return const InstructionStepModel(
+        fallback = const InstructionStepModel(
           id: 'open_reg',
           title: 'تقديم طلب فتح قيد',
           subtitle: 'إعادة تفعيل واستئناف الدراسة بعد وقف القيد',
@@ -172,9 +254,10 @@ class DataService {
             'تحديث البيانات وتأكيد الجدول الدراسي من التسجيل.',
           ],
         );
+        break;
 
       case 'تقديم طلب مقاصصة':
-        return const InstructionStepModel(
+        fallback = const InstructionStepModel(
           id: 'equivalency',
           title: 'تقديم طلب مقاصصة',
           subtitle: 'معادلة المواد الدراسية للطلاب المحولين',
@@ -185,9 +268,10 @@ class DataService {
             'اعتماد اللجنة الأكاديمية المختصة واستلام نتيجة المقاصصة.',
           ],
         );
+        break;
 
       case 'تقديم طلب تجميد ملف':
-        return const InstructionStepModel(
+        fallback = const InstructionStepModel(
           id: 'freeze_file',
           title: 'تقديم طلب تجميد ملف',
           subtitle: 'تجميد الملف الأكاديمي مؤقتاً',
@@ -197,9 +281,10 @@ class DataService {
             'اعتماد طلب التجميد من إدارة التسجيل والقبول.',
           ],
         );
+        break;
 
       case 'تقديم طلب سحب ملف':
-        return const InstructionStepModel(
+        fallback = const InstructionStepModel(
           id: 'withdraw_file',
           title: 'تقديم طلب سحب ملف',
           subtitle: 'السحب النهائي للوثائق من الكلية',
@@ -209,9 +294,10 @@ class DataService {
             'تسليم البطاقة الجامعية واستلام أصول الوثائق الشخصية والدراسية.',
           ],
         );
+        break;
 
       case 'تقديم طلب استخراج إفادة تخرج':
-        return const InstructionStepModel(
+        fallback = const InstructionStepModel(
           id: 'grad_statement',
           title: 'تقديم طلب استخراج إفادة تخرج',
           subtitle: 'إجراءات إصدار إفادة استكمال متطلبات التخرج',
@@ -222,9 +308,10 @@ class DataService {
             'استلام الإفادة المعتمدة من قسم شؤون الخريجين خلال 3 أيام عمل.',
           ],
         );
+        break;
 
       case 'تقديم طلب استخراج شهادة (دبلوم/بكالوريوس)':
-        return const InstructionStepModel(
+        fallback = const InstructionStepModel(
           id: 'degree_cert',
           title: 'تقديم طلب استخراج شهادة (دبلوم/بكالوريوس)',
           subtitle: 'إصدار الوثيقة الكرتونية وكشف الدرجات النهائي',
@@ -235,9 +322,10 @@ class DataService {
             'مراجعة شؤون الخريجين لاستلام الشهادة والتوقيع في السجل العام.',
           ],
         );
+        break;
 
       case 'تقديم طلب استخراج الوثائق اللازمة للتقديم على مزاولة المهنة':
-        return const InstructionStepModel(
+        fallback = const InstructionStepModel(
           id: 'license_docs',
           title: 'تقديم طلب استخراج الوثائق اللازمة للتقديم على مزاولة المهنة',
           subtitle: 'تجهيز ملف التراخيص والمزاولة الطبية',
@@ -248,9 +336,10 @@ class DataService {
             'استلام الملف الموثق الخاص بطلب تراخيص مزاولة المهنة.',
           ],
         );
+        break;
 
       case 'تقديم طلب تظلم':
-        return const InstructionStepModel(
+        fallback = const InstructionStepModel(
           id: 'grievance',
           title: 'تقديم طلب تظلم امتحاني',
           subtitle: 'شروط وضوابط مراجعة كراسات الإجابة',
@@ -261,9 +350,10 @@ class DataService {
             'مراجعة لجنة الكنترول وإعلان قرار نتيجة التظلم رسمياً.',
           ],
         );
+        break;
 
       default:
-        return InstructionStepModel(
+        fallback = InstructionStepModel(
           id: 'general',
           title: title,
           steps: const [
@@ -273,34 +363,76 @@ class DataService {
           ],
         );
     }
+    return getInstructionFromSupabase(title, fallback);
   }
 
   // 4. الكنترول - أرقام الجلوس
   static Future<SeatingNumberModel?> searchSeatingNumber(String academicId) async {
-    return SeatingNumberModel(
-      academicId: academicId.isEmpty ? '2024000001' : academicId,
-      studentName: 'عبد الله أحمد الطالب',
-      specialty: 'علوم مختبرات طبية - المستوى الثاني',
-      term: 'الفصل الدراسي الأول 2024/2025',
-      hall: 'قاعة الأمل - الدور الثاني (قاعة رقم 4)',
-      seatingNumber: '10482',
-    );
+    try {
+      final client = _supabase;
+      if (client != null && academicId.isNotEmpty) {
+        final res = await client
+            .from('seating_numbers')
+            .select('*, students(full_name, specialty, level)')
+            .eq('academic_id', academicId)
+            .maybeSingle();
+
+        if (res != null) {
+          final studentObj = res['students'] is Map ? res['students'] : null;
+          final studentName = studentObj?['full_name'] ?? res['student_name'] ?? '';
+          final specialty = studentObj?['specialty'] ?? res['specialty'] ?? '';
+
+          return SeatingNumberModel(
+            academicId: res['academic_id'] ?? academicId,
+            studentName: studentName.isNotEmpty ? studentName : 'الطالب',
+            specialty: specialty.isNotEmpty ? specialty : 'عام',
+            term: res['term'] ?? 'الفصل الدراسي الحالي',
+            hall: res['hall'] ?? 'القاعة الكبرى',
+            seatingNumber: res['seating_number']?.toString() ?? '',
+          );
+        }
+      }
+    } catch (e) {
+      // Ignored
+    }
+    return null;
   }
 
   // أوائل الطلاب
   static Future<List<TopStudentModel>> getTopStudents() async {
-    return const [
+    const defaultList = [
       TopStudentModel(rank: 1, studentName: 'أحمد صالح عبد الرحمن', specialty: 'طب وجراحة', gpa: 98.5, batch: 'دفعة سفراء الغد'),
       TopStudentModel(rank: 2, studentName: 'مريم علي حسن القاضي', specialty: 'صيدلة سريرية', gpa: 97.8, batch: 'دفعة سفراء الغد'),
       TopStudentModel(rank: 3, studentName: 'خالد عمر باحاج', specialty: 'علوم مختبرات', gpa: 96.9, batch: 'دفعة سفراء الغد'),
       TopStudentModel(rank: 4, studentName: 'فاطمة محمد ناصر', specialty: 'تمريض عالي', gpa: 95.7, batch: 'دفعة عظماء الغد'),
       TopStudentModel(rank: 5, studentName: 'سعيد عبد الله العمري', specialty: 'صيدلة دبلوم', gpa: 94.8, batch: 'دفعة عظماء الغد'),
     ];
+
+    try {
+      final client = _supabase;
+      if (client != null) {
+        final res = await client
+            .from('top_students')
+            .select()
+            .order('rank', ascending: true);
+        final list = res as List;
+        if (list.isNotEmpty) {
+          return list.map((item) => TopStudentModel(
+            rank: item['rank'] is int ? item['rank'] : int.tryParse(item['rank'].toString()) ?? 1,
+            studentName: item['student_name'] ?? '',
+            specialty: item['specialty'] ?? '',
+            gpa: (item['gpa'] as num?)?.toDouble() ?? 0.0,
+            batch: item['batch'] ?? '',
+          )).toList();
+        }
+      }
+    } catch (_) {}
+    return defaultList;
   }
 
   // النتائج
   static Future<StudentResultModel?> getStudentResults(String academicId) async {
-    return StudentResultModel(
+    final defaultResult = StudentResultModel(
       academicId: academicId.isEmpty ? '2024000001' : academicId,
       studentName: 'عبد الله أحمد الطالب',
       specialty: 'علوم مختبرات طبية',
@@ -316,31 +448,127 @@ class DataService {
       gpa: 91.9,
       grade: 'ممتاز مع مرتبة الشرف',
     );
-  }
 
-  // ═══════════════════════════════════════════════
-  // البيانات الجديدة للبروفايل، الكالندر، التواصل، المالية والإنجازات
-  // ═══════════════════════════════════════════════
+    try {
+      final client = _supabase;
+      if (client != null && academicId.isNotEmpty) {
+        final res = await client
+            .from('student_results')
+            .select('*, students(full_name, specialty, batch, level, semester)')
+            .eq('academic_id', academicId)
+            .maybeSingle();
+        if (res != null) {
+          Map<String, double> subs = {};
+          final rawSubs = res['subjects'];
+          if (rawSubs is Map) {
+            rawSubs.forEach((k, v) {
+              if (k != 'terms') {
+                subs[k.toString()] = (v as num?)?.toDouble() ?? 0.0;
+              }
+            });
+          }
+
+          List<TermResultModel> termsList = [];
+          if (rawSubs is Map && rawSubs.containsKey('terms') && rawSubs['terms'] is List) {
+            final rawTerms = rawSubs['terms'] as List;
+            termsList = rawTerms.map((t) => TermResultModel.fromJson(Map<String, dynamic>.from(t as Map))).toList();
+          }
+
+          final studentsData = res['students'] as Map<String, dynamic>?;
+          final sName = studentsData?['full_name'] ?? res['student_name'] ?? defaultResult.studentName;
+          final sSpec = studentsData?['specialty'] ?? res['specialty'] ?? defaultResult.specialty;
+          final sBatch = studentsData?['batch'] ?? res['batch'] ?? defaultResult.batch;
+          final sSemester = studentsData?['semester'] ?? 'الفصل الدراسي الأول';
+
+          if (termsList.isEmpty && subs.isNotEmpty) {
+            termsList.add(TermResultModel(
+              termName: sSemester,
+              academicYear: studentsData?['academic_year'] ?? '2024/2025',
+              subjects: subs,
+              totalMarks: (res['total_marks'] as num?)?.toDouble() ?? defaultResult.totalMarks,
+              gpa: (res['gpa'] as num?)?.toDouble() ?? defaultResult.gpa,
+              grade: res['grade'] ?? defaultResult.grade,
+            ));
+          }
+
+          final activeTerm = termsList.isNotEmpty ? termsList.first : null;
+
+          return StudentResultModel(
+            academicId: res['academic_id'] ?? academicId,
+            studentName: sName,
+            specialty: sSpec,
+            batch: sBatch,
+            terms: termsList,
+            subjects: activeTerm?.subjects ?? (subs.isNotEmpty ? subs : defaultResult.subjects),
+            totalMarks: activeTerm?.totalMarks ?? ((res['total_marks'] as num?)?.toDouble() ?? defaultResult.totalMarks),
+            gpa: activeTerm?.gpa ?? ((res['gpa'] as num?)?.toDouble() ?? defaultResult.gpa),
+            grade: activeTerm?.grade ?? (res['grade'] ?? defaultResult.grade),
+          );
+        }
+      }
+    } catch (_) {}
+    return defaultResult;
+  }
 
   // دليل الطالب الجامعي
   static Future<String> getUniversityGuidePdfUrl() async {
+    try {
+      final client = _supabase;
+      if (client != null) {
+        final res = await client.from('university_guides').select().limit(1);
+        final list = res as List;
+        if (list.isNotEmpty && list.first['file_url'] != null) {
+          return list.first['file_url'];
+        }
+      }
+    } catch (_) {}
     return 'assets/pdf/university_student_guide.pdf';
   }
 
   // روابط التواصل الاجتماعي
   static Future<List<SocialMediaLinkModel>> getSocialMediaLinks() async {
-    return const [
+    const defaultLinks = [
       SocialMediaLinkModel(id: '1', platformName: 'صفحتنا على فيسبوك', url: 'https://facebook.com/alghadcollege', iconPath: 'assets/icons/facebook.png'),
       SocialMediaLinkModel(id: '2', platformName: 'قناتنا على تليجرام', url: 'https://t.me/alghadcollege', iconPath: 'assets/icons/telegram.png'),
       SocialMediaLinkModel(id: '3', platformName: 'قناتنا على يوتيوب', url: 'https://youtube.com/@alghadcollege', iconPath: 'assets/icons/youtube.png'),
       SocialMediaLinkModel(id: '4', platformName: 'تواصل معنا على الواتساب', url: 'https://wa.me/967776166321', iconPath: 'assets/icons/whatsapp.png'),
       SocialMediaLinkModel(id: '5', platformName: 'الموقع الإلكتروني الرسمي', url: 'https://alghad-college.edu.ye', iconPath: 'assets/icons/website.png'),
     ];
+
+    try {
+      final client = _supabase;
+      if (client != null) {
+        final res = await client
+            .from('social_media_links')
+            .select()
+            .order('display_order', ascending: true);
+        final list = res as List;
+        if (list.isNotEmpty) {
+          return list.map((item) {
+            String icon = 'assets/icons/website.png';
+            final iconName = item['icon_name']?.toString().toLowerCase() ?? '';
+            if (iconName.contains('face')) icon = 'assets/icons/facebook.png';
+            else if (iconName.contains('tele')) icon = 'assets/icons/telegram.png';
+            else if (iconName.contains('you')) icon = 'assets/icons/youtube.png';
+            else if (iconName.contains('whats')) icon = 'assets/icons/whatsapp.png';
+            else if (iconName.contains('insta')) icon = 'assets/icons/instagram.png';
+
+            return SocialMediaLinkModel(
+              id: item['id']?.toString() ?? '',
+              platformName: item['platform_name'] ?? '',
+              url: item['url'] ?? '',
+              iconPath: icon,
+            );
+          }).toList();
+        }
+      }
+    } catch (_) {}
+    return defaultLinks;
   }
 
   // معلومات عنا
   static Future<InstructionStepModel> getAboutUsInfo() async {
-    return const InstructionStepModel(
+    const fallback = InstructionStepModel(
       id: 'about_us',
       title: 'معلومات عنا - كلية الغد المشرق',
       subtitle: 'صرح أكاديمي متميز في العلوم الطبية والتطبيقية',
@@ -352,11 +580,12 @@ class DataService {
       ],
       note: 'عنوان الكلية: الجمهورية اليمنية - صنعاء - شارع 60.',
     );
+    return getInstructionFromSupabase('معلومات عنا', fallback);
   }
 
   // المساعدة والدعم
   static Future<InstructionStepModel> getHelpAndSupportInfo() async {
-    return const InstructionStepModel(
+    const fallback = InstructionStepModel(
       id: 'help_support',
       title: 'المساعدة والدعم الفني',
       subtitle: 'نحن هنا لمساعدتك والإجابة على جميع استفساراتك',
@@ -368,12 +597,13 @@ class DataService {
       note: 'رقم الواتساب الخاص بالدعم المباشر: 967776166321',
       externalUrl: 'https://wa.me/967776166321',
     );
+    return getInstructionFromSupabase('المساعدة والدعم', fallback);
   }
 
   // الأحداث والتكليفات للكالندر (ميزت باللون الذهبي)
   static Future<List<CalendarEventModel>> getCalendarEvents() async {
     final now = DateTime.now();
-    return [
+    final defaultEvents = [
       CalendarEventModel(
         id: '1',
         date: DateTime(now.year, now.month, 12),
@@ -396,11 +626,35 @@ class DataService {
         isHighlightedGold: true,
       ),
     ];
+
+    try {
+      final client = _supabase;
+      if (client != null) {
+        final res = await client
+            .from('calendar_events')
+            .select()
+            .order('event_date', ascending: true);
+        final list = res as List;
+        if (list.isNotEmpty) {
+          return list.map((item) {
+            final dt = DateTime.tryParse(item['event_date']?.toString() ?? '') ?? now;
+            return CalendarEventModel(
+              id: item['id']?.toString() ?? '',
+              date: dt,
+              title: item['title'] ?? '',
+              description: item['description'] ?? '',
+              isHighlightedGold: item['is_highlighted_gold'] ?? true,
+            );
+          }).toList();
+        }
+      }
+    } catch (_) {}
+    return defaultEvents;
   }
 
   // الإنجازات (مع التوسع ورابط يوتيوب)
   static Future<List<AchievementModel>> getAchievements() async {
-    return const [
+    const defaultAchievements = [
       AchievementModel(
         id: '1',
         title: 'حصول الكلية على الاعتماد الأكاديمي الوطني',
@@ -418,11 +672,55 @@ class DataService {
         youtubeUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
       ),
     ];
+
+    try {
+      final client = _supabase;
+      if (client != null) {
+        // 1. القراءة من system_instructions
+        final siRes = await client
+            .from('system_instructions')
+            .select()
+            .eq('service_key', 'achievements')
+            .maybeSingle();
+
+        if (siRes != null && siRes['steps'] != null) {
+          final decoded = jsonDecode(siRes['steps'] as String);
+          if (decoded is List && decoded.isNotEmpty) {
+            return decoded.map((e) => AchievementModel(
+              id: (e['id'] ?? '').toString(),
+              title: (e['title'] ?? '').toString(),
+              date: (e['date_str'] ?? e['date'] ?? '').toString(),
+              description: (e['description'] ?? '').toString(),
+              imageUrl: (e['image_url'] ?? '').toString(),
+              youtubeUrl: e['youtube_url']?.toString(),
+            )).toList();
+          }
+        }
+
+        // 2. بديل: القراءة من جدول achievements
+        final res = await client
+            .from('achievements')
+            .select()
+            .order('created_at', ascending: false);
+        final list = res as List;
+        if (list.isNotEmpty) {
+          return list.map((item) => AchievementModel(
+            id: item['id']?.toString() ?? '',
+            title: item['title'] ?? '',
+            date: item['date_str'] ?? '',
+            description: item['description'] ?? '',
+            imageUrl: item['image_url'] ?? '',
+            youtubeUrl: item['youtube_url'],
+          )).toList();
+        }
+      }
+    } catch (_) {}
+    return defaultAchievements;
   }
 
   // خريجي الغد (دفعة سفراء وعظماء الغد)
   static Future<List<AlumniBatchModel>> getAlumniBatches() async {
-    return const [
+    const defaultBatches = [
       AlumniBatchModel(
         id: '0',
         title: 'دفعة سفراء الغد',
@@ -442,11 +740,57 @@ class DataService {
         ceremonyYoutubeUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
       ),
     ];
+
+    try {
+      final client = _supabase;
+      if (client != null) {
+        // 1. القراءة من system_instructions
+        final siRes = await client
+            .from('system_instructions')
+            .select()
+            .eq('service_key', 'alumni_batches')
+            .maybeSingle();
+
+        if (siRes != null && siRes['steps'] != null) {
+          final decoded = jsonDecode(siRes['steps'] as String);
+          if (decoded is List && decoded.isNotEmpty) {
+            return decoded.map((e) => AlumniBatchModel(
+              id: (e['id'] ?? '').toString(),
+              title: (e['title'] ?? '').toString(),
+              batchName: (e['batch_name'] ?? '').toString(),
+              graduatesCount: (e['graduates_count'] ?? '').toString(),
+              bannerImagePath: (e['banner_image_url'] ?? e['banner_image_path'] ?? '').toString(),
+              magazinePdfUrl: e['magazine_pdf_url']?.toString(),
+              ceremonyYoutubeUrl: e['ceremony_youtube_url']?.toString(),
+            )).toList();
+          }
+        }
+
+        // 2. بديل: القراءة من جدول alumni_batches
+        final res = await client
+            .from('alumni_batches')
+            .select()
+            .order('created_at', ascending: false);
+        final list = res as List;
+        if (list.isNotEmpty) {
+          return list.map((item) => AlumniBatchModel(
+            id: item['id']?.toString() ?? '',
+            title: item['title'] ?? '',
+            batchName: item['batch_name'] ?? '',
+            graduatesCount: item['graduates_count'] ?? '',
+            bannerImagePath: item['banner_image_url'] ?? '',
+            magazinePdfUrl: item['magazine_pdf_url'] ?? '',
+            ceremonyYoutubeUrl: item['ceremony_youtube_url'],
+          )).toList();
+        }
+      }
+    } catch (_) {}
+    return defaultBatches;
   }
 
   // إشعارات المالية
-  static Future<List<FinanceNotificationModel>> getFinanceNotifications() async {
-    return const [
+  static Future<List<FinanceNotificationModel>> getFinanceNotifications({String? academicId}) async {
+    const defaultFinance = [
       FinanceNotificationModel(
         id: '1',
         title: 'إشعار سداد القسط الثاني من الرسوم الدراسية',
@@ -462,5 +806,27 @@ class DataService {
         amount: 25000.0,
       ),
     ];
+
+    try {
+      final client = _supabase;
+      if (client != null) {
+        var query = client.from('finance_notifications').select();
+        if (academicId != null && academicId.isNotEmpty) {
+          query = query.or('academic_id.eq.$academicId,academic_id.is.null');
+        }
+        final res = await query.order('created_at', ascending: false);
+        final list = res as List;
+        if (list.isNotEmpty) {
+          return list.map((item) => FinanceNotificationModel(
+            id: item['id']?.toString() ?? '',
+            title: item['title'] ?? '',
+            date: item['date_str'] ?? '',
+            details: item['details'] ?? '',
+            amount: (item['amount'] as num?)?.toDouble() ?? 0.0,
+          )).toList();
+        }
+      }
+    } catch (_) {}
+    return defaultFinance;
   }
 }

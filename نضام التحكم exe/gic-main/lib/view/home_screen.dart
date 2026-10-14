@@ -3,7 +3,9 @@ import 'package:gic/view/services.dart';
 import 'package:gic/view/academic_tree.dart';
 import 'package:gic/view/advertisements.dart';
 import 'package:gic/view/queries.dart';
+import 'package:gic/view/notifications_management_view.dart';
 import 'package:gic/view/analysis.dart';
+import 'package:gic/view/accounts_management_view.dart';
 
 void main() {
   runApp(const MyApp());
@@ -146,7 +148,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         const Divider(color: dividerColor, height: 1),
                         _buildNavItem('الحسابات', Icons.people_outline),
                         const Divider(color: dividerColor, height: 1),
-                        _buildNavItem('الاستعلامات', Icons.info_outline),
+                        _buildNavItem('الإشعارات', Icons.notifications_active_outlined),
                         const Divider(color: dividerColor, height: 1),
                         _buildNavItem('الاعلانات', Icons.tv),
                         const Divider(color: dividerColor, height: 1),
@@ -268,11 +270,15 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
 
-    else if (activeTab == 'الاستعلامات') {
-      return QueriesView(
+    else if (activeTab == 'الإشعارات' || activeTab == 'الاستعلامات') {
+      return NotificationsManagementView(
         onPathChanged: (path) {
-          setState(() {
-            currentDynamicPath = path;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted && currentDynamicPath != path) {
+              setState(() {
+                currentDynamicPath = path;
+              });
+            }
           });
         },
       );
@@ -280,6 +286,16 @@ class _HomeScreenState extends State<HomeScreen> {
     
     else if (activeTab == 'التحليل') {
       return const AnalysisView();
+    }
+
+    else if (activeTab == 'الحسابات') {
+      return AccountsManagementView(
+        onPathChanged: (path) {
+          setState(() {
+            currentDynamicPath = path;
+          });
+        },
+      );
     }
 
     else {

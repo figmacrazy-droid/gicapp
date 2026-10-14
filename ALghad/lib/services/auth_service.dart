@@ -23,11 +23,6 @@ class AuthService {
     if (password == null || password.trim().isEmpty) {
       return 'كلمة السر إجبارية';
     }
-    final trimmed = password.trim();
-    // تقبل الأحرف والنصوص فقط (عربي وإنجليزي) بدون أرقام أو رموز
-    if (!RegExp(r'^[a-zA-Z\u0600-\u06FF\s]+$').hasMatch(trimmed)) {
-      return 'كلمة السر يجب أن تحتوي على أحرف فقط ولا تقبل أرقام أو رموز';
-    }
     return null;
   }
 
@@ -66,6 +61,18 @@ class AuthService {
       batch: 'الدفعة الخامسة',
       semester: 'الفصل الأول',
       group: 'المجموعة الثانية',
+      studyShift: 'الفترة الصباحية',
+    ),
+    const StudentProfileModel(
+      academicId: '2024000003',
+      fullName: 'مهندس النظام',
+      password: 'password',
+      email: 'figmacrazy@gmail.com',
+      specialty: 'أمن سيبراني',
+      level: 'المستوى الأول',
+      batch: 'الدفعة الأولى',
+      semester: 'الفصل الأول',
+      group: 'المجموعة الأولى',
       studyShift: 'الفترة الصباحية',
     ),
   ];
@@ -137,7 +144,7 @@ class AuthService {
     await prefs.remove('${_lockoutKey}_$academicId');
   }
 
-  // 3. التحقق من مطابقة البيانات في قاعدة البيانات الحقيقية (Supabase)
+  // 3. التحقق من مطابقة البيانات في قاعدة البيانات
   static Future<StudentProfileModel?> verifyCredentials({
     required String academicId,
     required String password,
@@ -170,9 +177,7 @@ class AuthService {
           studyShift: response['study_shift'] ?? '',
         );
       }
-    } catch (e) {
-      // في حال حدوث خطأ اتصال، التحقق من البيانات التجريبية
-    }
+    } catch (_) {}
 
     for (var student in _mockStudents) {
       if (student.academicId == trimmedId &&
