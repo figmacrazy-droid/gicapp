@@ -1,4 +1,4 @@
-name: Build Android APK and Windows EXE
+name: Build Android APK (Student App)
 
 on:
   push:
@@ -43,53 +43,3 @@ jobs:
         with:
           name: ALghad-Student-App-release
           path: ALghad/build/app/outputs/flutter-apk/app-release.apk
-
-  build-windows:
-    name: Build Windows EXE (Control Panel)
-    runs-on: windows-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: 'stable'
-          cache: true
-
-      - name: Enable Windows Desktop
-        run: flutter config --enable-windows-desktop
-
-      - name: Locate Control Panel and build Windows EXE
-        shell: pwsh
-        run: |
-          $targetYaml = Get-ChildItem -Recurse -Filter "pubspec.yaml" | Where-Object { $_.FullName -like "*gic-main*" } | Select-Object -First 1
-          if (-not $targetYaml) {
-            throw "Could not locate gic-main pubspec.yaml"
-          }
-          $sourceDir = $targetYaml.Directory.FullName
-          Write-Host "Found Control Panel at: $sourceDir"
-          $cleanDir = "C:\gic_admin"
-          if (Test-Path $cleanDir) { Remove-Item -Recurse -Force $cleanDir }
-          Copy-Item -Recurse -Path $sourceDir -Destination $cleanDir
-          Set-Location -LiteralPath $cleanDir
-          flutter pub get
-          flutter build windows --release
-
-      - name: Package Windows Release as Zip
-        shell: pwsh
-        run: |
-          $cleanDir = "C:\gic_admin"
-          $releaseDir = Join-Path $cleanDir "build\windows\x64\runner\Release"
-          if (-not (Test-Path $releaseDir)) {
-            $releaseDir = (Get-ChildItem -Recurse -Directory -Path $cleanDir | Where-Object { $_.FullName -like "*runner*Release" } | Select-Object -First 1).FullName
-          }
-          Write-Host "Compressing release from: $releaseDir"
-          Compress-Archive -Path "$releaseDir\*" -DestinationPath "$env:GITHUB_WORKSPACE\GIC-ControlPanel-Windows-Release.zip" -Force
-
-      - name: Upload Windows Control Panel Zip
-        uses: actions/upload-artifact@v4
-        with:
-          name: GIC-ControlPanel-Windows-Release
-          path: GIC-ControlPanel-Windows-Release.zip

@@ -237,6 +237,21 @@ class _LoginFormScreenState extends State<LoginFormScreen>
       return;
     }
 
+    if (student.isPermanentlyBlocked) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('عذراً، تم إيقاف حسابك الأكاديمي من قبل إدارة الكلية. يرجى مراجعة شؤون الطلاب.'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(seconds: 4),
+          ),
+        );
+      }
+      return;
+    }
+
     // توليد رمز تحقق عشوائي من 4 أرقام
     final otpCode = EmailOtpService.generateOtp();
 

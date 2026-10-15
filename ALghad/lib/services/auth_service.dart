@@ -175,6 +175,7 @@ class AuthService {
           semester: response['semester'] ?? '',
           group: response['group_name'] ?? '',
           studyShift: response['study_shift'] ?? '',
+          isPermanentlyBlocked: response['is_blocked'] ?? false,
         );
       }
     } catch (_) {}
@@ -207,5 +208,22 @@ class AuthService {
   static Future<void> clearSession() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_sessionKey);
+  }
+
+  // 5. فحص ما إذا كان حساب الطالب موقوفاً / غير نشط في قاعدة البيانات
+  static Future<bool> isStudentBlocked(String academicId) async {
+    final trimmedId = academicId.trim();
+    if (trimmedId.isEmpty) return false;
+    try {
+      final res = await Supabase.instance.client
+          .from('students')
+          .select('is_blocked')
+          .eq('academic_id', trimmedId)
+          .maybeSingle();
+      if (res != null) {
+        return (res['is_blocked'] ?? false) == true;
+      }
+    } catch (_) {}
+    return false;
   }
 }

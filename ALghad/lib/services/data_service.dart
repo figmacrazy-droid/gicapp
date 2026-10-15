@@ -491,6 +491,26 @@ class DataService {
             ));
           }
 
+          // فحص حالة حجب النتيجة (حجب عام للكنترول أو حجب خاص بالطالب)
+          bool isWithheld = false;
+          try {
+            final lockRes = await client
+                .from('system_instructions')
+                .select()
+                .eq('service_key', 'results_lock_control')
+                .maybeSingle();
+            if (lockRes != null && lockRes['steps'] != null) {
+              final decoded = jsonDecode(lockRes['steps'] as String);
+              if (decoded is Map && decoded['is_locked'] == true) {
+                isWithheld = true;
+              }
+            }
+          } catch (_) {}
+
+          if (!isWithheld && rawSubs is Map && rawSubs['is_result_hidden'] == true) {
+            isWithheld = true;
+          }
+
           final activeTerm = termsList.isNotEmpty ? termsList.first : null;
 
           return StudentResultModel(
@@ -503,6 +523,8 @@ class DataService {
             totalMarks: activeTerm?.totalMarks ?? ((res['total_marks'] as num?)?.toDouble() ?? defaultResult.totalMarks),
             gpa: activeTerm?.gpa ?? ((res['gpa'] as num?)?.toDouble() ?? defaultResult.gpa),
             grade: activeTerm?.grade ?? (res['grade'] ?? defaultResult.grade),
+            isWithheld: isWithheld,
+            withheldMessage: 'عذراً، النتيجة محجوبة حالياً من قبل إدارة الكنترول وشؤون الطلاب. يرجى مراجعة إدارة الكلية.',
           );
         }
       }

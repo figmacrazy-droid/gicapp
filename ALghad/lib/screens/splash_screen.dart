@@ -162,6 +162,27 @@ class _SplashScreenState extends State<SplashScreen>
     final savedSession = await AuthService.getSavedSession();
     if (!mounted) return;
 
+    if (savedSession != null) {
+      final isBlocked = await AuthService.isStudentBlocked(savedSession.academicId);
+      if (isBlocked) {
+        await AuthService.clearSession();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('عذراً، تم إيقاف هذا الحساب الأكاديمي. يرجى مراجعة شؤون الطلاب.'),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+              duration: Duration(seconds: 4),
+            ),
+          );
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (context) => const LoginScreen()),
+          );
+          return;
+        }
+      }
+    }
+
     final Widget targetScreen = savedSession != null
         ? HomeScreen(
             studentFullName: savedSession.fullName,

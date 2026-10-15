@@ -201,23 +201,10 @@ class _HomeScreenState extends State<HomeScreen>
 
   Future<void> _loadBannersFromSupabase() async {
     try {
-      final res = await Supabase.instance.client
-          .from('system_instructions')
-          .select()
-          .eq('service_key', 'ad_banners')
-          .maybeSingle();
-
       List<String> list = [];
-      if (res != null && res['steps'] != null) {
-        final decoded = jsonDecode(res['steps'] as String);
-        if (decoded is List) {
-          list = decoded
-              .map((e) => (e['image_url'] ?? '').toString())
-              .where((p) => p.isNotEmpty)
-              .toList();
-        }
-      }
-      if (list.isEmpty) {
+
+      // 1. محاولة جلب البنرات المحدثة من جدول ad_banners أولاً
+      try {
         final adRes = await Supabase.instance.client
             .from('ad_banners')
             .select()
@@ -228,7 +215,27 @@ class _HomeScreenState extends State<HomeScreen>
               .where((p) => p.isNotEmpty)
               .toList();
         }
+      } catch (_) {}
+
+      // 2. محاولة جلبها من system_instructions كبديل
+      if (list.isEmpty) {
+        final res = await Supabase.instance.client
+            .from('system_instructions')
+            .select()
+            .eq('service_key', 'ad_banners')
+            .maybeSingle();
+
+        if (res != null && res['steps'] != null) {
+          final decoded = jsonDecode(res['steps'] as String);
+          if (decoded is List) {
+            list = decoded
+                .map((e) => (e['image_url'] ?? '').toString())
+                .where((p) => p.isNotEmpty)
+                .toList();
+          }
+        }
       }
+
       if (list.isNotEmpty && mounted) {
         setState(() {
           _adImages = list;
@@ -427,11 +434,22 @@ class _HomeScreenState extends State<HomeScreen>
                 _syncController.forward(from: 0).then((_) {
                   if (mounted) _syncController.stop();
                 });
+                _loadBannersFromSupabase();
+                _loadSpecialtiesFromSupabase();
               }
               return false;
             },
-            child: SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
+            child: RefreshIndicator(
+              color: navyDark,
+              onRefresh: () async {
+                await Future.wait([
+                  _loadBannersFromSupabase(),
+                  _loadSpecialtiesFromSupabase(),
+                  _checkUnreadNotifications(),
+                ]);
+              },
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -453,9 +471,10 @@ class _HomeScreenState extends State<HomeScreen>
             ),
           ),
         ),
-      ],
-    );
-  }
+      ),
+    ],
+  );
+}
 
   // ══════════════════════════════════════
   // 1) الشريط العلوي

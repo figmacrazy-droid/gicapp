@@ -238,6 +238,8 @@ class StudentResultModel {
   final double totalMarks;
   final double gpa;
   final String grade;
+  final bool isWithheld;
+  final String? withheldMessage;
 
   const StudentResultModel({
     required this.academicId,
@@ -249,6 +251,8 @@ class StudentResultModel {
     required this.totalMarks,
     required this.gpa,
     required this.grade,
+    this.isWithheld = false,
+    this.withheldMessage,
   });
 
   factory StudentResultModel.fromJson(Map<String, dynamic> json) {

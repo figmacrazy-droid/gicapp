@@ -312,9 +312,34 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
         query = query.eq('semester', ctx['semester']!);
       }
       final res = await query.order('academic_id', ascending: true);
+      final list = List<Map<String, dynamic>>.from(res as List);
+
+      // فحص حالة حجب النتيجة لكل طالب من student_results
+      try {
+        final ids = list.map((s) => s['academic_id']?.toString().trim() ?? '').where((id) => id.isNotEmpty).toList();
+        if (ids.isNotEmpty) {
+          final resultsRes = await supabase.from('student_results').select('academic_id, subjects').filter('academic_id', 'in', ids);
+          final Map<String, bool> hiddenMap = {};
+          for (var r in resultsRes as List) {
+            final aid = r['academic_id']?.toString().trim() ?? '';
+            final subs = r['subjects'];
+            if (subs is Map && (subs['is_result_hidden'] == true || subs['is_hidden'] == true)) {
+              hiddenMap[aid] = true;
+            }
+          }
+          for (var st in list) {
+            final aid = st['academic_id']?.toString().trim() ?? '';
+            if (hiddenMap[aid] == true) {
+              st['is_result_hidden'] = true;
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('Error mapping hidden results: $e');
+      }
 
       setState(() {
-        studentsList = List<Map<String, dynamic>>.from(res as List);
+        studentsList = list;
         isLoadingStudents = false;
       });
     } catch (e) {
@@ -785,17 +810,27 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
 
   // 8. توقيف أو تنشيط حساب الطالب
   Future<void> _toggleBlockStudent(Map<String, dynamic> student, TreeNodeData groupNode) async {
+    final String acadId = (student['academic_id'] ?? '').toString().trim();
+    if (acadId.isEmpty) return;
     final bool currentBlocked = student['is_blocked'] ?? false;
     final bool newBlocked = !currentBlocked;
+
+    setState(() {
+      student['is_blocked'] = newBlocked;
+    });
+
     try {
       await supabase
           .from('students')
           .update({'is_blocked': newBlocked})
-          .eq('academic_id', student['academic_id']);
+          .eq('academic_id', acadId);
 
-      _showSnackbar(newBlocked ? 'تم توقيف حساب الطالب' : 'تم تنشيط حساب الطالب');
+      _showSnackbar(newBlocked ? 'تم إيقاف حساب الطالب ($acadId) بنجاح' : 'تم تنشيط حساب الطالب ($acadId) بنجاح');
       await _loadStudentsForGroup(groupNode.id);
     } catch (e) {
+      setState(() {
+        student['is_blocked'] = currentBlocked;
+      });
       _showSnackbar('فشلت العملية: $e', isError: true);
     }
   }
@@ -1068,44 +1103,120 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
 
   // 12. نقل الطالب / الطلاب من تخصص إلى تخصص آخر
   void _showTransferSpecialtyDialog(List<String> studentIds, TreeNodeData groupNode) {
-    // جمع التخصصات المتاحة من الشجرة
+    // جمع التخصصات والدفعات والفصول من الشجرة
     List<String> availableSpecialties = [];
-    void collectSpecialties(List<TreeNodeData> nodes) {
+    Map<String, List<String>> specialtyBatches = {};
+    Map<String, List<String>> batchSemesters = {};
+
+    void collectNodes(List<TreeNodeData> nodes) {
       for (var n in nodes) {
         if (n.nodeType == 'semester' && !n.title.contains('الدفعة') && !n.title.contains('الفصل')) {
-          availableSpecialties.add(n.title);
+          final specName = n.title.replaceFirst(RegExp(r'^[^:]+:\s*'), '').trim();
+          availableSpecialties.add(specName);
+
+          List<String> batches = [];
+          for (var b in n.children) {
+            final batchName = b.title.replaceFirst(RegExp(r'^[^:]+:\s*'), '').trim();
+            batches.add(batchName);
+
+            List<String> semesters = [];
+            for (var s in b.children) {
+              final semName = s.title.replaceFirst(RegExp(r'^[^:]+:\s*'), '').trim();
+              semesters.add(semName);
+            }
+            if (semesters.isEmpty) {
+              semesters = ['الفصل الأول', 'الفصل الثاني'];
+            }
+            batchSemesters['$specName|$batchName'] = semesters;
+          }
+          if (batches.isEmpty) {
+            batches = ['الدفعة الأولى', 'الدفعة الثانية', 'الدفعة الثالثة'];
+          }
+          specialtyBatches[specName] = batches;
         }
-        collectSpecialties(n.children);
+        collectNodes(n.children);
       }
     }
-    collectSpecialties(treeData);
+
+    collectNodes(treeData);
     availableSpecialties = availableSpecialties.toSet().toList();
     if (availableSpecialties.isEmpty) {
-      availableSpecialties = ['فني صيدلة', 'تقنية المعلومات', 'علوم مختبرات', 'تمريض عالي', 'قبالة'];
+      availableSpecialties = ['تقنية معلومات', 'فني صيدلة', 'علوم مختبرات', 'تمريض عالي', 'قبالة وتوليد'];
     }
 
     String selectedSpec = availableSpecialties.first;
+    List<String> currentBatches = specialtyBatches[selectedSpec] ?? ['الدفعة الأولى', 'الدفعة الثانية', 'الدفعة الثالثة'];
+    String selectedBatch = currentBatches.first;
+
+    List<String> currentSemesters = batchSemesters['$selectedSpec|$selectedBatch'] ?? ['الفصل الأول', 'الفصل الثاني'];
+    String selectedSemester = currentSemesters.first;
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setModalState) => AlertDialog(
-          title: Text(studentIds.length == 1 ? 'نقل الطالب إلى تخصص آخر' : 'نقل ${studentIds.length} طالب إلى تخصص آخر', textDirection: TextDirection.rtl, style: const TextStyle(fontWeight: FontWeight.bold, color: primaryNavy)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('اختر التخصص الجديد المطلوب النقل إليه:', style: TextStyle(fontSize: 14)),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                value: selectedSpec,
-                decoration: const InputDecoration(border: OutlineInputBorder()),
-                items: availableSpecialties.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-                onChanged: (val) {
-                  if (val != null) setModalState(() => selectedSpec = val);
-                },
-              ),
-            ],
+          title: Text(
+            studentIds.length == 1 ? 'نقل الطالب إلى تخصص ودفعة أخرى' : 'نقل ${studentIds.length} طالب إلى تخصص ودفعة أخرى',
+            textDirection: TextDirection.rtl,
+            style: const TextStyle(fontWeight: FontWeight.bold, color: primaryNavy),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('اختر التخصص الجديد المطلوب النقل إليه:', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<String>(
+                  value: selectedSpec,
+                  decoration: const InputDecoration(border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10)),
+                  items: availableSpecialties.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                  onChanged: (val) {
+                    if (val != null) {
+                      setModalState(() {
+                        selectedSpec = val;
+                        currentBatches = specialtyBatches[selectedSpec] ?? ['الدفعة الأولى', 'الدفعة الثانية', 'الدفعة الثالثة'];
+                        selectedBatch = currentBatches.first;
+                        currentSemesters = batchSemesters['$selectedSpec|$selectedBatch'] ?? ['الفصل الأول', 'الفصل الثاني'];
+                        selectedSemester = currentSemesters.first;
+                      });
+                    }
+                  },
+                ),
+                const SizedBox(height: 16),
+                const Text('اختر الدفعة الأكاديمية:', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<String>(
+                  value: selectedBatch,
+                  decoration: const InputDecoration(border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10)),
+                  items: currentBatches.map((b) => DropdownMenuItem(value: b, child: Text(b))).toList(),
+                  onChanged: (val) {
+                    if (val != null) {
+                      setModalState(() {
+                        selectedBatch = val;
+                        currentSemesters = batchSemesters['$selectedSpec|$selectedBatch'] ?? ['الفصل الأول', 'الفصل الثاني'];
+                        selectedSemester = currentSemesters.first;
+                      });
+                    }
+                  },
+                ),
+                const SizedBox(height: 16),
+                const Text('اختر الفصل الدراسي:', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<String>(
+                  value: selectedSemester,
+                  decoration: const InputDecoration(border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10)),
+                  items: currentSemesters.map((sem) => DropdownMenuItem(value: sem, child: Text(sem))).toList(),
+                  onChanged: (val) {
+                    if (val != null) {
+                      setModalState(() {
+                        selectedSemester = val;
+                      });
+                    }
+                  },
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
@@ -1116,9 +1227,13 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
                 setState(() => isLoadingStudents = true);
                 try {
                   for (final id in studentIds) {
-                    await supabase.from('students').update({'specialty': selectedSpec}).eq('academic_id', id);
+                    await supabase.from('students').update({
+                      'specialty': selectedSpec,
+                      'batch': selectedBatch,
+                      'semester': selectedSemester,
+                    }).eq('academic_id', id.trim());
                   }
-                  _showSnackbar('تم نقل الطلاب إلى تخصص "$selectedSpec" بنجاح');
+                  _showSnackbar('تم نقل الطلاب إلى ($selectedSpec - $selectedBatch - $selectedSemester) بنجاح');
                   await _loadStudentsForGroup(groupNode.id);
                   setState(() => selectedStudentIds.clear());
                 } catch (e) {
@@ -1249,12 +1364,33 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
 
   // 14. حجب أو إظهار النتيجة للطالب
   Future<void> _toggleHideResult(Map<String, dynamic> student) async {
-    final academicId = student['academic_id']?.toString() ?? '';
+    final academicId = student['academic_id']?.toString().trim() ?? '';
     final bool currentHidden = student['is_result_hidden'] ?? false;
     final bool newHidden = !currentHidden;
 
     try {
-      await supabase.from('students').update({'is_result_hidden': newHidden}).eq('academic_id', academicId);
+      // تحديث في جدول student_results
+      try {
+        final existing = await supabase.from('student_results').select('subjects').eq('academic_id', academicId).maybeSingle();
+        Map<String, dynamic> subs = {};
+        if (existing != null && existing['subjects'] is Map) {
+          subs = Map<String, dynamic>.from(existing['subjects'] as Map);
+        }
+        subs['is_result_hidden'] = newHidden;
+        await supabase.from('student_results').upsert({
+          'academic_id': academicId,
+          'subjects': subs,
+          'updated_at': DateTime.now().toIso8601String(),
+        }, onConflict: 'academic_id');
+      } catch (err) {
+        debugPrint('Error updating student_results hidden status: $err');
+      }
+
+      // تحديث في جدول students إن أمكن
+      try {
+        await supabase.from('students').update({'is_result_hidden': newHidden}).eq('academic_id', academicId);
+      } catch (_) {}
+
       _showSnackbar(newHidden ? 'تم حجب النتيجة عن الطالب ($academicId)' : 'تم رفع الحجب عن نتيجة الطالب ($academicId)');
       if (selectedNodeId != null) await _loadStudentsForGroup(selectedNodeId!);
     } catch (e) {
@@ -1942,16 +2078,35 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
                     setState(() => isLoadingStudents = true);
                     try {
                       for (final id in selectedStudentIds) {
-                        await supabase.from('students').update({'is_blocked': true}).eq('academic_id', id);
+                        await supabase.from('students').update({'is_blocked': true}).eq('academic_id', id.trim());
                       }
-                      _showSnackbar('تم إيقاف حسابات الطلاب المحددين');
+                      _showSnackbar('تم إيقاف حسابات الطلاب المحددين بنجاح');
                       await _loadStudentsForGroup(selectedNode.id);
                     } catch (e) {
                       _showSnackbar('فشلت العملية: $e', isError: true);
+                      setState(() => isLoadingStudents = false);
                     }
                   },
                   icon: const Icon(Icons.block, size: 18, color: Colors.red),
                   label: const Text('إيقاف المحددين', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                ),
+                const SizedBox(width: 8),
+                TextButton.icon(
+                  onPressed: () async {
+                    setState(() => isLoadingStudents = true);
+                    try {
+                      for (final id in selectedStudentIds) {
+                        await supabase.from('students').update({'is_blocked': false}).eq('academic_id', id.trim());
+                      }
+                      _showSnackbar('تم تنشيط حسابات الطلاب المحددين بنجاح');
+                      await _loadStudentsForGroup(selectedNode.id);
+                    } catch (e) {
+                      _showSnackbar('فشلت العملية: $e', isError: true);
+                      setState(() => isLoadingStudents = false);
+                    }
+                  },
+                  icon: const Icon(Icons.check_circle_outline, size: 18, color: Colors.green),
+                  label: const Text('تنشيط المحددين', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
                 ),
                 const SizedBox(width: 8),
                 IconButton(

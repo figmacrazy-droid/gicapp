@@ -115,8 +115,59 @@ class _StudentResultsScreenState extends State<StudentResultsScreen> {
                         ],
                       ),
                     )
-                  : SingleChildScrollView(
-                      padding: const EdgeInsets.all(20),
+                  : (_results?.isWithheld ?? false)
+                      ? Center(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 28),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(24),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFFFF4E5),
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: accentGold.withOpacity(0.4), width: 2),
+                                  ),
+                                  child: const Icon(Icons.lock_person_outlined, size: 64, color: Color(0xFFD32F2F)),
+                                ),
+                                const SizedBox(height: 24),
+                                const Text(
+                                  'النتيجة محجوبة',
+                                  style: TextStyle(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.bold,
+                                    color: navyDark,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  _results!.withheldMessage ?? 'عذراً، تم حجب النتيجة الخاصة بك للفصل الدراسي الحالي من قبل إدارة الكنترول وشؤون الطلاب.\nيرجى مراجعة إدارة الكلية أو الشؤون المالية لتسوية وضعك الأكاديمي والمالي.',
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    height: 1.6,
+                                    color: Color(0xFF555555),
+                                  ),
+                                ),
+                                const SizedBox(height: 28),
+                                ElevatedButton.icon(
+                                  onPressed: _loadResults,
+                                  icon: const Icon(Icons.refresh, size: 18),
+                                  label: const Text('فحص حالة النتيجة مجدداً', style: TextStyle(fontWeight: FontWeight.bold)),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: navyDark,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                      : SingleChildScrollView(
+                          padding: const EdgeInsets.all(20),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [

@@ -135,7 +135,26 @@ class _AdsViewState extends State<AdsView> {
         'title': 'قائمة البنرات الإعلانية المعتمدة',
         'steps': jsonStr,
         'updated_at': DateTime.now().toIso8601String(),
-      });
+      }, onConflict: 'service_key');
+
+      // مزامنة فورية مع جدول ad_banners
+      try {
+        await AdminSupabase.client.from('ad_banners').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        for (int i = 0; i < bannersData.length; i++) {
+          final b = bannersData[i];
+          final img = (b['image_url'] ?? '').toString();
+          if (img.isNotEmpty) {
+            await AdminSupabase.client.from('ad_banners').insert({
+              'title': b['title'] ?? 'إعلان',
+              'image_url': img,
+              'display_order': b['display_order'] ?? (i + 1),
+              'is_active': true,
+            });
+          }
+        }
+      } catch (innerE) {
+        debugPrint('ad_banners sync error: $innerE');
+      }
     } catch (e) {
       debugPrint('Error saving banners: $e');
     }
