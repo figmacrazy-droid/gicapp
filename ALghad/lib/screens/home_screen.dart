@@ -72,12 +72,11 @@ class _HomeScreenState extends State<HomeScreen>
   static const Color iconColor = Color(0xFF1A1A1A);
   static const Color textGray = Color(0xFF6B6B6B);
 
-  // 🖼️ قائمة صور الإعلانات (يتم جلبها وتحديثها سحابياً عبر الإنترنت)
+  // 🖼️ قائمة صور الإعلانات (3 بنرات فقط يتم جلبها وتحديثها سحابياً عبر الإنترنت)
   List<String> _adImages = [
     'assets/images/1.jpg',
     'assets/images/2.jpg',
     'assets/images/3.jpg',
-    'assets/images/4.jpg',
   ];
 
   // 🎓 قائمة التخصصات — 15 تخصص (يتم جلبها وتحديثها وروابطها سحابياً عبر الإنترنت)
@@ -197,49 +196,87 @@ class _HomeScreenState extends State<HomeScreen>
     _loadStudentProfile();
     _checkUnreadNotifications();
     _loadBannersFromSupabase();
+    _listenToBannersRealtime();
     _loadSpecialtiesFromSupabase();
+  }
+
+  RealtimeChannel? _bannersChannel;
+
+  void _listenToBannersRealtime() {
+    try {
+      _bannersChannel = Supabase.instance.client
+          .channel('public_banners_sync_${DateTime.now().millisecondsSinceEpoch}')
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'system_instructions',
+            callback: (payload) {
+              final rec = payload.newRecord;
+              if (rec['service_key'] == 'ad_banners') {
+                _loadBannersFromSupabase();
+              }
+            },
+          )
+          .subscribe();
+    } catch (_) {}
   }
 
   Future<void> _loadBannersFromSupabase() async {
     try {
       List<String> list = [];
 
-      // 1. محاولة جلب البنرات المحدثة من جدول ad_banners أولاً
+      // 1. محاولة جلب البنرات المحدثة من system_instructions المربوطة بلوحة التحكم
       try {
-        final adRes = await Supabase.instance.client
-            .from('ad_banners')
-            .select()
-            .order('display_order', ascending: true);
-        if (adRes is List && adRes.isNotEmpty) {
-          list = (adRes as List)
-              .map((e) => (e['image_url'] ?? '').toString())
-              .where((p) => p.isNotEmpty)
-              .toList();
-        }
-      } catch (_) {}
-
-      // 2. محاولة جلبها من system_instructions كبديل
-      if (list.isEmpty) {
         final res = await Supabase.instance.client
             .from('system_instructions')
-            .select()
+            .select('steps')
             .eq('service_key', 'ad_banners')
             .maybeSingle();
 
         if (res != null && res['steps'] != null) {
           final decoded = jsonDecode(res['steps'] as String);
-          if (decoded is List) {
+          if (decoded is List && decoded.isNotEmpty) {
             list = decoded
-                .map((e) => (e['image_url'] ?? '').toString())
+                .map((e) => (e['image_url'] ?? '').toString().trim())
                 .where((p) => p.isNotEmpty)
+                .take(3)
                 .toList();
           }
         }
+      } catch (e) {
+        debugPrint('Error reading system_instructions banners: $e');
       }
 
-      if (list.isNotEmpty && mounted) {
+      // 2. إذا لم تتوفر، محاولة القراءة من جدول ad_banners كبديل
+      if (list.isEmpty) {
+        try {
+          final adRes = await Supabase.instance.client
+              .from('ad_banners')
+              .select('image_url')
+              .order('display_order', ascending: true)
+              .limit(3);
+          if (adRes is List && adRes.isNotEmpty) {
+            list = (adRes as List)
+                .map((e) => (e['image_url'] ?? '').toString().trim())
+                .where((p) => p.isNotEmpty)
+                .take(3)
+                .toList();
+          }
+        } catch (_) {}
+      }
+
+      // 3. ضمان وجود 3 بنرات إعلانية دائماً في المساحة (يسمح بـ 3 بنرات فقط)
+      int fallbackIndex = 1;
+      while (list.length < 3) {
+        list.add('assets/images/$fallbackIndex.jpg');
+        fallbackIndex++;
+      }
+
+      final finalList = list.take(3).toList();
+
+      if (mounted) {
         setState(() {
-          _adImages = list;
+          _adImages = finalList;
         });
       }
     } catch (e) {
@@ -351,6 +388,11 @@ class _HomeScreenState extends State<HomeScreen>
   @override
   void dispose() {
     _autoPlayTimer?.cancel();
+    if (_bannersChannel != null) {
+      try {
+        Supabase.instance.client.removeChannel(_bannersChannel!);
+      } catch (_) {}
+    }
     _syncController.dispose();
     _pageController.dispose();
     super.dispose();
@@ -795,7 +837,7 @@ class _HomeScreenState extends State<HomeScreen>
                         final commaIdx = imagePath.indexOf(',');
                         final b64 = commaIdx != -1 ? imagePath.substring(commaIdx + 1) : imagePath;
                         return Image.memory(
-                          base64Decode(b64),
+                          base64Decode(b64.replaceAll(RegExp(r'\s+'), '')),
                           fit: BoxFit.fill,
                           errorBuilder: (_, __, ___) => Container(
                             color: cardCream,

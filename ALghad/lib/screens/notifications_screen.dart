@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/auth_service.dart';
+import '../services/system_notification_service.dart';
 import 'calendar_screen.dart';
 import 'finance_screen.dart';
 import 'schedules_view_screen.dart';
@@ -75,6 +76,23 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       final List list = res as List;
 
       if (list.isNotEmpty) {
+        // تحديث قاعدة بيانات Supabase فوراً بأن الطالب قد قرأ جميع الإشعارات الموجهة له
+        if (currentId != null && currentId.isNotEmpty) {
+          try {
+            await Supabase.instance.client
+                .from('notifications')
+                .update({'is_read': true})
+                .eq('academic_id', currentId)
+                .eq('is_read', false);
+          } catch (e) {
+            debugPrint('Error marking notifications as read: $e');
+          }
+        }
+
+        // إعلام خدمة إشعارات النظام بأن هذه المعرفات تم الاطلاع عليها لعدم تكرار التنبيه
+        final ids = list.map((item) => item['id']?.toString() ?? '').where((id) => id.isNotEmpty).toList();
+        SystemNotificationService.markIdsAsSeen(ids);
+
         final List<NotificationItemModel> loaded = list.map((item) {
           final String rawDate = item['created_at']?.toString() ?? '';
           String displayDate = 'الآن';
@@ -100,7 +118,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             date: displayDate,
             type: item['notification_type'] ?? 'general',
             routeName: item['route_name'],
-            isRead: item['is_read'] == true,
+            isRead: true, // نظراً لفتح شاشة الإشعارات ورؤيتها بالكامل
           );
         }).toList();
 

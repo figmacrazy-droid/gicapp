@@ -76,12 +76,12 @@ class _AdsViewState extends State<AdsView> {
   }
 
   // ══════════════════════════════════════════════════════════════
-  // 1. إدارة البنرات الإعلانية في Supabase
+  // 1. إدارة البنرات الإعلانية في Supabase (3 بنرات ثابتة قابلة للاستبدال)
   // ══════════════════════════════════════════════════════════════
   Future<void> _loadBannersFromSupabase() async {
     setState(() => isLoadingBanners = true);
     try {
-      // 1. محاولة جلب البنرات من system_instructions (خدمة ad_banners)
+      // 1. محاولة جلب البنرات من system_instructions (خدمة ad_banners المعتمدة)
       final res = await AdminSupabase.client
           .from('system_instructions')
           .select()
@@ -96,7 +96,7 @@ class _AdsViewState extends State<AdsView> {
         }
       }
 
-      // إذا كانت فارغة، جلب من ad_banners مباشرة
+      // 2. إذا كانت فارغة، جلب من جدول ad_banners مباشرة
       if (loaded.isEmpty) {
         final adBannersRes = await AdminSupabase.client
             .from('ad_banners')
@@ -112,11 +112,34 @@ class _AdsViewState extends State<AdsView> {
       // فرز حسب display_order
       loaded.sort((a, b) => ((a['display_order'] ?? 0) as int).compareTo((b['display_order'] ?? 0) as int));
 
+      // 3. ضمان وجود 3 بنرات ثابتة فقط (البنر الأول، البنر الثاني، البنر الثالث)
+      final defaultTitles = [
+        'إعلان بدء التنسيق والقبول للعام الجديد',
+        'افتتاح قسم الصيدلة السريرية المتطور',
+        'تجهيز معمل التشخيص الميكروبيولوجي',
+      ];
+      while (loaded.length < 3) {
+        final order = loaded.length + 1;
+        loaded.add({
+          'id': 'banner_$order',
+          'title': defaultTitles[order - 1],
+          'image_url': 'assets/images/$order.jpg',
+          'display_order': order,
+          'is_active': true,
+        });
+      }
+
+      // أخذ 3 بنرات فقط بدقة
+      final final3 = loaded.take(3).toList();
+      for (int i = 0; i < final3.length; i++) {
+        final3[i]['display_order'] = i + 1;
+      }
+
       if (mounted) {
         setState(() {
-          bannersData = loaded;
+          bannersData = final3;
           if (selectedBannerIndex >= bannersData.length) {
-            selectedBannerIndex = bannersData.isNotEmpty ? 0 : 0;
+            selectedBannerIndex = 0;
           }
           isLoadingBanners = false;
         });
@@ -129,31 +152,34 @@ class _AdsViewState extends State<AdsView> {
 
   Future<void> _saveBannersToSupabase() async {
     try {
-      final jsonStr = jsonEncode(bannersData);
+      final final3 = bannersData.take(3).toList();
+      for (int i = 0; i < final3.length; i++) {
+        final3[i]['display_order'] = i + 1;
+      }
+
+      final jsonStr = jsonEncode(final3);
       await AdminSupabase.client.from('system_instructions').upsert({
         'service_key': 'ad_banners',
-        'title': 'قائمة البنرات الإعلانية المعتمدة',
+        'title': 'قائمة البنرات الإعلانية المعتمدة (3 بنرات)',
         'steps': jsonStr,
         'updated_at': DateTime.now().toIso8601String(),
       }, onConflict: 'service_key');
 
-      // مزامنة فورية مع جدول ad_banners
+      // مزامنة فورية مع جدول ad_banners لكل بنر من الـ 3
       try {
-        await AdminSupabase.client.from('ad_banners').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-        for (int i = 0; i < bannersData.length; i++) {
-          final b = bannersData[i];
+        for (int i = 0; i < final3.length; i++) {
+          final b = final3[i];
           final img = (b['image_url'] ?? '').toString();
           if (img.isNotEmpty) {
-            await AdminSupabase.client.from('ad_banners').insert({
+            await AdminSupabase.client.from('ad_banners').update({
               'title': b['title'] ?? 'إعلان',
               'image_url': img,
-              'display_order': b['display_order'] ?? (i + 1),
               'is_active': true,
-            });
+            }).eq('display_order', i + 1);
           }
         }
       } catch (innerE) {
-        debugPrint('ad_banners sync error: $innerE');
+        debugPrint('ad_banners direct table sync note: $innerE');
       }
     } catch (e) {
       debugPrint('Error saving banners: $e');
@@ -647,14 +673,41 @@ class _AdsViewState extends State<AdsView> {
         ),
         const SizedBox(height: 20),
 
-        // أزرار التحكم بالبنر
-        _buildBottomControls(
-          addLabel: 'إضافة بنر',
-          onAddPressed: () => _showAddBannerDialog(context),
-          onEditPressed: bannersData.isNotEmpty ? () => _showEditBannerDialog(context, bannersData[selectedBannerIndex]) : () {},
-          onDeletePressed: bannersData.isNotEmpty ? () => _deleteBanner(selectedBannerIndex) : () {},
-          showAddButton: true,
-          showNotificationCheckbox: true,
+        // أزرار التحكم بالبنرات الـ 3 المعتمدة (استبدال / تعديل، وإعادة تعيين للافتراضي)
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                Checkbox(
+                  value: sendNotification,
+                  activeColor: primaryNavy,
+                  onChanged: (val) => setState(() => sendNotification = val ?? false),
+                ),
+                const Text(
+                  'هل تريد النشر وإيصال إشعار للطلاب ؟',
+                  style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: Colors.black87),
+                ),
+              ],
+            ),
+            Row(
+              children: [
+                _buildActionButton(
+                  'إعادة تعيين للافتراضي',
+                  Icons.restore,
+                  Colors.grey.shade700,
+                  () => _resetBannerToDefault(selectedBannerIndex),
+                ),
+                const SizedBox(width: 12),
+                _buildActionButton(
+                  'استبدال / تعديل البنر المحدد (${selectedBannerIndex + 1})',
+                  Icons.swap_horiz,
+                  accentGold,
+                  bannersData.isNotEmpty ? () => _showEditBannerDialog(context, bannersData[selectedBannerIndex]) : () {},
+                ),
+              ],
+            ),
+          ],
         ),
       ],
     );
@@ -975,58 +1028,85 @@ class _AdsViewState extends State<AdsView> {
     );
   }
 
+  Future<void> _resetBannerToDefault(int index) async {
+    if (index < 0 || index >= bannersData.length) return;
+    final defaultTitles = [
+      'إعلان بدء التنسيق والقبول للعام الجديد',
+      'افتتاح قسم الصيدلة السريرية المتطور',
+      'تجهيز معمل التشخيص الميكروبيولوجي',
+    ];
+    setState(() {
+      bannersData[index]['title'] = defaultTitles[index];
+      bannersData[index]['image_url'] = 'assets/images/${index + 1}.jpg';
+      bannersData[index]['display_order'] = index + 1;
+    });
+    await _saveBannersToSupabase();
+    _showNotification('تمت إعادة تعيين البنر (${index + 1}) للافتراضي بنجاح');
+  }
+
   void _showEditBannerDialog(BuildContext context, Map<String, dynamic> banner) {
     final titleCtrl = TextEditingController(text: banner['title']);
     String currentImageUrl = banner['image_url'] ?? '';
     String? selectedFileName;
-    final orderCtrl = TextEditingController(text: '${banner['display_order'] ?? 1}');
+    final slotNumber = (banner['display_order'] ?? (bannersData.indexOf(banner) + 1));
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDlgState) => AlertDialog(
-          title: const Text('تعديل البنر الإعلاني', style: TextStyle(color: primaryNavy, fontWeight: FontWeight.bold)),
+          title: Row(
+            children: [
+              const Icon(Icons.swap_horiz, color: accentGold),
+              const SizedBox(width: 8),
+              Text('استبدال وتعديل البنر (البنر رقم $slotNumber)', style: const TextStyle(color: primaryNavy, fontWeight: FontWeight.bold)),
+            ],
+          ),
           content: SizedBox(
-            width: 460,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: titleCtrl,
-                  decoration: const InputDecoration(labelText: 'عنوان البنر', border: OutlineInputBorder()),
-                ),
-                const SizedBox(height: 14),
-                _buildDeviceImagePicker(
-                  context: context,
-                  currentImageUrl: currentImageUrl,
-                  selectedFileName: selectedFileName,
-                  onImagePicked: (newUrl, fName) {
-                    setDlgState(() {
-                      currentImageUrl = newUrl;
-                      selectedFileName = fName;
-                    });
-                  },
-                ),
-                const SizedBox(height: 14),
-                TextField(
-                  controller: orderCtrl,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'ترتيب العرض', border: OutlineInputBorder()),
-                ),
-              ],
+            width: 480,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextField(
+                    controller: titleCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'عنوان البنر الإعلاني *',
+                      hintText: 'مثال: فتح باب التسجيل للفصل الدراسي القادم',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  _buildDeviceImagePicker(
+                    context: context,
+                    currentImageUrl: currentImageUrl,
+                    selectedFileName: selectedFileName,
+                    onImagePicked: (newUrl, fName) {
+                      setDlgState(() {
+                        currentImageUrl = newUrl;
+                        selectedFileName = fName;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  const Text(
+                    'ملاحظة: يتم حفظ البنر ومزامنته فوراً مع تطبيق الطالب في المساحة المخصصة للـ 3 بنرات.',
+                    style: TextStyle(fontSize: 11, color: Colors.grey),
+                  ),
+                ],
+              ),
             ),
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: primaryNavy),
+              style: ElevatedButton.styleFrom(backgroundColor: accentGold),
               onPressed: () async {
                 final title = titleCtrl.text.trim();
                 final img = currentImageUrl.trim();
-                final order = int.tryParse(orderCtrl.text.trim()) ?? (banner['display_order'] ?? 1);
 
                 if (title.isEmpty || img.isEmpty) {
-                  _showNotification('يرجى ملء كافة الحقول واختيار الصورة', isError: true);
+                  _showNotification('يرجى كتابة عنوان البنر واختيار صورته', isError: true);
                   return;
                 }
 
@@ -1034,14 +1114,28 @@ class _AdsViewState extends State<AdsView> {
                 setState(() {
                   banner['title'] = title;
                   banner['image_url'] = img;
-                  banner['display_order'] = order;
-                  bannersData.sort((a, b) => ((a['display_order'] ?? 0) as int).compareTo((b['display_order'] ?? 0) as int));
+                  banner['is_active'] = true;
                 });
 
                 await _saveBannersToSupabase();
-                _showNotification('تم تعديل البنر الإعلاني بنجاح');
+
+                // إرسال إشعار للطلاب إذا كان الخيار محدداً
+                if (sendNotification) {
+                  try {
+                    await AdminSupabase.client.from('notifications').insert({
+                      'academic_id': null,
+                      'title': 'إعلان جديد: $title',
+                      'body': 'تم تحديث الإعلانات في التطبيق: $title',
+                      'notification_type': 'general',
+                      'route_name': 'home',
+                      'is_read': false,
+                    });
+                  } catch (_) {}
+                }
+
+                _showNotification('تم استبدال وحفظ البنر رقم $slotNumber بنجاح ومزامنته مع التطبيق!');
               },
-              child: const Text('حفظ التعديل', style: TextStyle(color: Colors.white)),
+              child: const Text('حفظ واستبدال البنر', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             ),
           ],
         ),

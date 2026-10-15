@@ -630,16 +630,29 @@ class _NotificationsManagementViewState extends State<NotificationsManagementVie
                   final nowIso = DateTime.now().toIso8601String();
 
                   if (targetMode == 'all') {
-                    // إرسال عام
-                    await supabase.from('notifications').insert({
-                      'academic_id': null,
-                      'title': title,
-                      'body': body,
-                      'notification_type': selectedType,
-                      'route_name': selectedType,
-                      'is_read': false,
-                      'created_at': nowIso,
-                    });
+                    // إرسال عام: إدراج لكل طالب مسجل لتمكين تتبع حالة القراءة بدقة
+                    if (_studentsMap.isNotEmpty) {
+                      final inserts = _studentsMap.keys.map((acadId) => {
+                        'academic_id': acadId,
+                        'title': title,
+                        'body': body,
+                        'notification_type': selectedType,
+                        'route_name': selectedType,
+                        'is_read': false,
+                        'created_at': nowIso,
+                      }).toList();
+                      await supabase.from('notifications').insert(inserts);
+                    } else {
+                      await supabase.from('notifications').insert({
+                        'academic_id': null,
+                        'title': title,
+                        'body': body,
+                        'notification_type': selectedType,
+                        'route_name': selectedType,
+                        'is_read': false,
+                        'created_at': nowIso,
+                      });
+                    }
                   } else if (targetMode == 'specialty') {
                     // استهداف طلاب تخصص محدد
                     final targetIds = _studentsMap.entries
