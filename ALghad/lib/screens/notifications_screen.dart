@@ -62,7 +62,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     setState(() => _isLoading = true);
     try {
       final session = await AuthService.getSavedSession();
-      final String? currentId = session?.academicId;
+      final String? currentId = session?.academicId.trim();
 
       var query = Supabase.instance.client.from('notifications').select();
       if (currentId != null && currentId.isNotEmpty) {

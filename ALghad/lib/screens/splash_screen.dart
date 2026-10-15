@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import '../services/system_notification_service.dart';
 import 'home_screen.dart';
 import 'login_screen.dart';
 
@@ -181,6 +182,10 @@ class _SplashScreenState extends State<SplashScreen>
           return;
         }
       }
+    }
+
+    if (savedSession != null) {
+      SystemNotificationService.startRealtimeListener(savedSession.academicId);
     }
 
     final Widget targetScreen = savedSession != null

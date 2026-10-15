@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/auth_service.dart';
+import '../services/system_notification_service.dart';
 import 'all_specialties_screen.dart';
 import 'notifications_screen.dart';
 import 'admission_screen.dart';
@@ -310,12 +311,14 @@ class _HomeScreenState extends State<HomeScreen>
   Future<void> _loadStudentProfile() async {
     try {
       final session = await AuthService.getSavedSession();
-      if (session != null && session.fullName.isNotEmpty) {
-        if (mounted) {
+      if (session != null) {
+        if (session.fullName.isNotEmpty && mounted) {
           setState(() {
             _sessionFullName = session.fullName;
           });
         }
+        // تفعيل الاستماع والتنبيه لشريط إشعارات الهاتف للطالب
+        SystemNotificationService.startRealtimeListener(session.academicId);
       }
     } catch (_) {}
   }

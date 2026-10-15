@@ -211,8 +211,9 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
         final title = item['title'].toString();
         final nodeType = item['node_type'].toString();
 
-        final isBatch = title.contains('الدفعة');
-        final isSemester = title.contains('الفصل');
+        final titleClean = title.trim();
+        final isBatch = titleClean.contains('دفع') || nodeType == 'batch_node' || nodeType == 'group';
+        final isSemester = (titleClean.contains('فصل') || titleClean.contains('الفصل')) && !isBatch;
         final isFolder = isBatch || (!isSemester && nodeType != 'group_shift') || (childrenMap[id]?.isNotEmpty ?? false);
 
         String? addLabel;
@@ -281,13 +282,13 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
       if (node.nodeType == 'specialty') context['branch'] = clean;
       if (node.nodeType == 'batch') context['department'] = clean;
       if (node.nodeType == 'semester') context['specialty'] = clean;
-      if (node.nodeType == 'group_shift') {
-        if (clean.contains('الدفعة')) {
+      if (node.nodeType == 'group_shift' || node.nodeType == 'group' || node.nodeType == 'batch_node' || node.nodeType == 'semester_node') {
+        if (clean.contains('دفع')) {
           context['batch'] = clean;
           context['group_name'] = clean;
-        } else if (clean.contains('الفصل')) {
+        } else if (clean.contains('فصل') || clean.contains('الفصل')) {
           context['semester'] = clean;
-          final match = RegExp(r'(\d{4}/\d{4})').firstMatch(clean);
+          final match = RegExp(r'(\d{4}/\d{4}|\d{4}-\d{4})').firstMatch(clean);
           if (match != null) {
             context['academic_year'] = match.group(1)!;
           }
@@ -409,10 +410,15 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
   void _showAddChildDialog(TreeNodeData parent) {
     String childType = '';
     String labelText = '';
+    bool isAddingSemester = false;
 
-    if (parent.title.contains('الدفعة')) {
+    final pTitle = parent.title.trim();
+    final bool parentIsBatch = pTitle.contains('دفع') || parent.nodeType == 'batch_node' || parent.nodeType == 'group';
+
+    if (parentIsBatch) {
       childType = 'group_shift';
-      labelText = 'الفصل الدراسي مع السنة (مثال: الفصل الأول 2020/2019 (1))';
+      labelText = 'الفصل الدراسي مع السنة (مثال: الفصل الأول 2024/2025)';
+      isAddingSemester = true;
     } else if (parent.nodeType == 'year') {
       childType = 'specialty';
       labelText = 'اسم الفرع / المركز (مثال: GIC)';
@@ -431,43 +437,86 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
     }
 
     final nameController = TextEditingController();
+    final yearStr = '${DateTime.now().year}/${DateTime.now().year - 1}';
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('إضافة $labelText', textDirection: TextDirection.rtl, style: const TextStyle(fontWeight: FontWeight.bold, color: primaryNavy)),
-        content: TextField(
-          controller: nameController,
-          textDirection: TextDirection.rtl,
-          decoration: InputDecoration(
-            labelText: labelText,
-            border: const OutlineInputBorder(),
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setModalState) => AlertDialog(
+          title: Text(
+            isAddingSemester ? 'إضافة فصل دراسي للدفعة (${parent.title})' : 'إضافة $labelText',
+            textDirection: TextDirection.rtl,
+            style: const TextStyle(fontWeight: FontWeight.bold, color: primaryNavy),
           ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: accentGold),
-            onPressed: () async {
-              final input = nameController.text.trim();
-              if (input.isEmpty) return;
-              Navigator.pop(ctx);
+          content: SizedBox(
+            width: 480,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (isAddingSemester) ...[
+                  const Text('خيارات سريعة لاختيار الفصل الدراسي:', style: TextStyle(fontSize: 13, color: Colors.black54)),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      'الفصل الأول',
+                      'الفصل الثاني',
+                      'الفصل الثالث',
+                      'الفصل الرابع',
+                      'الفصل الخامس',
+                      'الفصل السادس',
+                    ].map((term) {
+                      return ActionChip(
+                        label: Text(term, style: const TextStyle(fontSize: 12)),
+                        backgroundColor: Colors.blue.shade50,
+                        onPressed: () {
+                          setModalState(() {
+                            nameController.text = '$term $yearStr';
+                          });
+                        },
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+                TextField(
+                  controller: nameController,
+                  textDirection: TextDirection.rtl,
+                  decoration: InputDecoration(
+                    labelText: labelText,
+                    border: const OutlineInputBorder(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: accentGold),
+              onPressed: () async {
+                final input = nameController.text.trim();
+                if (input.isEmpty) return;
+                Navigator.pop(ctx);
 
-              try {
-                await supabase.from('academic_tree').insert({
-                  'title': input,
-                  'node_type': childType,
-                  'parent_id': parent.id,
-                });
-                _showSnackbar('تمت الإضافة بنجاح');
-                await _loadTreeFromSupabase();
-              } catch (e) {
-                _showSnackbar('فشلت الإضافة: $e', isError: true);
-              }
-            },
-            child: const Text('إضافة', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-          ),
-        ],
+                try {
+                  await supabase.from('academic_tree').insert({
+                    'title': input,
+                    'node_type': childType,
+                    'parent_id': parent.id,
+                  });
+                  _showSnackbar('تمت إضافة ($input) بنجاح');
+                  await _loadTreeFromSupabase();
+                } catch (e) {
+                  _showSnackbar('فشلت الإضافة: $e', isError: true);
+                }
+              },
+              child: const Text('إضافة', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1080,12 +1129,13 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
               Navigator.pop(ctx);
               try {
                 final inserts = studentIds.map((id) => {
-                  'academic_id': id,
-                  'title': title,
+                  'academic_id': id.trim(),
+                  'title': title.isEmpty ? 'إشعار من الكلية' : title,
                   'body': msg,
                   'notification_type': 'academic',
                   'route_name': 'notifications',
                   'is_read': false,
+                  'created_at': DateTime.now().toIso8601String(),
                 }).toList();
                 await supabase.from('notifications').insert(inserts);
                 _showSnackbar('تم إرسال الإشعار بنجاح إلى ${studentIds.length} طالب');
