@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/supabase_service.dart';
+import '../services/fcm_sender_service.dart';
 
 class NotificationsManagementView extends StatefulWidget {
   final Function(String path)? onPathChanged;
@@ -653,6 +654,14 @@ class _NotificationsManagementViewState extends State<NotificationsManagementVie
                         'created_at': nowIso,
                       });
                     }
+
+                    // إرسال تنبيه فوري للهواتف حتى والتطبيق مغلق عبر Firebase
+                    FcmSenderService.sendToTopic(
+                      topic: 'all_students',
+                      title: title,
+                      body: body,
+                      routeName: selectedType,
+                    );
                   } else if (targetMode == 'specialty') {
                     // استهداف طلاب تخصص محدد
                     final targetIds = _studentsMap.entries
@@ -676,6 +685,16 @@ class _NotificationsManagementViewState extends State<NotificationsManagementVie
                     }).toList();
 
                     await supabase.from('notifications').insert(inserts);
+
+                    // إرسال تنبيه فوري لكل طالب في هذا التخصص عبر Firebase
+                    for (final acadId in targetIds) {
+                      FcmSenderService.sendToTopic(
+                        topic: 'student_$acadId',
+                        title: title,
+                        body: body,
+                        routeName: selectedType,
+                      );
+                    }
                   } else {
                     // طالب مفرد
                     if (singleAcademicId.isEmpty) {
@@ -691,6 +710,14 @@ class _NotificationsManagementViewState extends State<NotificationsManagementVie
                       'is_read': false,
                       'created_at': nowIso,
                     });
+
+                    // إرسال تنبيه فوري للطالب المحدد عبر Firebase
+                    FcmSenderService.sendToTopic(
+                      topic: 'student_$singleAcademicId',
+                      title: title,
+                      body: body,
+                      routeName: selectedType,
+                    );
                   }
 
                   _showSnackbar('تم إرسال الإشعار بنجاح وإيصاله للطلاب!');

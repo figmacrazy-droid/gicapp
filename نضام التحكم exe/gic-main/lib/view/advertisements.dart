@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:gic/services/supabase_service.dart';
+import '../services/fcm_sender_service.dart';
 
 class AdsView extends StatefulWidget {
   final Function(String path) onPathChanged;
@@ -1130,6 +1131,12 @@ class _AdsViewState extends State<AdsView> {
                       'route_name': 'home',
                       'is_read': false,
                     });
+                    FcmSenderService.sendToTopic(
+                      topic: 'all_students',
+                      title: 'إعلان جديد: $title',
+                      body: 'تم تحديث الإعلانات في التطبيق: $title',
+                      routeName: 'home',
+                    );
                   } catch (_) {}
                 }
 

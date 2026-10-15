@@ -37,6 +37,9 @@ dependencies:
   supabase_flutter: ^2.5.4
   file_picker: ^8.1.2
   excel: ^4.0.3
+  googleapis_auth: ^2.3.4
+  http: ^1.6.0
+  dart_jsonwebtoken: ^3.4.1
 
 dev_dependencies:
   flutter_test:
