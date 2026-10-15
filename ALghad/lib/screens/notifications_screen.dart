@@ -93,6 +93,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         final ids = list.map((item) => item['id']?.toString() ?? '').where((id) => id.isNotEmpty).toList();
         SystemNotificationService.markIdsAsSeen(ids);
 
+        // حذف وإخفاء الإشعارات فوراً من شريط إشعارات الهاتف عند فتح شاشة الإشعارات
+        SystemNotificationService.clearAllSystemNotifications();
+
         final List<NotificationItemModel> loaded = list.map((item) {
           final String rawDate = item['created_at']?.toString() ?? '';
           String displayDate = 'الآن';
@@ -161,7 +164,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Future<void> _handleNotificationTap(NotificationItemModel item, int index) async {
-    // 1. تحديث حالة القراءة في Supabase محلياً وقاعدة البيانات
+    // 1. تحديث حالة القراءة في Supabase محلياً وقاعدة البيانات وإخفاء الإشعار من شريط الهاتف
+    SystemNotificationService.clearAllSystemNotifications();
     if (!item.isRead) {
       setState(() {
         _notifications[index] = item.copyWith(isRead: true);

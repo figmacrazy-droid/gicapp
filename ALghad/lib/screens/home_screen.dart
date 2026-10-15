@@ -611,39 +611,55 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Widget _buildMessageIcon() {
-    return Container(
-      width: 46,
-      height: 46,
-      decoration: const BoxDecoration(
-        color: iconBg,
-        shape: BoxShape.circle,
-      ),
-      child: Center(
-        child: SizedBox(
-          width: 24,
-          height: 24,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              const Icon(
-                Icons.chat_bubble_outline_rounded,
-                color: iconColor,
-                size: 24,
-              ),
-              Positioned(
-                top: 10,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _buildTinyDot(),
-                    const SizedBox(width: 2),
-                    _buildTinyDot(),
-                    const SizedBox(width: 2),
-                    _buildTinyDot(),
-                  ],
+    return GestureDetector(
+      onTap: () async {
+        const String phone = '967776166321';
+        final Uri whatsappUrl = Uri.parse('whatsapp://send?phone=$phone');
+        final Uri webUrl = Uri.parse('https://wa.me/$phone');
+        try {
+          if (await canLaunchUrl(whatsappUrl)) {
+            await launchUrl(whatsappUrl);
+          } else {
+            await launchUrl(webUrl, mode: LaunchMode.externalApplication);
+          }
+        } catch (_) {
+          await launchUrl(webUrl, mode: LaunchMode.externalApplication);
+        }
+      },
+      child: Container(
+        width: 46,
+        height: 46,
+        decoration: const BoxDecoration(
+          color: iconBg,
+          shape: BoxShape.circle,
+        ),
+        child: Center(
+          child: SizedBox(
+            width: 24,
+            height: 24,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                const Icon(
+                  Icons.chat_bubble_outline_rounded,
+                  color: iconColor,
+                  size: 24,
                 ),
-              ),
-            ],
+                Positioned(
+                  top: 10,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildTinyDot(),
+                      const SizedBox(width: 2),
+                      _buildTinyDot(),
+                      const SizedBox(width: 2),
+                      _buildTinyDot(),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

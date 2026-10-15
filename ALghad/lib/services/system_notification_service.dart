@@ -348,8 +348,30 @@ class SystemNotificationService {
     }
   }
 
+  /// حذف جميع الإشعارات من شريط إشعارات الهاتف العلوي (عند قراءتها في التطبيق)
+  static Future<void> clearAllSystemNotifications() async {
+    if (kIsWeb) return;
+    try {
+      await _notificationsPlugin.cancelAll();
+      debugPrint('Cleared all notifications from system tray');
+    } catch (e) {
+      debugPrint('Error clearing system notifications: $e');
+    }
+  }
+
+  /// حذف إشعار محدد من شريط إشعارات الهاتف
+  static Future<void> cancelNotification(int id) async {
+    if (kIsWeb) return;
+    try {
+      await _notificationsPlugin.cancel(id);
+    } catch (e) {
+      debugPrint('Error canceling system notification: $e');
+    }
+  }
+
   /// التوجيه التلقائي لشاشة الإشعارات عند النقر على إشعار الهاتف
   static void _handleNotificationClick(String? payload) {
+    clearAllSystemNotifications();
     if (_navKey?.currentState != null) {
       _navKey!.currentState!.push(
         MaterialPageRoute(builder: (context) => const NotificationsScreen()),
