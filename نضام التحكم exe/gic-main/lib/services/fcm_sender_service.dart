@@ -83,6 +83,8 @@ class FcmSenderService {
             'body': body,
           },
           'data': {
+            'title': title,
+            'body': body,
             'route': routeName ?? 'notifications',
             'click_action': 'FLUTTER_NOTIFICATION_CLICK',
           },
