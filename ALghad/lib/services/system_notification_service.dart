@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -76,6 +77,43 @@ class SystemNotificationService {
                 AndroidFlutterLocalNotificationsPlugin>()
             ?.requestNotificationsPermission();
 
+        // إعداد واستقبال إشعارات Firebase Cloud Messaging السحابية
+        try {
+          final fcm = FirebaseMessaging.instance;
+          await fcm.requestPermission(
+            alert: true,
+            badge: true,
+            sound: true,
+          );
+
+          // الاشتراك التلقائي في قناة الإشعارات العامة لجميع الطلاب
+          await fcm.subscribeToTopic('all_students');
+
+          // الاستماع للإشعارات الواردة والتطبيق في الواجهة الأمامية (Foreground)
+          FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+            final notif = message.notification;
+            if (notif != null) {
+              showSystemNotification(
+                title: notif.title ?? 'إشعار جديد من الكلية',
+                body: notif.body ?? '',
+                payload: 'notifications',
+              );
+            }
+          });
+
+          // التوجيه لشاشة الإشعارات عند النقر على إشعار وارد والتطبيق في الخلفية
+          FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+            _handleNotificationClick('notifications');
+          });
+
+          final token = await fcm.getToken();
+          if (token != null && token.isNotEmpty) {
+            debugPrint('FCM Device Token: $token');
+          }
+        } catch (fcmError) {
+          debugPrint('FCM setup note: $fcmError');
+        }
+
         _isInitialized = true;
       } catch (e) {
         debugPrint('Error initializing local notifications: $e');
@@ -130,6 +168,12 @@ class SystemNotificationService {
       } catch (_) {}
     }
     _activeAcademicId = studentId;
+
+    if (studentId != null && studentId.isNotEmpty && !kIsWeb) {
+      try {
+        FirebaseMessaging.instance.subscribeToTopic('student_$studentId');
+      } catch (_) {}
+    }
 
     await _loadDeliveredIdsFromPrefs();
 
@@ -315,6 +359,11 @@ class SystemNotificationService {
 
   /// إيقاف الاستماع عند تسجيل الخروج
   static void stopRealtimeListener() {
+    if (_activeAcademicId != null && _activeAcademicId!.isNotEmpty && !kIsWeb) {
+      try {
+        FirebaseMessaging.instance.unsubscribeFromTopic('student_$_activeAcademicId');
+      } catch (_) {}
+    }
     _pollTimer?.cancel();
     _pollTimer = null;
     if (_realtimeChannel != null) {

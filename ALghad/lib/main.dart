@@ -1,5 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'screens/splash_screen.dart';
 import 'services/auth_service.dart';
@@ -7,15 +10,32 @@ import 'services/system_notification_service.dart';
 
 final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
 
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  try {
+    await Firebase.initializeApp();
+  } catch (_) {}
+}
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // تهيئة Firebase للإشعارات السحابية في الخلفية والتطبيق مغلق
+  if (!kIsWeb) {
+    try {
+      await Firebase.initializeApp();
+      FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+    } catch (e) {
+      debugPrint('Firebase initialization error: $e');
+    }
+  }
 
   await Supabase.initialize(
     url: 'https://mpcyblhdfecveamaessd.supabase.co',
     anonKey: 'sb_publishable__JN9KI2E5PMF680CUF-ydQ_DijaqBYH',
   );
 
-  // تهيئة خدمة إشعارات شريط الهاتف
+  // تهيئة خدمة إشعارات شريط الهاتف و Firebase Cloud Messaging
   await SystemNotificationService.init(appNavigatorKey);
 
   // بدء الاستماع للإشعارات الواردة للطالب
