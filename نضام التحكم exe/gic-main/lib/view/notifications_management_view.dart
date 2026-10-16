@@ -325,9 +325,31 @@ class _NotificationsManagementViewState extends State<NotificationsManagementVie
       await supabase.from('notifications').update({
         'title': newTitle,
         'body': newBody,
+        'is_read': false,
       }).inFilter('id', notifIds);
 
-      _showSnackbar('تم تعديل الإشعار وتحديثه لدى جميع الطلاب بنجاح');
+      // إرسال تنبيه سحابي فوري ومحدث عبر Firebase حتى والتطبيق مغلق
+      if (campaign.isBroadcast || campaign.targets.length > 20) {
+        FcmSenderService.sendToTopic(
+          topic: 'all_students',
+          title: newTitle,
+          body: newBody,
+          routeName: campaign.type,
+        );
+      } else {
+        for (final t in campaign.targets) {
+          if (t.academicId.isNotEmpty) {
+            FcmSenderService.sendToTopic(
+              topic: 'student_${t.academicId}',
+              title: newTitle,
+              body: newBody,
+              routeName: campaign.type,
+            );
+          }
+        }
+      }
+
+      _showSnackbar('تم تعديل الإشعار في قاعدة البيانات وإعادة إرساله للطلاب بنجاح');
       _loadAllData();
     } catch (e) {
       _showSnackbar('فشل تعديل الإشعار: $e', isError: true);
@@ -437,12 +459,27 @@ class _NotificationsManagementViewState extends State<NotificationsManagementVie
           .toList();
 
       final notifIds = selectedTargets.map((t) => t.id).toList();
+      final newTitle = titleCtrl.text.trim();
+      final newBody = bodyCtrl.text.trim();
       await supabase.from('notifications').update({
-        'title': titleCtrl.text.trim(),
-        'body': bodyCtrl.text.trim(),
+        'title': newTitle,
+        'body': newBody,
+        'is_read': false,
       }).inFilter('id', notifIds);
 
-      _showSnackbar('تم تعديل الإشعار بنجاح للطلاب المحددين ($count طالب)');
+      // إرسال تنبيه سحابي فوري ومحدث لكل طالب محدد عبر Firebase حتى والتطبيق مغلق
+      for (final t in selectedTargets) {
+        if (t.academicId.isNotEmpty) {
+          FcmSenderService.sendToTopic(
+            topic: 'student_${t.academicId}',
+            title: newTitle,
+            body: newBody,
+            routeName: _selectedCampaign?.type,
+          );
+        }
+      }
+
+      _showSnackbar('تم تعديل الإشعار في قاعدة البيانات وإعادة إرساله للطلاب المحددين ($count طالب)');
       setState(() => _selectedStudentTargetIds.clear());
       _loadAllData();
     } catch (e) {
