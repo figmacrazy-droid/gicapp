@@ -457,6 +457,7 @@ class DataService {
             termsList = rawTerms.map((t) => TermResultModel.fromJson(Map<String, dynamic>.from(t as Map))).toList();
           }
 
+          final studentsData = res['students'] as Map<String, dynamic>?;
           final sName = studentsData?['full_name'] ?? res['student_name'] ?? 'طالب';
           final sSpec = studentsData?['specialty'] ?? res['specialty'] ?? '';
           final sBatch = studentsData?['batch'] ?? res['batch'] ?? '';
@@ -489,8 +490,14 @@ class DataService {
             }
           } catch (_) {}
 
-          if (!isWithheld && rawSubs is Map && rawSubs['is_result_hidden'] == true) {
-            isWithheld = true;
+          String customMessage = 'عذراً، النتيجة محجوبة حالياً من قبل إدارة الكنترول وشؤون الطلاب. يرجى مراجعة إدارة الكلية.';
+          if (rawSubs is Map) {
+            if (rawSubs['is_result_hidden'] == true) {
+              isWithheld = true;
+            }
+            if (rawSubs['withheld_message'] != null && rawSubs['withheld_message'].toString().trim().isNotEmpty) {
+              customMessage = rawSubs['withheld_message'].toString().trim();
+            }
           }
 
           final activeTerm = termsList.isNotEmpty ? termsList.first : null;
@@ -506,7 +513,7 @@ class DataService {
             gpa: activeTerm?.gpa ?? ((res['gpa'] as num?)?.toDouble() ?? 0.0),
             grade: activeTerm?.grade ?? (res['grade'] ?? 'ناجح'),
             isWithheld: isWithheld,
-            withheldMessage: 'عذراً، النتيجة محجوبة حالياً من قبل إدارة الكنترول وشؤون الطلاب. يرجى مراجعة إدارة الكلية.',
+            withheldMessage: customMessage,
           );
         }
       }

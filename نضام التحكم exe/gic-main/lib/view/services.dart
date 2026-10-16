@@ -1105,6 +1105,13 @@ class _ServicesViewState extends State<ServicesView> {
             }
           }
 
+          final studentsRes = await AdminSupabase.client.from('students').select('academic_id, full_name, specialty, batch');
+          final Map<String, Map<String, dynamic>> existingStudentsMap = {
+            for (var s in studentsRes) s['academic_id'].toString().trim(): s
+          };
+
+          final List<Map<String, dynamic>> parsedCandidates = [];
+
           for (int r = headerRowIndex + 1; r < table.rows.length; r++) {
             final row = table.rows[r];
             final String acadId = idCol != -1 && idCol < row.length ? _cellToString(row[idCol]?.value) : (row.isNotEmpty ? _cellToString(row[0]?.value) : '');
@@ -1123,86 +1130,37 @@ class _ServicesViewState extends State<ServicesView> {
               }
             });
 
-            // الحفاظ التام على بيانات الطالب وتخصصه ورفعته كما هي في الشجرة الأكاديمية دون تغيير
-            try {
-              final existingStudent = await AdminSupabase.client
-                  .from('students')
-                  .select('academic_id')
-                  .eq('academic_id', acadId)
-                  .maybeSingle();
-              if (existingStudent == null) {
-                await AdminSupabase.client.from('students').insert({
-                  'academic_id': acadId,
-                  'full_name': studentName.isNotEmpty ? studentName : 'طالب أكاديمي',
-                  'password': 'password123',
-                  'email': 'student_$acadId@alghad.edu.ye',
-                });
-              }
-            } catch (_) {}
+            final bool isInTree = existingStudentsMap.containsKey(acadId);
+            final treeStudent = existingStudentsMap[acadId];
+            final String finalName = (treeStudent?['full_name'] != null && treeStudent!['full_name'].toString().trim().isNotEmpty)
+                ? treeStudent['full_name'].toString().trim()
+                : (studentName.isNotEmpty ? studentName : 'طالب أكاديمي');
+            final String spec = treeStudent?['specialty']?.toString() ?? '-';
+            final String batch = treeStudent?['batch']?.toString() ?? '-';
 
-            List<Map<String, dynamic>> existingTerms = [];
-            try {
-              final prev = await AdminSupabase.client
-                  .from('student_results')
-                  .select('subjects')
-                  .eq('academic_id', acadId)
-                  .maybeSingle();
-              if (prev != null && prev['subjects'] is Map) {
-                final prevSubs = prev['subjects'] as Map<String, dynamic>;
-                if (prevSubs['terms'] is List) {
-                  existingTerms = List<Map<String, dynamic>>.from(prevSubs['terms']);
-                }
-              }
-            } catch (_) {}
-
-            existingTerms.removeWhere((t) => t['term_name'] == detectedTermName);
-            existingTerms.insert(0, {
-              'term_name': detectedTermName,
-              'academic_year': DateTime.now().year.toString(),
-              'subjects': studentSubjects,
+            parsedCandidates.add({
+              'academic_id': acadId,
+              'student_name': finalName,
+              'specialty': spec,
+              'batch': batch,
               'total_marks': total,
               'gpa': gpa,
               'grade': grade.isNotEmpty ? grade : 'ناجح',
+              'subjects': studentSubjects,
+              'is_in_tree': isInTree,
+              'is_withheld': false,
+              'withheld_message': 'يرجى مراجعة إدارة الكلية والشؤون المالية لتسوية وضعك الأكاديمي والمالي',
             });
-
-            try {
-              await AdminSupabase.client.from('student_results').upsert({
-                'academic_id': acadId,
-                'subjects': {
-                  'terms': existingTerms,
-                  ...studentSubjects,
-                },
-                'total_marks': total,
-                'gpa': gpa,
-                'grade': grade.isNotEmpty ? grade : 'ناجح',
-                'updated_at': DateTime.now().toIso8601String(),
-              }, onConflict: 'academic_id');
-              count++;
-            } catch (err) {
-              debugPrint('Error inserting student_results for $acadId: $err');
-            }
-
-            try {
-              await AdminSupabase.client.from('notifications').insert({
-                'academic_id': acadId,
-                'title': 'إعلان نتيجتك الأكاديمية: $grade 🎓',
-                'body': 'عزيزي الطالب${studentName.isNotEmpty ? " $studentName" : ""}، تم اعتماد نتيجتك بمعدل $gpa% ومجموع $total. يمكنك مراجعة كشف درجات المواد الآن.',
-                'notification_type': 'result',
-                'route_name': 'results',
-                'is_read': false,
-              });
-
-              FcmSenderService.sendToTopic(
-                topic: 'student_$acadId',
-                title: 'إعلان نتيجتك الأكاديمية: $grade 🎓',
-                body: 'عزيزي الطالب${studentName.isNotEmpty ? " $studentName" : ""}، تم اعتماد نتيجتك بمعدل $gpa% ومجموع $total. يمكنك مراجعة كشف درجات المواد الآن.',
-                routeName: 'results',
-              );
-            } catch (_) {}
           }
+
+          if (parsedCandidates.isEmpty) {
+            _showNotification('لم يتم العثور على أي صفوف طلاب صالحة في الملف', isError: true);
+            return;
+          }
+
+          // فتح شاشة المعاينة التفاعلية للاعتماد والتعديل والحجب
+          await _showResultsImportPreviewDialog(detectedTermName, parsedCandidates);
         }
-        _showNotification('تم استيراد نتائج ($count) طالب بنجاح وحفظها في قاعدة البيانات!');
-        _loadResultsControlData();
       } else if (selectedSubService == 'أوائل الطلاب') {
         for (int i = 1; i < table.rows.length; i++) {
           final row = table.rows[i];
@@ -2258,6 +2216,692 @@ class _ServicesViewState extends State<ServicesView> {
     }
   }
 
+  // شارة إحصائية لعرض العدادات
+  Widget _buildStatBadge(String title, String value, MaterialColor color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.shade50,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.shade200),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('$title: ', style: TextStyle(fontSize: 12, color: color.shade900)),
+          Text(value, style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: color.shade900)),
+        ],
+      ),
+    );
+  }
+
+  // تعديل درجات مرشح في المعاينة قبل الاعتماد
+  Future<void> _editCandidateInline(BuildContext parentCtx, Map<String, dynamic> candidate, VoidCallback onSave) async {
+    final totalCtrl = TextEditingController(text: '${candidate['total_marks'] ?? 0}');
+    final gpaCtrl = TextEditingController(text: '${candidate['gpa'] ?? 0}');
+    String grade = candidate['grade']?.toString() ?? 'ناجح';
+    final List<String> gradeOptions = ['ممتاز', 'جيد جداً', 'جيد', 'مقبول', 'راسب'];
+    if (!gradeOptions.contains(grade)) gradeOptions.add(grade);
+
+    final subjects = Map<String, dynamic>.from(candidate['subjects'] ?? {});
+    final Map<String, TextEditingController> subCtrls = {
+      for (var k in subjects.keys) k: TextEditingController(text: '${subjects[k]}')
+    };
+
+    final ok = await showDialog<bool>(
+      context: parentCtx,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setS) => AlertDialog(
+          title: Text('تعديل درجات الطالب: ${candidate['student_name']} (${candidate['academic_id']})',
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: primaryNavy)),
+          content: SizedBox(
+            width: 420,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: totalCtrl,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(labelText: 'المجموع الكلي', border: OutlineInputBorder()),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextField(
+                          controller: gpaCtrl,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(labelText: 'المعدل %', border: OutlineInputBorder()),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    value: grade,
+                    items: gradeOptions.map((g) => DropdownMenuItem(value: g, child: Text(g))).toList(),
+                    onChanged: (v) {
+                      if (v != null) setS(() => grade = v);
+                    },
+                    decoration: const InputDecoration(labelText: 'التقدير العام', border: OutlineInputBorder()),
+                  ),
+                  if (subCtrls.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    const Align(alignment: Alignment.centerRight, child: Text('درجات المواد الفردية:', style: TextStyle(fontWeight: FontWeight.bold))),
+                    const SizedBox(height: 8),
+                    ...subCtrls.entries.map((e) => Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Row(
+                            children: [
+                              Expanded(child: Text(e.key, style: const TextStyle(fontSize: 12))),
+                              const SizedBox(width: 8),
+                              SizedBox(
+                                width: 90,
+                                child: TextField(
+                                  controller: e.value,
+                                  keyboardType: TextInputType.number,
+                                  decoration: const InputDecoration(isDense: true, border: OutlineInputBorder()),
+                                ),
+                              ),
+                            ],
+                          ),
+                        )),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: primaryNavy),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('حفظ التعديل في المعاينة', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (ok == true) {
+      candidate['total_marks'] = double.tryParse(totalCtrl.text.trim()) ?? 0.0;
+      candidate['gpa'] = double.tryParse(gpaCtrl.text.trim()) ?? 0.0;
+      candidate['grade'] = grade;
+      final Map<String, double> updatedSubs = {};
+      subCtrls.forEach((k, v) {
+        updatedSubs[k] = double.tryParse(v.text.trim()) ?? 0.0;
+      });
+      candidate['subjects'] = updatedSubs;
+      onSave();
+    }
+  }
+
+  // شاشة معاينة ملف النتائج قبل الاعتماد والحفظ
+  Future<void> _showResultsImportPreviewDialog(String termName, List<Map<String, dynamic>> candidates) async {
+    final searchCtrl = TextEditingController();
+
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (dialogCtx, setDlgState) {
+          final query = searchCtrl.text.trim().toLowerCase();
+          final filtered = candidates.where((c) {
+            if (query.isEmpty) return true;
+            final id = (c['academic_id'] ?? '').toString().toLowerCase();
+            final name = (c['student_name'] ?? '').toString().toLowerCase();
+            return id.contains(query) || name.contains(query);
+          }).toList();
+
+          final int totalCount = candidates.length;
+          final int inTreeCount = candidates.where((c) => c['is_in_tree'] == true).length;
+          final int notInTreeCount = candidates.where((c) => c['is_in_tree'] == false).length;
+          final int withheldCount = candidates.where((c) => c['is_withheld'] == true).length;
+
+          return AlertDialog(
+            titlePadding: const EdgeInsets.fromLTRB(24, 20, 24, 12),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+            title: Row(
+              children: [
+                const Icon(Icons.preview_outlined, color: primaryNavy, size: 28),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('معاينة واعتماد كشف درجات الطلاب: $termName',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: primaryNavy)),
+                      const SizedBox(height: 4),
+                      const Text('راجع درجات الطلاب، وحدد حجب النتائج مع كتابة الرسائل المخصصة قبل الاعتماد النهائي وحفظها في قاعدة البيانات.',
+                          style: TextStyle(fontSize: 12, color: Colors.black54)),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.pop(dialogCtx),
+                ),
+              ],
+            ),
+            content: SizedBox(
+              width: 1100,
+              height: 600,
+              child: Column(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.grey.shade200),
+                    ),
+                    child: Row(
+                      children: [
+                        _buildStatBadge('إجمالي الطلاب في الملف', '$totalCount', Colors.blue),
+                        const SizedBox(width: 10),
+                        _buildStatBadge('مسجلين بالشجرة الأكاديمية', '$inTreeCount', Colors.green),
+                        const SizedBox(width: 10),
+                        _buildStatBadge('غير مسجلين بالشجرة', '$notInTreeCount', notInTreeCount > 0 ? Colors.red : Colors.grey),
+                        const SizedBox(width: 10),
+                        _buildStatBadge('نتائج محجوبة برسالة', '$withheldCount', withheldCount > 0 ? Colors.orange : Colors.grey),
+                      ],
+                    ),
+                  ),
+
+                  if (notInTreeCount > 0) ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.red.shade300),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.warning_amber_rounded, color: Colors.red.shade800, size: 22),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              '⚠️ تنبيه: يوجد ($notInTreeCount) طالب في الملف غير مسجلين في الشجرة الأكاديمية (موضحين بالخط الأحمر أدناه). يجب إضافتهم في الشجرة الأكاديمية حتى ترتبط نتائجهم بتخصصاتهم ومستوياتهم بدقة.',
+                              style: TextStyle(color: Colors.red.shade900, fontSize: 12.5, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: searchCtrl,
+                          onChanged: (_) => setDlgState(() {}),
+                          decoration: InputDecoration(
+                            isDense: true,
+                            prefixIcon: const Icon(Icons.search, size: 20),
+                            hintText: 'البحث في المعاينة برقم القيد أو اسم الطالب...',
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  Expanded(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey.shade300),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.vertical,
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: DataTable(
+                            headingRowColor: MaterialStateProperty.all(Colors.grey.shade100),
+                            headingTextStyle: const TextStyle(fontWeight: FontWeight.bold, color: primaryNavy, fontSize: 12),
+                            dataRowHeight: 65,
+                            columns: const [
+                              DataColumn(label: Text('#')),
+                              DataColumn(label: Text('الرقم الأكاديمي')),
+                              DataColumn(label: Text('اسم الطالب')),
+                              DataColumn(label: Text('المجموع')),
+                              DataColumn(label: Text('المعدل %')),
+                              DataColumn(label: Text('التقدير')),
+                              DataColumn(label: Text('حجب النتيجة')),
+                              DataColumn(label: Text('رسالة الحجب المخصصة (تصل للطالب)')),
+                              DataColumn(label: Text('الحالة في الشجرة الأكاديمية')),
+                              DataColumn(label: Text('تعديل')),
+                            ],
+                            rows: filtered.asMap().entries.map((entry) {
+                              final idx = entry.key + 1;
+                              final c = entry.value;
+                              final bool isInTree = c['is_in_tree'] == true;
+                              final bool isWithheld = c['is_withheld'] == true;
+
+                              return DataRow(
+                                color: MaterialStateProperty.resolveWith<Color?>((states) {
+                                  if (!isInTree) return Colors.red.shade50.withOpacity(0.5);
+                                  if (isWithheld) return Colors.orange.shade50.withOpacity(0.3);
+                                  return null;
+                                }),
+                                cells: [
+                                  DataCell(Text('$idx', style: TextStyle(color: isInTree ? Colors.black54 : Colors.red, fontWeight: FontWeight.bold))),
+                                  DataCell(
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          c['academic_id'] ?? '',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: isInTree ? primaryNavy : Colors.red.shade800,
+                                            decoration: isInTree ? null : TextDecoration.underline,
+                                            decorationColor: Colors.red,
+                                            decorationThickness: 2,
+                                          ),
+                                        ),
+                                        if (!isInTree) ...[
+                                          const SizedBox(width: 4),
+                                          const Icon(Icons.warning, size: 14, color: Colors.red),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
+                                  DataCell(
+                                    Text(
+                                      c['student_name'] ?? '',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        color: isInTree ? Colors.black87 : Colors.red.shade900,
+                                      ),
+                                    ),
+                                  ),
+                                  DataCell(Text('${c['total_marks']}')),
+                                  DataCell(Text('${c['gpa']}%', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blueAccent))),
+                                  DataCell(Text('${c['grade']}')),
+                                  DataCell(
+                                    Switch(
+                                      value: isWithheld,
+                                      activeColor: Colors.orange.shade800,
+                                      onChanged: (val) {
+                                        setDlgState(() {
+                                          c['is_withheld'] = val;
+                                        });
+                                      },
+                                    ),
+                                  ),
+                                  DataCell(
+                                    SizedBox(
+                                      width: 250,
+                                      child: TextField(
+                                        enabled: isWithheld,
+                                        controller: TextEditingController(text: c['withheld_message'] ?? '')
+                                          ..selection = TextSelection.collapsed(offset: (c['withheld_message'] ?? '').toString().length),
+                                        onChanged: (newVal) {
+                                          c['withheld_message'] = newVal;
+                                        },
+                                        decoration: InputDecoration(
+                                          isDense: true,
+                                          contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                          hintText: isWithheld ? 'اكتب رسالة الحجب (مثل: مراجعة المالية)' : 'متاحة (غير محجوبة)',
+                                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
+                                        ),
+                                        style: const TextStyle(fontSize: 12),
+                                      ),
+                                    ),
+                                  ),
+                                  DataCell(
+                                    isInTree
+                                        ? Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                            decoration: BoxDecoration(color: Colors.green.shade50, borderRadius: BorderRadius.circular(6), border: Border.all(color: Colors.green.shade300)),
+                                            child: const Text('مسجل بالشجرة ✅', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 11)),
+                                          )
+                                        : Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                            decoration: BoxDecoration(color: Colors.red.shade100, borderRadius: BorderRadius.circular(6), border: Border.all(color: Colors.red.shade600, width: 1.5)),
+                                            child: const Text('⚠️ غير موجود بالشجرة', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 11)),
+                                          ),
+                                  ),
+                                  DataCell(
+                                    IconButton(
+                                      icon: const Icon(Icons.edit, size: 18, color: Colors.blue),
+                                      tooltip: 'تعديل درجات هذا الطالب',
+                                      onPressed: () => _editCandidateInline(dialogCtx, c, () => setDlgState(() {})),
+                                    ),
+                                  ),
+                                ],
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogCtx),
+                child: const Text('إلغاء التراجع', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+              ),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green.shade800,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                ),
+                icon: const Icon(Icons.check_circle_outline, color: Colors.white, size: 20),
+                label: Text(
+                  'تأكيد واعتماد وحفظ ($totalCount) نتيجة وبث الإشعارات',
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                ),
+                onPressed: () async {
+                  Navigator.pop(dialogCtx);
+                  await _commitResultsImport(termName, candidates);
+                },
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  // حفظ النتائج المعتمدة وبث الإشعارات المخصصة (درجات أو رسالة حجب)
+  Future<void> _commitResultsImport(String detectedTermName, List<Map<String, dynamic>> candidates) async {
+    setState(() => _isLoadingResultsControl = true);
+    int savedCount = 0;
+    int withheldCount = 0;
+
+    try {
+      for (final candidate in candidates) {
+        final acadId = candidate['academic_id']?.toString() ?? '';
+        if (acadId.isEmpty) continue;
+
+        final studentName = candidate['student_name']?.toString() ?? '';
+        final double total = (candidate['total_marks'] as num?)?.toDouble() ?? 0.0;
+        final double gpa = (candidate['gpa'] as num?)?.toDouble() ?? 0.0;
+        final String grade = candidate['grade']?.toString() ?? 'ناجح';
+        final bool isWithheld = candidate['is_withheld'] == true;
+        final String withheldMsg = (candidate['withheld_message']?.toString().trim().isNotEmpty ?? false)
+            ? candidate['withheld_message'].toString().trim()
+            : 'يرجى مراجعة إدارة الكلية والشؤون المالية لتسوية وضعك الأكاديمي والمالي';
+        final Map<String, dynamic> studentSubjects = Map<String, dynamic>.from(candidate['subjects'] ?? {});
+
+        List<Map<String, dynamic>> existingTerms = [];
+        try {
+          final prev = await AdminSupabase.client
+              .from('student_results')
+              .select('subjects')
+              .eq('academic_id', acadId)
+              .maybeSingle();
+          if (prev != null && prev['subjects'] is Map) {
+            final prevSubs = prev['subjects'] as Map<String, dynamic>;
+            if (prevSubs['terms'] is List) {
+              existingTerms = List<Map<String, dynamic>>.from(prevSubs['terms']);
+            }
+          }
+        } catch (_) {}
+
+        existingTerms.removeWhere((t) => t['term_name'] == detectedTermName);
+        existingTerms.insert(0, {
+          'term_name': detectedTermName,
+          'academic_year': DateTime.now().year.toString(),
+          'subjects': studentSubjects,
+          'total_marks': total,
+          'gpa': gpa,
+          'grade': grade,
+        });
+
+        final Map<String, dynamic> finalSubjects = {
+          'terms': existingTerms,
+          'is_result_hidden': isWithheld,
+          if (isWithheld) 'withheld_message': withheldMsg,
+          ...studentSubjects,
+        };
+
+        try {
+          await AdminSupabase.client.from('student_results').upsert({
+            'academic_id': acadId,
+            'subjects': finalSubjects,
+            'total_marks': total,
+            'gpa': gpa,
+            'grade': grade,
+            'updated_at': DateTime.now().toIso8601String(),
+          }, onConflict: 'academic_id');
+          savedCount++;
+          if (isWithheld) withheldCount++;
+        } catch (err) {
+          debugPrint('Error inserting student_results for $acadId: $err');
+        }
+
+        // إرسال الإشعار المناسب لكل طالب
+        try {
+          if (isWithheld) {
+            await AdminSupabase.client.from('notifications').insert({
+              'academic_id': acadId,
+              'title': 'تنبيه بشأن النتيجة الأكاديمية 🔒',
+              'body': withheldMsg,
+              'notification_type': 'result',
+              'route_name': 'results',
+              'is_read': false,
+            });
+
+            FcmSenderService.sendToTopic(
+              topic: 'student_$acadId',
+              title: 'تنبيه بشأن النتيجة الأكاديمية 🔒',
+              body: withheldMsg,
+              routeName: 'results',
+            );
+          } else {
+            await AdminSupabase.client.from('notifications').insert({
+              'academic_id': acadId,
+              'title': 'إعلان نتيجتك الأكاديمية: $grade 🎓',
+              'body': 'عزيزي الطالب${studentName.isNotEmpty ? " $studentName" : ""}، تم اعتماد نتيجتك بمعدل $gpa% ومجموع $total. يمكنك مراجعة كشف درجات المواد الآن.',
+              'notification_type': 'result',
+              'route_name': 'results',
+              'is_read': false,
+            });
+
+            FcmSenderService.sendToTopic(
+              topic: 'student_$acadId',
+              title: 'إعلان نتيجتك الأكاديمية: $grade 🎓',
+              body: 'عزيزي الطالب${studentName.isNotEmpty ? " $studentName" : ""}، تم اعتماد نتيجتك بمعدل $gpa% ومجموع $total. يمكنك مراجعة كشف درجات المواد الآن.',
+              routeName: 'results',
+            );
+          }
+        } catch (_) {}
+      }
+
+      // إشعار عام للجميع
+      try {
+        await AdminSupabase.client.from('notifications').insert({
+          'title': 'إعلان كشوف النتائج الأكاديمية 🎓',
+          'body': 'تم اعتماد وإعلان نتائج الطلاب للفصل الدراسي: $detectedTermName. تفضل بالاطلاع على نتيجتك الآن.',
+          'notification_type': 'result',
+          'route_name': 'results',
+          'is_read': false,
+        });
+
+        FcmSenderService.sendToTopic(
+          topic: 'all_students',
+          title: 'إعلان كشوف النتائج الأكاديمية 🎓',
+          body: 'تم اعتماد وإعلان نتائج الطلاب للفصل الدراسي: $detectedTermName. تفضل بالاطلاع على نتيجتك الآن.',
+          routeName: 'results',
+        );
+      } catch (_) {}
+
+      _showNotification('تم اعتماد وحفظ ($savedCount) نتيجة بنجاح (بينها $withheldCount محجوبة) وبث الإشعارات لجميع الطلاب!');
+      await _loadResultsControlData();
+    } catch (e) {
+      _showNotification('فشل اعتماد النتائج: $e', isError: true);
+    } finally {
+      if (mounted) setState(() => _isLoadingResultsControl = false);
+    }
+  }
+
+  // تبديل حالة حجب النتيجة للطالب في الجدول الرئيسي مع إرسال إشعار فوري
+  Future<void> _toggleStudentResultLock(Map<String, dynamic> item, {required bool unwithhold}) async {
+    final acadId = item['academic_id']?.toString() ?? '';
+    final studentObj = item['students'] is Map ? item['students'] : null;
+    final studentName = studentObj?['full_name']?.toString() ?? item['student_name']?.toString() ?? 'طالب أكاديمي';
+    final gpa = item['gpa']?.toString() ?? '0';
+
+    if (unwithhold) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.lock_open, color: Colors.teal, size: 26),
+              SizedBox(width: 8),
+              Text('فك الحجب عن نتيجة الطالب', style: TextStyle(fontWeight: FontWeight.bold, color: primaryNavy)),
+            ],
+          ),
+          content: Text(
+            'هل تريد بالتأكيد فك الحجب عن نتيجة الطالب:\n$studentName ($acadId)؟\n\nستظهر درجاته فوراً في التطبيق، وسيصل له إشعار سحابي بذلك.',
+            style: const TextStyle(height: 1.5),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.teal.shade700),
+              onPressed: () => Navigator.pop(ctx, true),
+              icon: const Icon(Icons.check, color: Colors.white, size: 18),
+              label: const Text('نعم، فك الحجب وإرسال إشعار', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      );
+
+      if (confirmed != true) return;
+
+      try {
+        final rawSubs = Map<String, dynamic>.from(item['subjects'] is Map ? item['subjects'] : {});
+        rawSubs['is_result_hidden'] = false;
+        rawSubs.remove('withheld_message');
+
+        await AdminSupabase.client.from('student_results').update({
+          'subjects': rawSubs,
+          'updated_at': DateTime.now().toIso8601String(),
+        }).eq('academic_id', acadId);
+
+        try {
+          await AdminSupabase.client.from('notifications').insert({
+            'academic_id': acadId,
+            'title': 'إعلان نتيجتك الأكاديمية 🎓',
+            'body': 'عزيزي الطالب $studentName، تم رفع الحجب عن نتيجتك الأكاديمية بمعدل $gpa%. يمكنك الآن الدخول والاطلاع على كشف درجاتك بالتفصيل.',
+            'notification_type': 'result',
+            'route_name': 'results',
+            'is_read': false,
+          });
+
+          FcmSenderService.sendToTopic(
+            topic: 'student_$acadId',
+            title: 'إعلان نتيجتك الأكاديمية 🎓',
+            body: 'عزيزي الطالب $studentName، تم رفع الحجب عن نتيجتك الأكاديمية بمعدل $gpa%. يمكنك الآن الدخول والاطلاع على كشف درجاتك بالتفصيل.',
+            routeName: 'results',
+          );
+        } catch (_) {}
+
+        _showNotification('تم فك الحجب عن نتيجة الطالب ($studentName) وإرسال إشعار فوري بنجاح!');
+        await _loadResultsControlData();
+      } catch (e) {
+        _showNotification('فشل فك الحجب: $e', isError: true);
+      }
+    } else {
+      final msgCtrl = TextEditingController(text: 'يرجى مراجعة إدارة الكلية والشؤون المالية لتسوية وضعك');
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.lock, color: Colors.orange, size: 26),
+              SizedBox(width: 8),
+              Text('حجب نتيجة الطالب مع إرسال رسالة', style: TextStyle(fontWeight: FontWeight.bold, color: primaryNavy)),
+            ],
+          ),
+          content: SizedBox(
+            width: 450,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('سيتم حجب النتيجة عن الطالب:\n$studentName ($acadId)\nولن تظهر درجاته في التطبيق.'),
+                const SizedBox(height: 16),
+                const Text('الرسالة التي ستظهر للطالب وتصله كإشعار فوري:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: primaryNavy)),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: msgCtrl,
+                  maxLines: 2,
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    hintText: 'اكتب سبب الحجب مثل: مراجعة المالية...',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.orange.shade800),
+              onPressed: () => Navigator.pop(ctx, true),
+              icon: const Icon(Icons.lock, color: Colors.white, size: 18),
+              label: const Text('حجب النتيجة وإرسال التنبيه', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      );
+
+      if (confirmed != true) return;
+
+      try {
+        final rawSubs = Map<String, dynamic>.from(item['subjects'] is Map ? item['subjects'] : {});
+        final customMsg = msgCtrl.text.trim().isNotEmpty ? msgCtrl.text.trim() : 'يرجى مراجعة إدارة الكلية والشؤون المالية';
+        rawSubs['is_result_hidden'] = true;
+        rawSubs['withheld_message'] = customMsg;
+
+        await AdminSupabase.client.from('student_results').update({
+          'subjects': rawSubs,
+          'updated_at': DateTime.now().toIso8601String(),
+        }).eq('academic_id', acadId);
+
+        try {
+          await AdminSupabase.client.from('notifications').insert({
+            'academic_id': acadId,
+            'title': 'تنبيه بشأن النتيجة الأكاديمية 🔒',
+            'body': customMsg,
+            'notification_type': 'result',
+            'route_name': 'results',
+            'is_read': false,
+          });
+
+          FcmSenderService.sendToTopic(
+            topic: 'student_$acadId',
+            title: 'تنبيه بشأن النتيجة الأكاديمية 🔒',
+            body: customMsg,
+            routeName: 'results',
+          );
+        } catch (_) {}
+
+        _showNotification('تم حجب نتيجة الطالب ($studentName) وإرسال التنبيه المخصص بنجاح!');
+        await _loadResultsControlData();
+      } catch (e) {
+        _showNotification('فشل حجب النتيجة: $e', isError: true);
+      }
+    }
+  }
+
   // نشر النتائج وبث إشعارات فورية سحابية للطلاب
   Future<void> _publishResultsWithNotifications() async {
     if (_resultsList.isEmpty) {
@@ -2323,14 +2967,26 @@ class _ServicesViewState extends State<ServicesView> {
         final studentName = studentObj?['full_name']?.toString() ?? item['student_name']?.toString() ?? '';
         final grade = item['grade']?.toString() ?? 'ناجح';
         final gpa = item['gpa']?.toString() ?? '';
+        final rawSubs = item['subjects'];
+        final bool isWithheld = rawSubs is Map && (rawSubs['is_result_hidden'] == true);
+        final String withheldMsg = rawSubs is Map ? (rawSubs['withheld_message']?.toString() ?? '') : '';
 
         if (acadId.isNotEmpty) {
-          FcmSenderService.sendToTopic(
-            topic: 'student_$acadId',
-            title: 'إعلان نتيجتك الأكاديمية: $grade 🎓',
-            body: 'عزيزي الطالب${studentName.isNotEmpty ? " $studentName" : ""}، تم اعتماد نتيجتك بمعدل $gpa% ($grade). تفضل بالاطلاع على كشف درجاتك الآن.',
-            routeName: 'results',
-          );
+          if (isWithheld) {
+            FcmSenderService.sendToTopic(
+              topic: 'student_$acadId',
+              title: 'تنبيه بشأن النتيجة الأكاديمية 🔒',
+              body: withheldMsg.isNotEmpty ? withheldMsg : 'يرجى مراجعة إدارة الكلية والشؤون المالية لتسوية وضعك.',
+              routeName: 'results',
+            );
+          } else {
+            FcmSenderService.sendToTopic(
+              topic: 'student_$acadId',
+              title: 'إعلان نتيجتك الأكاديمية: $grade 🎓',
+              body: 'عزيزي الطالب${studentName.isNotEmpty ? " $studentName" : ""}، تم اعتماد نتيجتك بمعدل $gpa% ($grade). تفضل بالاطلاع على كشف درجاتك الآن.',
+              routeName: 'results',
+            );
+          }
         }
       }
 
@@ -2795,6 +3451,8 @@ class _ServicesViewState extends State<ServicesView> {
                           DataColumn(label: Text('المجموع')),
                           DataColumn(label: Text('المعدل')),
                           DataColumn(label: Text('التقدير')),
+                          DataColumn(label: Text('حالة النتيجة')),
+                          DataColumn(label: Text('المطابقة بالشجرة')),
                           DataColumn(label: Text('تاريخ الرصد')),
                           DataColumn(label: Text('الإجراءات')),
                         ],
@@ -2803,6 +3461,7 @@ class _ServicesViewState extends State<ServicesView> {
                           final item = entry.value;
                           final acadId = item['academic_id']?.toString() ?? '';
                           final studentObj = item['students'] is Map ? item['students'] : null;
+                          final bool isInTree = studentObj != null;
                           final sName = studentObj?['full_name']?.toString() ?? item['student_name']?.toString() ?? 'طالب أكاديمي';
                           final spec = studentObj?['specialty']?.toString() ?? item['specialty']?.toString() ?? '-';
                           final batch = studentObj?['batch']?.toString() ?? item['batch']?.toString() ?? '-';
@@ -2810,6 +3469,10 @@ class _ServicesViewState extends State<ServicesView> {
                           final gpa = item['gpa']?.toString() ?? '0';
                           final grade = item['grade']?.toString() ?? 'ناجح';
                           final updatedAt = item['updated_at']?.toString().split('T').first ?? '';
+
+                          final rawSubs = item['subjects'];
+                          final bool isWithheld = rawSubs is Map && (rawSubs['is_result_hidden'] == true);
+                          final String withheldMsg = rawSubs is Map ? (rawSubs['withheld_message']?.toString() ?? '') : '';
 
                           Color gradeColor = Colors.teal;
                           if (grade.contains('ممتاز')) {
@@ -2823,10 +3486,46 @@ class _ServicesViewState extends State<ServicesView> {
                           }
 
                           return DataRow(
+                            color: MaterialStateProperty.resolveWith<Color?>((states) {
+                              if (!isInTree) return Colors.red.shade50.withOpacity(0.5);
+                              if (isWithheld) return Colors.orange.shade50.withOpacity(0.25);
+                              return null;
+                            }),
                             cells: [
-                              DataCell(Text('$idx', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey))),
-                              DataCell(Text(acadId, style: const TextStyle(fontWeight: FontWeight.bold, color: primaryNavy))),
-                              DataCell(Text(sName, style: const TextStyle(fontWeight: FontWeight.w600))),
+                              DataCell(Text('$idx', style: TextStyle(fontWeight: FontWeight.bold, color: isInTree ? Colors.grey : Colors.red))),
+                              DataCell(
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      acadId,
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: isInTree ? primaryNavy : Colors.red.shade800,
+                                        decoration: isInTree ? null : TextDecoration.underline,
+                                        decorationColor: Colors.red,
+                                        decorationThickness: 2,
+                                      ),
+                                    ),
+                                    if (!isInTree) ...[
+                                      const SizedBox(width: 4),
+                                      const Tooltip(
+                                        message: 'غير مسجل بالشجرة الأكاديمية - يجب إضافته أولاً',
+                                        child: Icon(Icons.warning_amber_rounded, size: 16, color: Colors.red),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                              DataCell(
+                                Text(
+                                  sName,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    color: isInTree ? Colors.black87 : Colors.red.shade900,
+                                  ),
+                                ),
+                              ),
                               DataCell(Text(spec)),
                               DataCell(Text(batch)),
                               DataCell(Text(total, style: const TextStyle(fontWeight: FontWeight.bold))),
@@ -2842,11 +3541,92 @@ class _ServicesViewState extends State<ServicesView> {
                                   child: Text(grade, style: TextStyle(color: gradeColor, fontWeight: FontWeight.bold, fontSize: 12)),
                                 ),
                               ),
+                              DataCell(
+                                isWithheld
+                                    ? Tooltip(
+                                        message: withheldMsg.isNotEmpty ? 'رسالة الحجب: $withheldMsg' : 'النتيجة محجوبة عن الطالب',
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: Colors.red.shade50,
+                                            borderRadius: BorderRadius.circular(6),
+                                            border: Border.all(color: Colors.red.shade300),
+                                          ),
+                                          child: const Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(Icons.lock, size: 13, color: Colors.red),
+                                              SizedBox(width: 4),
+                                              Text('محجوبة', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 11)),
+                                            ],
+                                          ),
+                                        ),
+                                      )
+                                    : Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: Colors.green.shade50,
+                                          borderRadius: BorderRadius.circular(6),
+                                          border: Border.all(color: Colors.green.shade300),
+                                        ),
+                                        child: const Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(Icons.check_circle_outline, size: 13, color: Colors.green),
+                                            SizedBox(width: 4),
+                                            Text('معلنة', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 11)),
+                                          ],
+                                        ),
+                                      ),
+                              ),
+                              DataCell(
+                                isInTree
+                                    ? Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: Colors.blue.shade50,
+                                          borderRadius: BorderRadius.circular(6),
+                                          border: Border.all(color: Colors.blue.shade200),
+                                        ),
+                                        child: const Text('مسجل بالشجرة ✅', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 11)),
+                                      )
+                                    : Tooltip(
+                                        message: 'هذا الطالب غير مسجل بالشجرة الأكاديمية! يجب إضافته أولاً من الشجرة لربطه بتخصصه بدقة.',
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: Colors.red.shade100,
+                                            borderRadius: BorderRadius.circular(6),
+                                            border: Border.all(color: Colors.red.shade600, width: 1.5),
+                                          ),
+                                          child: const Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(Icons.error, color: Colors.red, size: 12),
+                                              SizedBox(width: 3),
+                                              Text('⚠️ غير مسجل بالشجرة', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 11)),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                              ),
                               DataCell(Text(updatedAt, style: const TextStyle(color: Colors.black54, fontSize: 12))),
                               DataCell(
                                 Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
+                                    if (isWithheld)
+                                      IconButton(
+                                        icon: const Icon(Icons.lock_open, color: Colors.teal, size: 20),
+                                        tooltip: 'فك الحجب عن نتيجة الطالب وإرسال إشعار',
+                                        onPressed: () => _toggleStudentResultLock(item, unwithhold: true),
+                                      )
+                                    else
+                                      IconButton(
+                                        icon: const Icon(Icons.lock_outline, color: Colors.orange, size: 20),
+                                        tooltip: 'حجب النتيجة مع كتابة رسالة مخصصة تصل للطالب',
+                                        onPressed: () => _toggleStudentResultLock(item, unwithhold: false),
+                                      ),
                                     IconButton(
                                       icon: const Icon(Icons.edit_note, color: Colors.blueAccent, size: 22),
                                       tooltip: 'تعديل الدرجات والنتيجة',

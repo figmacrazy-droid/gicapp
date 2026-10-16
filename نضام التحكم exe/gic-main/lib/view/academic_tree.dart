@@ -2336,16 +2336,6 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
                                               ),
                                             ),
                                             PopupMenuItem(
-                                              value: 'hide_result',
-                                              child: Row(
-                                                children: [
-                                                  Icon(isHidden ? Icons.visibility : Icons.visibility_off, color: isHidden ? Colors.green : Colors.deepOrange, size: 18),
-                                                  const SizedBox(width: 8),
-                                                  Text(isHidden ? 'إلغاء حجب النتيجة' : 'حجب النتيجة عن الطالب'),
-                                                ],
-                                              ),
-                                            ),
-                                            PopupMenuItem(
                                               value: 'promote',
                                               child: Row(
                                                 children: const [
@@ -2376,9 +2366,6 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
                                               break;
                                             case 'grades':
                                               _showStudentGradesDialog(st);
-                                              break;
-                                            case 'hide_result':
-                                              _toggleHideResult(st);
                                               break;
                                             case 'promote':
                                               _showPromoteSemesterDialog(selectedNode);

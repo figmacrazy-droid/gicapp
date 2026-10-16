@@ -28,7 +28,16 @@ class _StudentResultsScreenState extends State<StudentResultsScreen> {
     setState(() => _isLoading = true);
     try {
       final session = await AuthService.getSavedSession();
-      final String currentId = session?.academicId ?? '2025010101';
+      final String currentId = session?.academicId?.trim() ?? '';
+      if (currentId.isEmpty) {
+        if (mounted) {
+          setState(() {
+            _results = null;
+            _isLoading = false;
+          });
+        }
+        return;
+      }
       final data = await DataService.getStudentResults(currentId);
       if (mounted) {
         setState(() {
