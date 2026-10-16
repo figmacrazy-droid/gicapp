@@ -432,23 +432,6 @@ class DataService {
 
   // النتائج
   static Future<StudentResultModel?> getStudentResults(String academicId) async {
-    final defaultResult = StudentResultModel(
-      academicId: academicId.isEmpty ? '2024000001' : academicId,
-      studentName: 'عبد الله أحمد الطالب',
-      specialty: 'علوم مختبرات طبية',
-      batch: 'الدفعة الخامسة',
-      subjects: const {
-        'علم الأحياء الدقيقة (Microbiology)': 92.0,
-        'الكيمياء الحيوية (Biochemistry)': 88.5,
-        'علم الدم التشخيصي (Hematology)': 95.0,
-        'علم النسيج المرضي (Histopathology)': 90.0,
-        'علم الأنسجة والأجسام المضادة': 94.0,
-      },
-      totalMarks: 459.5,
-      gpa: 91.9,
-      grade: 'ممتاز مع مرتبة الشرف',
-    );
-
     try {
       final client = _supabase;
       if (client != null && academicId.isNotEmpty) {
@@ -474,20 +457,19 @@ class DataService {
             termsList = rawTerms.map((t) => TermResultModel.fromJson(Map<String, dynamic>.from(t as Map))).toList();
           }
 
-          final studentsData = res['students'] as Map<String, dynamic>?;
-          final sName = studentsData?['full_name'] ?? res['student_name'] ?? defaultResult.studentName;
-          final sSpec = studentsData?['specialty'] ?? res['specialty'] ?? defaultResult.specialty;
-          final sBatch = studentsData?['batch'] ?? res['batch'] ?? defaultResult.batch;
-          final sSemester = studentsData?['semester'] ?? 'الفصل الدراسي الأول';
+          final sName = studentsData?['full_name'] ?? res['student_name'] ?? 'طالب';
+          final sSpec = studentsData?['specialty'] ?? res['specialty'] ?? '';
+          final sBatch = studentsData?['batch'] ?? res['batch'] ?? '';
+          final sSemester = studentsData?['semester'] ?? 'الفصل الدراسي الحالي';
 
           if (termsList.isEmpty && subs.isNotEmpty) {
             termsList.add(TermResultModel(
               termName: sSemester,
               academicYear: studentsData?['academic_year'] ?? '2024/2025',
               subjects: subs,
-              totalMarks: (res['total_marks'] as num?)?.toDouble() ?? defaultResult.totalMarks,
-              gpa: (res['gpa'] as num?)?.toDouble() ?? defaultResult.gpa,
-              grade: res['grade'] ?? defaultResult.grade,
+              totalMarks: (res['total_marks'] as num?)?.toDouble() ?? 0.0,
+              gpa: (res['gpa'] as num?)?.toDouble() ?? 0.0,
+              grade: res['grade'] ?? 'ناجح',
             ));
           }
 
@@ -519,17 +501,17 @@ class DataService {
             specialty: sSpec,
             batch: sBatch,
             terms: termsList,
-            subjects: activeTerm?.subjects ?? (subs.isNotEmpty ? subs : defaultResult.subjects),
-            totalMarks: activeTerm?.totalMarks ?? ((res['total_marks'] as num?)?.toDouble() ?? defaultResult.totalMarks),
-            gpa: activeTerm?.gpa ?? ((res['gpa'] as num?)?.toDouble() ?? defaultResult.gpa),
-            grade: activeTerm?.grade ?? (res['grade'] ?? defaultResult.grade),
+            subjects: activeTerm?.subjects ?? subs,
+            totalMarks: activeTerm?.totalMarks ?? ((res['total_marks'] as num?)?.toDouble() ?? 0.0),
+            gpa: activeTerm?.gpa ?? ((res['gpa'] as num?)?.toDouble() ?? 0.0),
+            grade: activeTerm?.grade ?? (res['grade'] ?? 'ناجح'),
             isWithheld: isWithheld,
             withheldMessage: 'عذراً، النتيجة محجوبة حالياً من قبل إدارة الكنترول وشؤون الطلاب. يرجى مراجعة إدارة الكلية.',
           );
         }
       }
     } catch (_) {}
-    return defaultResult;
+    return null;
   }
 
   // دليل الطالب الجامعي

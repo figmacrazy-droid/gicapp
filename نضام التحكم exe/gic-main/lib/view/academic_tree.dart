@@ -6,8 +6,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:excel/excel.dart' as xl;
 import 'package:gic/services/supabase_service.dart';
 import 'package:gic/services/fcm_sender_service.dart';
-// ignore: avoid_web_libraries_in_flutter
-import 'dart:html' as html;
+import 'package:gic/utils/file_exporter.dart';
 
 class TreeNodeData {
   final String id;
@@ -1722,17 +1721,8 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
         final safeSemName = semesterNode.title.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
         final fileName = 'طلاب_${safeSemName}.xlsx';
 
-        if (kIsWeb) {
-          final blob = html.Blob([fileBytes], 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-          final url = html.Url.createObjectUrlFromBlob(blob);
-          final anchor = html.AnchorElement(href: url)
-            ..setAttribute('download', fileName)
-            ..click();
-          html.Url.revokeObjectUrl(url);
-          _showSnackbar('تم تصدير ملف الإكسل بنجاح: $fileName');
-        } else {
-          _showSnackbar('تم حفظ ملف الإكسل بنجاح');
-        }
+        await saveAndDownloadFile(fileBytes, fileName);
+        _showSnackbar('تم تصدير ملف الإكسل بنجاح: $fileName');
       }
     } catch (e) {
       debugPrint('Error exporting Excel: $e');

@@ -5,6 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:excel/excel.dart' as xl;
 import 'package:gic/services/supabase_service.dart';
 import 'package:gic/services/fcm_sender_service.dart';
+import 'package:gic/utils/file_exporter.dart';
 
 class ServicesView extends StatefulWidget {
   final Function(String path) onServiceTap;
@@ -100,13 +101,11 @@ class _ServicesViewState extends State<ServicesView> {
   List<Map<String, dynamic>> _finList = [];
   bool _isLoadingFin = false;
 
-  // --- وحدات التحكم للنتائج وحجب النتيجة (Results Lock & Stats) ---
-  bool _isResultsLocked = false;
+  // --- وحدات التحكم للنتائج وكشوف درجات الطلاب (Results Management) ---
+  List<Map<String, dynamic>> _resultsList = [];
+  final TextEditingController _resultsSearchController = TextEditingController();
   bool _isLoadingResultsControl = false;
-  bool _isSavingResultsControl = false;
-  final TextEditingController _resultsLockMessageController = TextEditingController(
-    text: 'تم حجب النتيجة مؤقتاً من قبل الكنترول/شؤون الطلاب، يرجى مراجعة إدارة الكلية.',
-  );
+  bool _isPublishingResults = false;
   int _totalResultsCount = 0;
   String _latestResultUploadTime = '';
   String _latestResultTermName = '';
@@ -1185,7 +1184,8 @@ class _ServicesViewState extends State<ServicesView> {
             count++;
           }
         }
-        _showNotification('تم استيراد نتائج ($count) طالب بنجاح ونشرها للطلاب!');
+        _showNotification('تم استيراد نتائج ($count) طالب بنجاح وحفظها في قاعدة البيانات!');
+        _loadResultsControlData();
       } else if (selectedSubService == 'أوائل الطلاب') {
         for (int i = 1; i < table.rows.length; i++) {
           final row = table.rows[i];
@@ -2118,27 +2118,13 @@ class _ServicesViewState extends State<ServicesView> {
   Future<void> _loadResultsControlData() async {
     setState(() => _isLoadingResultsControl = true);
     try {
-      // 1. استعلام حالة الحجب من system_instructions
-      final lockRes = await AdminSupabase.client
-          .from('system_instructions')
-          .select()
-          .eq('service_key', 'results_lock_control')
-          .maybeSingle();
+      final res = await AdminSupabase.client
+          .from('student_results')
+          .select('*, students(full_name, specialty, batch, semester)')
+          .order('academic_id', ascending: true);
 
-      if (lockRes != null) {
-        final note = (lockRes['note'] ?? '').toString().toLowerCase();
-        final subtitle = (lockRes['subtitle'] ?? '').toString();
-        _isResultsLocked = (note == 'locked' || note == 'true' || note == 'hidden');
-        if (subtitle.isNotEmpty) {
-          _resultsLockMessageController.text = subtitle;
-        }
-      } else {
-        _isResultsLocked = false;
-      }
-
-      // 2. استعلام إحصائيات آخر نتيجة من student_results
-      final countRes = await AdminSupabase.client.from('student_results').select('academic_id');
-      _totalResultsCount = (countRes as List).length;
+      _resultsList = List<Map<String, dynamic>>.from(res as List);
+      _totalResultsCount = _resultsList.length;
 
       final latestRows = await AdminSupabase.client
           .from('student_results')
@@ -2159,323 +2145,710 @@ class _ServicesViewState extends State<ServicesView> {
         }
         final subs = row['subjects'];
         if (subs is Map && subs['terms'] is List && (subs['terms'] as List).isNotEmpty) {
-          _latestResultTermName = (subs['terms'] as List).first['term_name']?.toString() ?? 'الفصل الدراسي الحالي';
+          _latestResultTermName = (subs['terms'] as List).first['term_name']?.toString() ?? 'الفصل الدراسي الأول';
         }
       }
     } catch (e) {
-      debugPrint('Error loading results control data: $e');
+      debugPrint('Error loading results: $e');
     } finally {
       if (mounted) setState(() => _isLoadingResultsControl = false);
     }
   }
 
-  Future<void> _saveResultsLockStatus(bool locked) async {
-    setState(() {
-      _isSavingResultsControl = true;
-      _isResultsLocked = locked;
-    });
+  // تصدير كشف النتائج إلى ملف Excel
+  Future<void> _exportResultsToExcel() async {
+    if (_resultsList.isEmpty) {
+      _showNotification('لا توجد نتائج مسجلة لتصديرها حالياً', isError: true);
+      return;
+    }
 
     try {
-      await AdminSupabase.client.from('system_instructions').upsert({
-        'service_key': 'results_lock_control',
-        'title': 'حالة نشر النتيجة الأكاديمية',
-        'subtitle': _resultsLockMessageController.text.trim(),
-        'note': locked ? 'locked' : 'unlocked',
-        'steps': locked ? ['النتيجة محجوبة'] : ['النتيجة معلنة'],
-        'updated_at': DateTime.now().toIso8601String(),
-      }, onConflict: 'service_key');
+      final excel = xl.Excel.createExcel();
+      final sheetName = 'كشف النتائج الأكاديمية';
+      excel.rename('Sheet1', sheetName);
+      final sheet = excel[sheetName];
+      sheet.isRTL = true;
 
-      _showNotification(locked ? '🔒 تم حجب النتيجة وإغلاقها عن الطلاب بنجاح' : '🟢 تم فتح وإعلان النتيجة للطلاب بنجاح');
+      final headers = [
+        'الرقم الأكاديمي',
+        'اسم الطالب',
+        'التخصص',
+        'الدفعة',
+        'الفصل الدراسي',
+        'المجموع',
+        'المعدل %',
+        'التقدير',
+        'تاريخ الرصد',
+      ];
+
+      final headerStyle = xl.CellStyle(
+        bold: true,
+        fontColorHex: xl.ExcelColor.white,
+        backgroundColorHex: xl.ExcelColor.fromHexString('#0E1B4D'),
+        horizontalAlign: xl.HorizontalAlign.Center,
+        verticalAlign: xl.VerticalAlign.Center,
+      );
+
+      for (int c = 0; c < headers.length; c++) {
+        final cell = sheet.cell(xl.CellIndex.indexByColumnRow(columnIndex: c, rowIndex: 0));
+        cell.value = xl.TextCellValue(headers[c]);
+        cell.cellStyle = headerStyle;
+      }
+
+      for (int i = 0; i < _resultsList.length; i++) {
+        final item = _resultsList[i];
+        final studentObj = item['students'] is Map ? item['students'] : null;
+        final acadId = item['academic_id']?.toString() ?? '';
+        final sName = studentObj?['full_name']?.toString() ?? item['student_name']?.toString() ?? 'طالب أكاديمي';
+        final spec = studentObj?['specialty']?.toString() ?? item['specialty']?.toString() ?? '-';
+        final batch = studentObj?['batch']?.toString() ?? item['batch']?.toString() ?? '-';
+        final semester = studentObj?['semester']?.toString() ?? _latestResultTermName;
+        final total = item['total_marks']?.toString() ?? '0';
+        final gpa = item['gpa']?.toString() ?? '0';
+        final grade = item['grade']?.toString() ?? 'ناجح';
+        final updatedAt = item['updated_at']?.toString().split('T').first ?? '';
+
+        final rowValues = [
+          acadId,
+          sName,
+          spec,
+          batch,
+          semester,
+          total,
+          gpa,
+          grade,
+          updatedAt,
+        ];
+
+        for (int c = 0; c < rowValues.length; c++) {
+          final cell = sheet.cell(xl.CellIndex.indexByColumnRow(columnIndex: c, rowIndex: i + 1));
+          cell.value = xl.TextCellValue(rowValues[c]);
+          cell.cellStyle = xl.CellStyle(
+            horizontalAlign: xl.HorizontalAlign.Center,
+            verticalAlign: xl.VerticalAlign.Center,
+          );
+        }
+      }
+
+      final fileBytes = excel.save();
+      if (fileBytes != null) {
+        final fileName = 'كشف_النتائج_الأكاديمية_${DateTime.now().year}.xlsx';
+        await saveAndDownloadFile(fileBytes, fileName);
+        _showNotification('تم تصدير كشف النتائج بنجاح: $fileName');
+      }
     } catch (e) {
-      _showNotification('فشل حفظ حالة النتيجة: $e', isError: true);
-    } finally {
-      if (mounted) setState(() => _isSavingResultsControl = false);
+      _showNotification('فشل تصدير كشف النتائج: $e', isError: true);
     }
   }
 
+  // نشر النتائج وبث إشعارات فورية سحابية للطلاب
+  Future<void> _publishResultsWithNotifications() async {
+    if (_resultsList.isEmpty) {
+      _showNotification('لا توجد نتائج مسجلة لنشرها حالياً. يرجى رفع ملف النتائج أولاً.', isError: true);
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.campaign_rounded, color: primaryNavy, size: 26),
+            SizedBox(width: 8),
+            Text('نشر النتائج وبث الإشعارات للطلاب', style: TextStyle(fontWeight: FontWeight.bold, color: primaryNavy)),
+          ],
+        ),
+        content: Text(
+          'سيتم اعتماد ونشر النتائج وبث إشعارات فورية سحابية (FCM) إلى جميع الطلاب (${_resultsList.length} طالب) لتصلهم فوراً حتى لو كان التطبيق مغلقاً.\n\nهل ترغب بالمتابعة؟',
+          style: const TextStyle(height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('إلغاء', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.pop(ctx, true),
+            icon: const Icon(Icons.send, color: Colors.white, size: 18),
+            label: const Text('نشر وبث الإشعارات الآن', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.green.shade700),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    setState(() => _isPublishingResults = true);
+
+    try {
+      // 1. إدراج إشعار عام في قاعدة البيانات
+      await AdminSupabase.client.from('notifications').insert({
+        'title': 'إعلان النتائج الأكاديمية 🎓',
+        'body': 'تم نشر واعتماد كشوف الدرجات والنتائج الأكاديمية لجميع الطلاب. تفضل بالاطلاع على نتيجتك ومعدلك التراكمي الآن.',
+        'notification_type': 'result',
+        'route_name': 'results',
+        'is_read': false,
+      });
+
+      // 2. بث الإشعار السحابي العام لكافة الطلاب
+      FcmSenderService.sendToTopic(
+        topic: 'all_students',
+        title: 'إعلان النتائج الأكاديمية 🎓',
+        body: 'تم نشر واعتماد كشوف الدرجات والنتائج الأكاديمية لجميع الطلاب. تفضل بالاطلاع على نتيجتك ومعدلك التراكمي الآن.',
+        routeName: 'results',
+      );
+
+      // 3. إرسال تنبيه شخصي لكل طالب في القائمة برقم قيده الأكاديمي
+      for (final item in _resultsList) {
+        final acadId = item['academic_id']?.toString() ?? '';
+        final studentObj = item['students'] is Map ? item['students'] : null;
+        final studentName = studentObj?['full_name']?.toString() ?? item['student_name']?.toString() ?? '';
+        final grade = item['grade']?.toString() ?? 'ناجح';
+        final gpa = item['gpa']?.toString() ?? '';
+
+        if (acadId.isNotEmpty) {
+          FcmSenderService.sendToTopic(
+            topic: 'student_$acadId',
+            title: 'إعلان نتيجتك الأكاديمية: $grade 🎓',
+            body: 'عزيزي الطالب${studentName.isNotEmpty ? " $studentName" : ""}، تم اعتماد نتيجتك بمعدل $gpa% ($grade). تفضل بالاطلاع على كشف درجاتك الآن.',
+            routeName: 'results',
+          );
+        }
+      }
+
+      _showNotification('تم نشر النتائج وبث الإشعارات السحابية بنجاح إلى جميع الطلاب (${_resultsList.length} طالب)!');
+    } catch (e) {
+      _showNotification('فشل نشر النتائج وبث الإشعارات: $e', isError: true);
+    } finally {
+      if (mounted) setState(() => _isPublishingResults = false);
+    }
+  }
+
+  // تعديل نتيجة طالب
+  Future<void> _editStudentResultDialog(Map<String, dynamic> item) async {
+    final acadId = item['academic_id']?.toString() ?? '';
+    final studentObj = item['students'] is Map ? item['students'] : null;
+    final studentName = studentObj?['full_name']?.toString() ?? item['student_name']?.toString() ?? 'طالب أكاديمي';
+
+    final totalCtrl = TextEditingController(text: item['total_marks']?.toString() ?? '');
+    final gpaCtrl = TextEditingController(text: item['gpa']?.toString() ?? '');
+    String selectedGrade = item['grade']?.toString() ?? 'ممتاز';
+    final List<String> gradeOptions = ['ممتاز', 'جيد جداً', 'جيد', 'مقبول', 'راسب'];
+    if (!gradeOptions.contains(selectedGrade)) {
+      gradeOptions.add(selectedGrade);
+    }
+
+    final rawSubs = item['subjects'];
+    final Map<String, TextEditingController> subjectControllers = {};
+    if (rawSubs is Map) {
+      rawSubs.forEach((key, val) {
+        if (key != 'terms' && key != 'is_result_hidden') {
+          subjectControllers[key.toString()] = TextEditingController(text: val?.toString() ?? '');
+        }
+      });
+    }
+
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDlgState) => AlertDialog(
+          title: Row(
+            children: [
+              const Icon(Icons.edit_note, color: accentGold, size: 28),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text('تعديل نتيجة الطالب: $studentName ($acadId)',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: primaryNavy)),
+              ),
+            ],
+          ),
+          content: SizedBox(
+            width: 520,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: totalCtrl,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(labelText: 'المجموع الكلي', border: OutlineInputBorder(), prefixIcon: Icon(Icons.calculate_outlined)),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextField(
+                          controller: gpaCtrl,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(labelText: 'المعدل التراكمي %', border: OutlineInputBorder(), prefixIcon: Icon(Icons.percent)),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  DropdownButtonFormField<String>(
+                    value: selectedGrade,
+                    decoration: const InputDecoration(labelText: 'التقدير العام', border: OutlineInputBorder(), prefixIcon: Icon(Icons.grade)),
+                    items: gradeOptions.map((g) => DropdownMenuItem(value: g, child: Text(g))).toList(),
+                    onChanged: (v) {
+                      if (v != null) setDlgState(() => selectedGrade = v);
+                    },
+                  ),
+                  if (subjectControllers.isNotEmpty) ...[
+                    const SizedBox(height: 18),
+                    const Text('درجات المواد المرصودة:', style: TextStyle(fontWeight: FontWeight.bold, color: primaryNavy, fontSize: 14)),
+                    const SizedBox(height: 10),
+                    ...subjectControllers.entries.map((entry) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: Row(
+                          children: [
+                            Expanded(flex: 3, child: Text(entry.key, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600))),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              flex: 2,
+                              child: TextField(
+                                controller: entry.value,
+                                keyboardType: TextInputType.number,
+                                decoration: const InputDecoration(isDense: true, border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10)),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('إلغاء', style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton.icon(
+              onPressed: () => Navigator.pop(ctx, true),
+              icon: const Icon(Icons.save, color: Colors.white, size: 18),
+              label: const Text('حفظ التعديل وإرسال إشعار', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              style: ElevatedButton.styleFrom(backgroundColor: primaryNavy),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (saved != true) return;
+
+    try {
+      final double newTotal = double.tryParse(totalCtrl.text.trim()) ?? 0.0;
+      final double newGpa = double.tryParse(gpaCtrl.text.trim()) ?? 0.0;
+      final Map<String, dynamic> updatedSubjects = Map<String, dynamic>.from(rawSubs is Map ? rawSubs : {});
+      subjectControllers.forEach((subName, ctrl) {
+        final val = double.tryParse(ctrl.text.trim()) ?? 0.0;
+        updatedSubjects[subName] = val;
+      });
+
+      await AdminSupabase.client.from('student_results').update({
+        'total_marks': newTotal,
+        'gpa': newGpa,
+        'grade': selectedGrade,
+        'subjects': updatedSubjects,
+        'updated_at': DateTime.now().toIso8601String(),
+      }).eq('academic_id', acadId);
+
+      // إرسال إشعار فوري للطالب بالنتيجة المحدثة
+      FcmSenderService.sendToTopic(
+        topic: 'student_$acadId',
+        title: 'تحديث في نتيجتك الأكاديمية: $selectedGrade 🎓',
+        body: 'تم تعديل كشف درجاتك ومعدلك ليصبح $newGpa% بمجموع $newTotal. يمكنك مراجعة النتيجة الآن.',
+        routeName: 'results',
+      );
+
+      _showNotification('تم تعديل نتيجة الطالب ($studentName) وإرسال إشعار فوري بنجاح!');
+      await _loadResultsControlData();
+    } catch (e) {
+      _showNotification('فشل تعديل النتيجة: $e', isError: true);
+    }
+  }
+
+  // حذف نتيجة طالب
+  Future<void> _deleteStudentResult(String academicId, String studentName) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.delete_forever, color: Colors.red, size: 28),
+            SizedBox(width: 8),
+            Text('حذف نتيجة الطالب', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
+          ],
+        ),
+        content: Text('هل أنت متأكد من حذف نتيجة الطالب:\n$studentName ($academicId) نهائياً من قاعدة البيانات؟'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('إلغاء', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('نعم، حذف النتيجة', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      await AdminSupabase.client.from('student_results').delete().eq('academic_id', academicId);
+      _showNotification('تم حذف نتيجة الطالب ($studentName) بنجاح');
+      await _loadResultsControlData();
+    } catch (e) {
+      _showNotification('فشل حذف النتيجة: $e', isError: true);
+    }
+  }
+
+  // الواجهة الرئيسية لخدمة النتائج وجدول الطلاب
   Widget _buildResultsControlEditor() {
     if (_isLoadingResultsControl) {
       return const Center(child: CircularProgressIndicator());
     }
+
+    final query = _resultsSearchController.text.trim().toLowerCase();
+    final displayList = _resultsList.where((item) {
+      if (query.isEmpty) return true;
+      final acadId = (item['academic_id'] ?? '').toString().toLowerCase();
+      final grade = (item['grade'] ?? '').toString().toLowerCase();
+      final studentObj = item['students'] is Map ? item['students'] : null;
+      final name = (studentObj?['full_name'] ?? item['student_name'] ?? '').toString().toLowerCase();
+      final specialty = (studentObj?['specialty'] ?? item['specialty'] ?? '').toString().toLowerCase();
+      return acadId.contains(query) || name.contains(query) || specialty.contains(query) || grade.contains(query);
+    }).toList();
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(28),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(color: primaryNavy.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
-                    child: const Icon(Icons.assessment_outlined, color: primaryNavy, size: 28),
-                  ),
-                  const SizedBox(width: 14),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
-                      Text('إدارة وكنترول نشر النتائج الأكاديمية', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: primaryNavy)),
-                      SizedBox(height: 4),
-                      Text('التحكم الفوري في إعلان النتائج أو حجبها وإغلاقها عن الطلاب', style: TextStyle(fontSize: 13, color: Colors.black54)),
-                    ],
-                  ),
-                ],
-              ),
-              ElevatedButton.icon(
-                onPressed: () => _loadResultsControlData(),
-                icon: const Icon(Icons.refresh, size: 18),
-                label: const Text('تحديث الحالة'),
-                style: ElevatedButton.styleFrom(backgroundColor: primaryNavy, foregroundColor: Colors.white),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-
-          // بطاقة حالة النتيجة الحالية (محجوبة أو معلنة)
+          // شريط العنوان العلوي وأزرار العمليات الرئيسية
           Container(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: _isResultsLocked ? Colors.red.shade50 : Colors.green.shade50,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: _isResultsLocked ? Colors.red.shade400 : Colors.green.shade400, width: 1.5),
-              boxShadow: [
-                BoxShadow(color: (_isResultsLocked ? Colors.red : Colors.green).withOpacity(0.08), blurRadius: 10, offset: const Offset(0, 4)),
-              ],
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: Colors.grey.shade200),
+              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10)],
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Row(
                   children: [
                     Container(
                       padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: _isResultsLocked ? Colors.red.shade100 : Colors.green.shade100,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        _isResultsLocked ? Icons.lock : Icons.lock_open,
-                        color: _isResultsLocked ? Colors.red.shade800 : Colors.green.shade800,
-                        size: 32,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            _isResultsLocked ? 'النتيجة محجوبة ومغلقة حالياً عن جميع الطلاب 🔒' : 'النتيجة معلنة ومتاحة لجميع الطلاب في التطبيق 🟢',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: _isResultsLocked ? Colors.red.shade900 : Colors.green.shade900,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            _isResultsLocked
-                                ? 'الطلاب لن يتمكنوا من رؤية المعدلات أو كشوف الدرجات، وستظهر لهم شاشة النتيجة المحجوبة.'
-                                : 'يمكن للطلاب فتح قسم النتائج والاطلاع على كشف درجاتهم والمعدل التراكمي مباشرة.',
-                            style: TextStyle(fontSize: 13, color: _isResultsLocked ? Colors.red.shade700 : Colors.green.shade700),
-                          ),
-                        ],
-                      ),
-                    ),
-                    // زر التبديل السريع
-                    Transform.scale(
-                      scale: 1.2,
-                      child: Switch(
-                        value: _isResultsLocked,
-                        activeColor: Colors.red.shade800,
-                        activeTrackColor: Colors.red.shade200,
-                        inactiveThumbColor: Colors.green.shade800,
-                        inactiveTrackColor: Colors.green.shade200,
-                        onChanged: (val) {
-                          _saveResultsLockStatus(val);
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-                const Divider(height: 28),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _resultsLockMessageController,
-                        textDirection: TextDirection.rtl,
-                        decoration: InputDecoration(
-                          labelText: 'نص رسالة الحجب التي تظهر للطالب في التطبيق',
-                          hintText: 'مثال: تم حجب النتيجة مؤقتاً من قبل الكنترول/شؤون الطلاب، يرجى مراجعة إدارة الكلية.',
-                          filled: true,
-                          fillColor: Colors.white,
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                          prefixIcon: const Icon(Icons.message_outlined),
-                        ),
-                      ),
+                      decoration: BoxDecoration(color: primaryNavy.withOpacity(0.08), borderRadius: BorderRadius.circular(10)),
+                      child: const Icon(Icons.assessment_rounded, color: primaryNavy, size: 30),
                     ),
                     const SizedBox(width: 14),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('إدارة وكنترول كشوف نتائج الطلاب', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: primaryNavy)),
+                        const SizedBox(height: 4),
+                        Text('إجمالي الطلاب المرصودة نتائجهم: $_totalResultsCount طالب', style: const TextStyle(fontSize: 13, color: Colors.black54)),
+                      ],
+                    ),
+                  ],
+                ),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    // زر رفع ملف الإكسل
                     ElevatedButton.icon(
-                      onPressed: _isSavingResultsControl ? null : () => _saveResultsLockStatus(_isResultsLocked),
-                      icon: _isSavingResultsControl
+                      onPressed: () async {
+                        await _importControlExcel();
+                        _loadResultsControlData();
+                      },
+                      icon: const Icon(Icons.upload_file, color: Colors.white, size: 18),
+                      label: const Text('رفع كشف النتائج (Excel)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.green.shade800, padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14)),
+                    ),
+                    // زر تصدير الإكسل
+                    ElevatedButton.icon(
+                      onPressed: _exportResultsToExcel,
+                      icon: const Icon(Icons.file_download_outlined, color: Colors.white, size: 18),
+                      label: const Text('تصدير كشف النتائج', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.blueGrey.shade800, padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14)),
+                    ),
+                    // زر نشر النتائج وبث الإشعارات
+                    ElevatedButton.icon(
+                      onPressed: _isPublishingResults ? null : _publishResultsWithNotifications,
+                      icon: _isPublishingResults
                           ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                          : const Icon(Icons.save, color: Colors.white),
-                      label: const Text('حفظ نص الرسالة', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: primaryNavy,
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      ),
+                          : const Icon(Icons.campaign_rounded, color: Colors.white, size: 20),
+                      label: Text(_isPublishingResults ? 'جاري البث...' : 'نشر النتائج وبث الإشعارات',
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      style: ElevatedButton.styleFrom(backgroundColor: accentGold, padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14)),
+                    ),
+                    // زر التحديث
+                    OutlinedButton.icon(
+                      onPressed: _loadResultsControlData,
+                      icon: const Icon(Icons.refresh, size: 18, color: primaryNavy),
+                      label: const Text('تحديث', style: TextStyle(color: primaryNavy, fontWeight: FontWeight.bold)),
+                      style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14)),
                     ),
                   ],
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
 
-          // بطاقة معلومات آخر نتيجة تم رفعها
-          Container(
-            padding: const EdgeInsets.all(22),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: Colors.grey.shade300),
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10)],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: const [
-                    Icon(Icons.history_edu, color: primaryNavy, size: 22),
-                    SizedBox(width: 10),
-                    Text('معلومات الكنترول وآخر نتائج تم رفعها', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: primaryNavy)),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(color: Colors.grey.shade50, borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.grey.shade200)),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text('إجمالي سجلات نتائج الطلاب:', style: TextStyle(fontSize: 12, color: Colors.black54)),
-                            const SizedBox(height: 6),
-                            Text('$_totalResultsCount طالب', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: primaryNavy)),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(color: Colors.grey.shade50, borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.grey.shade200)),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text('تاريخ ووقت آخر رفع للنتائج:', style: TextStyle(fontSize: 12, color: Colors.black54)),
-                            const SizedBox(height: 6),
-                            Text(_latestResultUploadTime.isEmpty ? 'لم يتم الرصد بعد' : _latestResultUploadTime, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.indigo)),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(color: Colors.grey.shade50, borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.grey.shade200)),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text('آخر فصل تم استيراده:', style: TextStyle(fontSize: 12, color: Colors.black54)),
-                            const SizedBox(height: 6),
-                            Text(_latestResultTermName.isEmpty ? 'الفصل الدراسي الحالي' : _latestResultTermName, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.teal)),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                // زر سريع لإغلاق النتيجة فوراً
-                Row(
-                  children: [
-                    ElevatedButton.icon(
-                      onPressed: () => _saveResultsLockStatus(true),
-                      icon: const Icon(Icons.lock, color: Colors.white, size: 18),
-                      label: const Text('حجب وإغلاق آخر نتيجة فوراً', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.red.shade700, padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12)),
-                    ),
-                    const SizedBox(width: 12),
-                    ElevatedButton.icon(
-                      onPressed: () => _saveResultsLockStatus(false),
-                      icon: const Icon(Icons.lock_open, color: Colors.white, size: 18),
-                      label: const Text('إعلان ونشر النتيجة للطلاب', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.green.shade700, padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12)),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // بطاقة رفع واستيراد كشف النتائج الجديد Excel
-          Container(
-            padding: const EdgeInsets.all(22),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: Colors.grey.shade300),
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10)],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: const [
-                    Icon(Icons.upload_file, color: Colors.green, size: 22),
-                    SizedBox(width: 10),
-                    Text('رفع واستيراد كشف نتائج جديد (Excel)', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: primaryNavy)),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                const Text('يجب أن يحتوي ملف Excel على الأعمدة: [الرقم الأكاديمي، المجموع، المعدل، التقدير] بالإضافة لدرجات المواد إن وجدت.', style: TextStyle(fontSize: 13, color: Colors.black54)),
-                const SizedBox(height: 16),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(color: Colors.green.shade50, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.green.shade300)),
-                  child: Column(
+          // بطاقات إحصائية سريعة
+          Row(
+            children: [
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade200)),
+                  child: Row(
                     children: [
-                      Icon(Icons.table_view_outlined, size: 48, color: Colors.green.shade700),
-                      const SizedBox(height: 10),
-                      const Text('اختر ملف Excel لرفع كشف درجات الطلاب وحفظه فوراً في قاعدة البيانات', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 14),
-                      ElevatedButton.icon(
-                        onPressed: () async {
-                          await _importControlExcel();
-                          _loadResultsControlData();
-                        },
-                        icon: const Icon(Icons.upload_file, color: Colors.white),
-                        label: const Text('اختيار ملف النتائج (Excel) ورفعه', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                        style: ElevatedButton.styleFrom(backgroundColor: Colors.green.shade800, padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14)),
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(8)),
+                        child: Icon(Icons.people_alt_outlined, color: Colors.blue.shade800, size: 24),
+                      ),
+                      const SizedBox(width: 12),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('إجمالي النتائج المرصودة', style: TextStyle(fontSize: 12, color: Colors.black54)),
+                          const SizedBox(height: 4),
+                          Text('$_totalResultsCount طالب', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: primaryNavy)),
+                        ],
                       ),
                     ],
                   ),
                 ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade200)),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(color: Colors.teal.shade50, borderRadius: BorderRadius.circular(8)),
+                        child: Icon(Icons.calendar_today_outlined, color: Colors.teal.shade800, size: 24),
+                      ),
+                      const SizedBox(width: 12),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('الفصل الدراسي المرصود', style: TextStyle(fontSize: 12, color: Colors.black54)),
+                          const SizedBox(height: 4),
+                          Text(_latestResultTermName.isEmpty ? 'الفصل الدراسي الأول' : _latestResultTermName,
+                              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.teal)),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade200)),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(color: Colors.amber.shade50, borderRadius: BorderRadius.circular(8)),
+                        child: Icon(Icons.access_time_outlined, color: Colors.amber.shade900, size: 24),
+                      ),
+                      const SizedBox(width: 12),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('تاريخ آخر رصد أو رفع', style: TextStyle(fontSize: 12, color: Colors.black54)),
+                          const SizedBox(height: 4),
+                          Text(_latestResultUploadTime.isEmpty ? 'لم يتم الرصد بعد' : _latestResultUploadTime,
+                              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87)),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+
+          // حقل البحث السريع
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade300),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.search, color: Colors.grey),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextField(
+                    controller: _resultsSearchController,
+                    onChanged: (v) => setState(() {}),
+                    decoration: const InputDecoration(
+                      hintText: 'البحث برقم القيد الأكاديمي، أو اسم الطالب، أو التخصص...',
+                      border: InputBorder.none,
+                    ),
+                  ),
+                ),
+                if (_resultsSearchController.text.isNotEmpty)
+                  IconButton(
+                    icon: const Icon(Icons.clear, size: 18),
+                    onPressed: () {
+                      _resultsSearchController.clear();
+                      setState(() {});
+                    },
+                  ),
               ],
             ),
+          ),
+          const SizedBox(height: 20),
+
+          // جدول الطلاب والنتائج في الجهة اليسرى / الرئيسية
+          Container(
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: Colors.grey.shade200),
+              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10)],
+            ),
+            child: displayList.isEmpty
+                ? Padding(
+                    padding: const EdgeInsets.all(48),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.folder_off_outlined, size: 64, color: Colors.grey.shade400),
+                        const SizedBox(height: 16),
+                        const Text('لا توجد نتائج مطابقة أو لم يتم رفع أي نتائج بعد',
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.grey)),
+                        const SizedBox(height: 12),
+                        ElevatedButton.icon(
+                          onPressed: () async {
+                            await _importControlExcel();
+                            _loadResultsControlData();
+                          },
+                          icon: const Icon(Icons.upload_file, color: Colors.white),
+                          label: const Text('رفع ملف إكسل للنتائج الآن', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                          style: ElevatedButton.styleFrom(backgroundColor: primaryNavy),
+                        ),
+                      ],
+                    ),
+                  )
+                : ClipRRect(
+                    borderRadius: BorderRadius.circular(14),
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: DataTable(
+                        headingRowColor: MaterialStateProperty.all(primaryNavy),
+                        headingTextStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                        dataRowHeight: 60,
+                        columns: const [
+                          DataColumn(label: Text('#')),
+                          DataColumn(label: Text('الرقم الأكاديمي')),
+                          DataColumn(label: Text('اسم الطالب')),
+                          DataColumn(label: Text('التخصص')),
+                          DataColumn(label: Text('الدفعة')),
+                          DataColumn(label: Text('المجموع')),
+                          DataColumn(label: Text('المعدل')),
+                          DataColumn(label: Text('التقدير')),
+                          DataColumn(label: Text('تاريخ الرصد')),
+                          DataColumn(label: Text('الإجراءات')),
+                        ],
+                        rows: displayList.asMap().entries.map((entry) {
+                          final idx = entry.key + 1;
+                          final item = entry.value;
+                          final acadId = item['academic_id']?.toString() ?? '';
+                          final studentObj = item['students'] is Map ? item['students'] : null;
+                          final sName = studentObj?['full_name']?.toString() ?? item['student_name']?.toString() ?? 'طالب أكاديمي';
+                          final spec = studentObj?['specialty']?.toString() ?? item['specialty']?.toString() ?? '-';
+                          final batch = studentObj?['batch']?.toString() ?? item['batch']?.toString() ?? '-';
+                          final total = item['total_marks']?.toString() ?? '0';
+                          final gpa = item['gpa']?.toString() ?? '0';
+                          final grade = item['grade']?.toString() ?? 'ناجح';
+                          final updatedAt = item['updated_at']?.toString().split('T').first ?? '';
+
+                          Color gradeColor = Colors.teal;
+                          if (grade.contains('ممتاز')) {
+                            gradeColor = Colors.green.shade800;
+                          } else if (grade.contains('جيد جدا')) {
+                            gradeColor = Colors.blue.shade800;
+                          } else if (grade.contains('جيد')) {
+                            gradeColor = Colors.indigo;
+                          } else if (grade.contains('راسب')) {
+                            gradeColor = Colors.red.shade800;
+                          }
+
+                          return DataRow(
+                            cells: [
+                              DataCell(Text('$idx', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey))),
+                              DataCell(Text(acadId, style: const TextStyle(fontWeight: FontWeight.bold, color: primaryNavy))),
+                              DataCell(Text(sName, style: const TextStyle(fontWeight: FontWeight.w600))),
+                              DataCell(Text(spec)),
+                              DataCell(Text(batch)),
+                              DataCell(Text(total, style: const TextStyle(fontWeight: FontWeight.bold))),
+                              DataCell(Text('$gpa%', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blueAccent))),
+                              DataCell(
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: gradeColor.withOpacity(0.12),
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(color: gradeColor.withOpacity(0.4)),
+                                  ),
+                                  child: Text(grade, style: TextStyle(color: gradeColor, fontWeight: FontWeight.bold, fontSize: 12)),
+                                ),
+                              ),
+                              DataCell(Text(updatedAt, style: const TextStyle(color: Colors.black54, fontSize: 12))),
+                              DataCell(
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(Icons.edit_note, color: Colors.blueAccent, size: 22),
+                                      tooltip: 'تعديل الدرجات والنتيجة',
+                                      onPressed: () => _editStudentResultDialog(item),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
+                                      tooltip: 'حذف النتيجة',
+                                      onPressed: () => _deleteStudentResult(acadId, sName),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ),
           ),
         ],
       ),
