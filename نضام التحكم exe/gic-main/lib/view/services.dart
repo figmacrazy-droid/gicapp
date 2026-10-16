@@ -977,6 +977,18 @@ class _ServicesViewState extends State<ServicesView> {
     }
   }
 
+  String _cellToString(dynamic val) {
+    if (val == null) return '';
+    if (val is xl.TextCellValue) return val.value.text?.trim() ?? val.value.toString().trim();
+    if (val is xl.IntCellValue) return val.value.toString().trim();
+    if (val is xl.DoubleCellValue) return val.value.toString().trim();
+    if (val is xl.DateCellValue) return val.year.toString();
+    final str = val.toString().trim();
+    final match = RegExp(r'CellValue\((.*)\)').firstMatch(str);
+    if (match != null) return match.group(1)?.trim() ?? str;
+    return str;
+  }
+
   // --- 6. استيراد الإكسل للكنترول والنتائج ---
   Future<void> _importControlExcel() async {
     try {
@@ -1002,10 +1014,10 @@ class _ServicesViewState extends State<ServicesView> {
       if (selectedSubService == 'أرقام الجلوس') {
         for (int i = 1; i < table.rows.length; i++) {
           final row = table.rows[i];
-          final acadId = row[0]?.value?.toString().trim() ?? '';
-          final seatNo = row.length > 1 ? row[1]?.value?.toString().trim() ?? '' : '';
-          final hall = row.length > 2 ? row[2]?.value?.toString().trim() ?? '' : 'القاعة الكبرى';
-          final term = row.length > 3 ? row[3]?.value?.toString().trim() ?? '' : 'الفصل الأول';
+          final acadId = _cellToString(row[0]?.value);
+          final seatNo = row.length > 1 ? _cellToString(row[1]?.value) : '';
+          final hall = row.length > 2 ? _cellToString(row[2]?.value) : 'القاعة الكبرى';
+          final term = row.length > 3 ? _cellToString(row[3]?.value) : 'الفصل الأول';
 
           if (acadId.isNotEmpty && seatNo.isNotEmpty) {
             await AdminSupabase.client.from('seating_numbers').upsert({
@@ -1041,7 +1053,7 @@ class _ServicesViewState extends State<ServicesView> {
       } else if (selectedSubService == 'النتائج') {
         int headerRowIndex = -1;
         for (int r = 0; r < table.rows.length && r < 10; r++) {
-          final rowTexts = table.rows[r].map((c) => c?.value?.toString().trim() ?? '').toList();
+          final rowTexts = table.rows[r].map((c) => _cellToString(c?.value)).toList();
           if (rowTexts.any((txt) => txt.contains('الرقم الأكاديمي') || txt.contains('رقم القيد') || txt.contains('الأكاديمي'))) {
             headerRowIndex = r;
             break;
@@ -1062,7 +1074,7 @@ class _ServicesViewState extends State<ServicesView> {
           final Map<int, String> subjectCols = {};
 
           for (int c = 0; c < headerRow.length; c++) {
-            final colName = headerRow[c]?.value?.toString().trim() ?? '';
+            final colName = _cellToString(headerRow[c]?.value);
             if (colName.isEmpty) continue;
 
             if (colName.contains('الرقم الأكاديمي') || colName.contains('رقم القيد')) {
@@ -1085,7 +1097,7 @@ class _ServicesViewState extends State<ServicesView> {
           String detectedTermName = 'نتيجة الفصل الدراسي الحالي';
           if (headerRowIndex > 0) {
             for (var cell in table.rows[0]) {
-              final val = cell?.value?.toString().trim() ?? '';
+              final val = _cellToString(cell?.value);
               if (val.contains('الفصل') || val.contains('نصف') || val.contains('المستوى') || val.contains('الدور')) {
                 detectedTermName = val;
                 break;
@@ -1095,18 +1107,18 @@ class _ServicesViewState extends State<ServicesView> {
 
           for (int r = headerRowIndex + 1; r < table.rows.length; r++) {
             final row = table.rows[r];
-            final String acadId = idCol != -1 && idCol < row.length ? (row[idCol]?.value?.toString().trim() ?? '') : (row.isNotEmpty ? (row[0]?.value?.toString().trim() ?? '') : '');
+            final String acadId = idCol != -1 && idCol < row.length ? _cellToString(row[idCol]?.value) : (row.isNotEmpty ? _cellToString(row[0]?.value) : '');
             if (acadId.isEmpty || acadId.length < 5) continue;
 
-            final String studentName = nameCol != -1 && nameCol < row.length ? (row[nameCol]?.value?.toString().trim() ?? '') : '';
-            final double total = totalCol != -1 && totalCol < row.length ? (double.tryParse(row[totalCol]?.value?.toString() ?? '0') ?? 0.0) : 0.0;
-            final double gpa = gpaCol != -1 && gpaCol < row.length ? (double.tryParse(row[gpaCol]?.value?.toString() ?? '0') ?? 0.0) : 0.0;
-            final String grade = gradeCol != -1 && gradeCol < row.length ? (row[gradeCol]?.value?.toString().trim() ?? 'ناجح') : 'ناجح';
+            final String studentName = nameCol != -1 && nameCol < row.length ? _cellToString(row[nameCol]?.value) : '';
+            final double total = totalCol != -1 && totalCol < row.length ? (double.tryParse(_cellToString(row[totalCol]?.value)) ?? 0.0) : 0.0;
+            final double gpa = gpaCol != -1 && gpaCol < row.length ? (double.tryParse(_cellToString(row[gpaCol]?.value)) ?? 0.0) : 0.0;
+            final String grade = gradeCol != -1 && gradeCol < row.length ? _cellToString(row[gradeCol]?.value) : 'ناجح';
 
             final Map<String, double> studentSubjects = {};
             subjectCols.forEach((colIdx, subName) {
               if (colIdx < row.length) {
-                final mark = double.tryParse(row[colIdx]?.value?.toString() ?? '0') ?? 0.0;
+                final mark = double.tryParse(_cellToString(row[colIdx]?.value)) ?? 0.0;
                 studentSubjects[subName] = mark;
               }
             });
@@ -1151,17 +1163,22 @@ class _ServicesViewState extends State<ServicesView> {
               'grade': grade.isNotEmpty ? grade : 'ناجح',
             });
 
-            await AdminSupabase.client.from('student_results').upsert({
-              'academic_id': acadId,
-              'subjects': {
-                'terms': existingTerms,
-                ...studentSubjects,
-              },
-              'total_marks': total,
-              'gpa': gpa,
-              'grade': grade.isNotEmpty ? grade : 'ناجح',
-              'updated_at': DateTime.now().toIso8601String(),
-            }, onConflict: 'academic_id');
+            try {
+              await AdminSupabase.client.from('student_results').upsert({
+                'academic_id': acadId,
+                'subjects': {
+                  'terms': existingTerms,
+                  ...studentSubjects,
+                },
+                'total_marks': total,
+                'gpa': gpa,
+                'grade': grade.isNotEmpty ? grade : 'ناجح',
+                'updated_at': DateTime.now().toIso8601String(),
+              }, onConflict: 'academic_id');
+              count++;
+            } catch (err) {
+              debugPrint('Error inserting student_results for $acadId: $err');
+            }
 
             try {
               await AdminSupabase.client.from('notifications').insert({
@@ -1180,8 +1197,6 @@ class _ServicesViewState extends State<ServicesView> {
                 routeName: 'results',
               );
             } catch (_) {}
-
-            count++;
           }
         }
         _showNotification('تم استيراد نتائج ($count) طالب بنجاح وحفظها في قاعدة البيانات!');
