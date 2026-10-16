@@ -1123,19 +1123,21 @@ class _ServicesViewState extends State<ServicesView> {
               }
             });
 
+            // الحفاظ التام على بيانات الطالب وتخصصه ورفعته كما هي في الشجرة الأكاديمية دون تغيير
             try {
-              await AdminSupabase.client.from('students').upsert({
-                'academic_id': acadId,
-                'full_name': studentName.isNotEmpty ? studentName : 'طالب أكاديمي',
-                'password': 'password123',
-                'email': 'student_$acadId@alghad.edu.ye',
-                'specialty': 'تقنية معلومات',
-                'batch': 'الدفعة 1',
-                'semester': detectedTermName,
-                'group_name': 'المجموعة 1',
-                'study_shift': 'الفترة الصباحية',
-                'level': 'المستوى الأول',
-              }, onConflict: 'academic_id');
+              final existingStudent = await AdminSupabase.client
+                  .from('students')
+                  .select('academic_id')
+                  .eq('academic_id', acadId)
+                  .maybeSingle();
+              if (existingStudent == null) {
+                await AdminSupabase.client.from('students').insert({
+                  'academic_id': acadId,
+                  'full_name': studentName.isNotEmpty ? studentName : 'طالب أكاديمي',
+                  'password': 'password123',
+                  'email': 'student_$acadId@alghad.edu.ye',
+                });
+              }
             } catch (_) {}
 
             List<Map<String, dynamic>> existingTerms = [];
