@@ -67,6 +67,28 @@ class FcmSenderService {
     required String body,
     String? routeName,
   }) async {
+    // 1. في بيئة الويب (Web Browser) نستخدم الجسر المحلي لتفادي قيود المتصفح (CORS)
+    if (kIsWeb) {
+      try {
+        final res = await http.post(
+          Uri.parse('http://127.0.0.1:8099/send'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'topic': topic,
+            'title': title,
+            'body': body,
+            'routeName': routeName,
+          }),
+        );
+        if (res.statusCode == 200) {
+          debugPrint('FCM sent via local web bridge successfully');
+          return true;
+        }
+      } catch (e) {
+        debugPrint('Web bridge note: $e');
+      }
+    }
+
     try {
       final token = await _getAccessToken();
       if (token == null) return false;

@@ -1348,9 +1348,9 @@ class _NotificationsManagementViewState extends State<NotificationsManagementVie
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.check_circle, size: 14, color: Colors.green.shade700),
+                              Icon(Icons.send_rounded, size: 13, color: Colors.green.shade700),
                               const SizedBox(width: 4),
-                              Text('تم الوصول', style: TextStyle(color: Colors.green.shade800, fontSize: 12, fontWeight: FontWeight.bold)),
+                              Text('تم البث سحابياً', style: TextStyle(color: Colors.green.shade800, fontSize: 11.5, fontWeight: FontWeight.bold)),
                             ],
                           ),
                         ),

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:excel/excel.dart' as xl;
 import 'package:gic/services/supabase_service.dart';
+import 'package:gic/services/fcm_sender_service.dart';
 
 class ServicesView extends StatefulWidget {
   final Function(String path) onServiceTap;
@@ -576,6 +577,12 @@ class _ServicesViewState extends State<ServicesView> {
             'route_name': 'schedules',
             'is_read': false,
           });
+          FcmSenderService.sendToTopic(
+            topic: 'all_students',
+            title: notifTitle,
+            body: 'تم اعتماد ونشر جدول ($title) - $specialty ($batch - $term).',
+            routeName: 'schedules',
+          );
         } catch (_) {}
 
         _showNotification('تم رفع واعتماد الجدول ونشره للطلاب بنجاح!');
@@ -790,6 +797,13 @@ class _ServicesViewState extends State<ServicesView> {
           'route_name': 'finance',
           'is_read': false,
         });
+
+        FcmSenderService.sendToTopic(
+          topic: acadId.isEmpty ? 'all_students' : 'student_$acadId',
+          title: 'إشعار مالي: $title',
+          body: '$details${amount > 0 ? " (المبلغ المطلوب: $amount ر.ي)" : ""}',
+          routeName: 'finance',
+        );
       } catch (notifErr) {
         debugPrint('Finance notification insert failed: $notifErr');
       }
@@ -889,6 +903,13 @@ class _ServicesViewState extends State<ServicesView> {
           'route_name': 'control',
           'is_read': false,
         });
+
+        FcmSenderService.sendToTopic(
+          topic: 'student_$acadId',
+          title: 'اعتماد رقم الجلوس الامتحاني',
+          body: 'تم تحديد رقم جلوسك ($seatNo) في ($hall) للفصل ($term).',
+          routeName: 'control',
+        );
       } catch (_) {}
 
       _showNotification('تم اعتماد وحفظ رقم الجلوس للطالب ($acadId) بنجاح!');
@@ -1008,6 +1029,12 @@ class _ServicesViewState extends State<ServicesView> {
               'route_name': 'control',
               'is_read': false,
             });
+            FcmSenderService.sendToTopic(
+              topic: 'all_students',
+              title: 'صدور أرقام الجلوس والقاعات الامتحانية',
+              body: 'تم نشر واعتماد أرقام الجلوس وتوزيع اللجان الامتحانية لجميع الطلاب.',
+              routeName: 'control',
+            );
           } catch (_) {}
         }
         _showNotification('تم استيراد ($count) رقم جلوس بنجاح وتحديث بيانات الطلاب!');
@@ -1146,6 +1173,13 @@ class _ServicesViewState extends State<ServicesView> {
                 'route_name': 'results',
                 'is_read': false,
               });
+
+              FcmSenderService.sendToTopic(
+                topic: 'student_$acadId',
+                title: 'إعلان نتيجتك الأكاديمية: $grade 🎓',
+                body: 'عزيزي الطالب${studentName.isNotEmpty ? " $studentName" : ""}، تم اعتماد نتيجتك بمعدل $gpa% ومجموع $total. يمكنك مراجعة كشف درجات المواد الآن.',
+                routeName: 'results',
+              );
             } catch (_) {}
 
             count++;

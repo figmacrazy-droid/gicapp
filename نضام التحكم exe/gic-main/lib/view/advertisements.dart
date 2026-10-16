@@ -1293,6 +1293,12 @@ class _AdsViewState extends State<AdsView> {
                         'route_name': 'home',
                         'is_read': false,
                       });
+                      FcmSenderService.sendToTopic(
+                        topic: 'all_students',
+                        title: 'تخصص أكاديمي جديد: $degreeType $title',
+                        body: 'تمت إضافة تخصص ($degreeType $title) إلى برامج الكلية. يمكنك استكشافه ومشاهدة الفيديو التعريفي الآن!',
+                        routeName: 'home',
+                      );
                     } catch (_) {}
                   }
 
@@ -1711,6 +1717,12 @@ class _AdsViewState extends State<AdsView> {
                       'route_name': 'achievements',
                       'is_read': false,
                     });
+                    FcmSenderService.sendToTopic(
+                      topic: 'all_students',
+                      title: 'إنجاز جديد: $title',
+                      body: desc.length > 80 ? '${desc.substring(0, 80)}...' : desc,
+                      routeName: 'achievements',
+                    );
                   } catch (_) {}
                 }
 
@@ -2164,6 +2176,12 @@ class _AdsViewState extends State<AdsView> {
                       'route_name': 'alumni',
                       'is_read': false,
                     });
+                    FcmSenderService.sendToTopic(
+                      topic: 'all_students',
+                      title: 'حفل تخرج جديد: $title',
+                      body: 'تهانينا لخريجي $bName ($title)! يمكنكم الآن تصفح المجلة ومشاهدة الحفل عبر التطبيق.',
+                      routeName: 'alumni',
+                    );
                   } catch (_) {}
                 }
 
@@ -2655,6 +2673,12 @@ class _AdsViewState extends State<AdsView> {
                         'route_name': 'calendar',
                         'is_read': false,
                       });
+                      FcmSenderService.sendToTopic(
+                        topic: 'all_students',
+                        title: 'مناسبة جديدة في التقويم: $title',
+                        body: desc.isNotEmpty ? desc : 'تمت إضافة مناسبة جديدة في التقويم الجامعي بتاريخ $dateStr',
+                        routeName: 'calendar',
+                      );
                     } catch (_) {}
                   }
 

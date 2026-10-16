@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:excel/excel.dart' as xl;
 import 'package:gic/services/supabase_service.dart';
+import 'package:gic/services/fcm_sender_service.dart';
 // ignore: avoid_web_libraries_in_flutter
 import 'dart:html' as html;
 
@@ -1138,6 +1139,17 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
                   'created_at': DateTime.now().toIso8601String(),
                 }).toList();
                 await supabase.from('notifications').insert(inserts);
+
+                // إرسال تنبيه سحابي فوري عبر Firebase لهواتف الطلاب والتطبيق مغلق
+                for (final id in studentIds) {
+                  FcmSenderService.sendToTopic(
+                    topic: 'student_${id.trim()}',
+                    title: title.isEmpty ? 'إشعار من الكلية' : title,
+                    body: msg,
+                    routeName: 'notifications',
+                  );
+                }
+
                 _showSnackbar('تم إرسال الإشعار بنجاح إلى ${studentIds.length} طالب');
               } catch (e) {
                 _showSnackbar('فشل إرسال الإشعار: $e', isError: true);
@@ -1957,6 +1969,15 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
                         'route_name': 'notifications',
                         'is_read': false,
                       });
+
+                      // إرسال تنبيه سحابي فوري لجميع الطلاب عبر Firebase
+                      FcmSenderService.sendToTopic(
+                        topic: 'all_students',
+                        title: title.isEmpty ? 'إشعار من الكلية' : '$title (${selectedNode.title})',
+                        body: body,
+                        routeName: 'notifications',
+                      );
+
                       _genBodyCtrl.clear();
                       _showSnackbar('تم إرسال ونشر الإشعار العام لجميع الطلاب بنجاح');
                     } catch (e) {
