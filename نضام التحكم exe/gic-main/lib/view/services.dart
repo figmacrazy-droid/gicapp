@@ -5,6 +5,9 @@ import 'package:file_picker/file_picker.dart';
 import 'package:excel/excel.dart' as xl;
 import 'package:gic/services/supabase_service.dart';
 import 'package:gic/services/fcm_sender_service.dart';
+import 'package:gic/services/auth_service.dart';
+import 'package:gic/services/permission_service.dart';
+import 'package:gic/services/audit_log_service.dart';
 import 'package:gic/utils/file_exporter.dart';
 
 class ServicesView extends StatefulWidget {
@@ -198,6 +201,42 @@ class _ServicesViewState extends State<ServicesView> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       widget.onServiceTap(currentPath);
     });
+  }
+
+  bool _canAccessCategory(String title) {
+    final user = AuthService.currentUser;
+    if (user == null || user.isSuperAdmin) return true;
+    final keyMap = {
+      'القبول والتسجيل': 'admission',
+      'الأكاديمية': 'academic',
+      'شؤون الطلاب': 'student_affairs',
+      'شؤون الخريجين': 'graduates',
+      'الكنترول': 'control',
+      'المالية': 'finance',
+      'معلومات الكلية والدعم': 'college_info',
+      'الإعلانات والإنجازات': 'banners_achieve',
+    };
+    final key = keyMap[title];
+    if (key == null) return true;
+    return PermissionService.can('services', key, PermissionAction.read);
+  }
+
+  bool _canPerformAction(String categoryTitle, PermissionAction action) {
+    final user = AuthService.currentUser;
+    if (user == null || user.isSuperAdmin) return true;
+    final keyMap = {
+      'القبول والتسجيل': 'admission',
+      'الأكاديمية': 'academic',
+      'شؤون الطلاب': 'student_affairs',
+      'شؤون الخريجين': 'graduates',
+      'الكنترول': 'control',
+      'المالية': 'finance',
+      'معلومات الكلية والدعم': 'college_info',
+      'الإعلانات والإنجازات': 'banners_achieve',
+    };
+    final key = keyMap[categoryTitle];
+    if (key == null) return true;
+    return PermissionService.can('services', key, action);
   }
 
   void _showNotification(String msg, {bool isError = false}) {
@@ -519,6 +558,12 @@ class _ServicesViewState extends State<ServicesView> {
   }
 
   Future<void> _saveScheduleData() async {
+    final action = _editingScheduleId != null ? PermissionAction.update : PermissionAction.create;
+    if (!_canPerformAction(openServiceTitle ?? 'شؤون الطلاب', action)) {
+      _showNotification('عذراً، ليس لديك صلاحية لإجراء هذه العملية', isError: true);
+      return;
+    }
+
     final title = _scheduleTitleController.text.trim();
     final fileUrl = _selectedScheduleFileUrl ?? _scheduleUrlController.text.trim();
 
@@ -587,6 +632,13 @@ class _ServicesViewState extends State<ServicesView> {
         _showNotification('تم رفع واعتماد الجدول ونشره للطلاب بنجاح!');
       }
 
+      await AuditLogService.log(
+        actionType: _editingScheduleId != null ? 'UPDATE' : 'CREATE',
+        module: 'الخدمات والطلبات',
+        targetService: selectedSubService ?? 'الجداول الدراسية',
+        description: 'قام الموظف ${_editingScheduleId != null ? "بتعديل" : "بإضافة"} الجدول: $title',
+      );
+
       _resetScheduleForm();
       _loadSchedulesData();
     } catch (e) {
@@ -597,6 +649,11 @@ class _ServicesViewState extends State<ServicesView> {
   }
 
   Future<void> _deleteSchedule(dynamic id) async {
+    if (!_canPerformAction(openServiceTitle ?? 'شؤون الطلاب', PermissionAction.delete)) {
+      _showNotification('عذراً، ليس لديك صلاحية لحذف الجداول', isError: true);
+      return;
+    }
+
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -617,6 +674,14 @@ class _ServicesViewState extends State<ServicesView> {
 
     try {
       await AdminSupabase.client.from('schedules').delete().eq('id', id);
+
+      await AuditLogService.log(
+        actionType: 'DELETE',
+        module: 'الخدمات والطلبات',
+        targetService: selectedSubService ?? 'الجداول الدراسية',
+        description: 'قام الموظف بحذف الجدول ذو المعرف: $id',
+      );
+
       _showNotification('تم حذف الجدول بنجاح');
       if (_editingScheduleId == id) {
         _resetScheduleForm();
@@ -1227,7 +1292,7 @@ class _ServicesViewState extends State<ServicesView> {
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Row(
-                children: servicesData.map((service) {
+                children: servicesData.where((s) => _canAccessCategory(s['title'])).map((service) {
                   final bool isOpen = openServiceTitle == service['title'];
                   return Padding(
                     padding: const EdgeInsets.only(left: 12),
