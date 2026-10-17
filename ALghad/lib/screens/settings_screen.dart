@@ -199,7 +199,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       // 1. التحقق من مطابقة كلمة السر القديمة مع المسجل في Supabase
       final studentRes = await Supabase.instance.client
           .from('students')
-          .select('id, academic_id, password')
+          .select('academic_id, password')
           .eq('academic_id', session.academicId)
           .maybeSingle();
 
@@ -224,12 +224,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final updatedProfile = session.copyWith(password: newP);
       await AuthService.saveStudentSession(updatedProfile);
 
-      _showMsg('تم تغيير وتحديث كلمة السر في قاعدة البيانات بنجاح!');
+      _showMsg('تم تغيير وتحديث كلمة السر بنجاح!');
       _oldPassController.clear();
       _newPassController.clear();
       _confirmPassController.clear();
     } catch (e) {
-      _showMsg('فشل تحديث كلمة السر: $e', isError: true);
+      debugPrint('Error updating password: $e');
+      _showMsg('حدث خطأ أثناء تحديث كلمة السر، يرجى المحاولة لاحقاً', isError: true);
     } finally {
       if (mounted) setState(() => _isSavingPassword = false);
     }

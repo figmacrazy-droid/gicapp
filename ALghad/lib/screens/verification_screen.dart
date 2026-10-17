@@ -143,7 +143,7 @@ class _VerificationScreenState extends State<VerificationScreen>
         context,
         MaterialPageRoute(
           builder: (context) => HomeScreen(
-            studentFullName: widget.student?.fullName ?? 'عبدالله حمود محمد أبوطالب',
+            studentFullName: widget.student?.fullName ?? 'طالب أكاديمي',
             userName: widget.student?.fullName,
           ),
         ),

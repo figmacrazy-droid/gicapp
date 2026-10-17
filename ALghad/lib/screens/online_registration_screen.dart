@@ -496,7 +496,8 @@ class _OnlineRegistrationScreenState extends State<OnlineRegistrationScreen> {
           );
         }
       } catch (e) {
-        _showErrorSnackBar('حدث خطأ أثناء إنشاء PDF: $e');
+        debugPrint('Error generating PDF: $e');
+        _showErrorSnackBar('تعذر إنشاء واستخراج استمارة التسجيل بصيغة PDF، يرجى المحاولة لاحقاً');
       } finally {
         if (mounted) setState(() => _isSubmitting = false);
       }

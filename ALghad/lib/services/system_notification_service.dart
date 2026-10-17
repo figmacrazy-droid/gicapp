@@ -19,6 +19,7 @@ class SystemNotificationService {
   static bool _isInitialized = false;
   static String? _activeAcademicId;
   static final Set<String> _deliveredNotificationIds = {};
+  static final Map<String, DateTime> _recentlyShownNotifications = {};
   static bool _isChecking = false;
 
   static const String _deliveredPrefKey = 'alghad_delivered_notification_ids';
@@ -220,12 +221,10 @@ class SystemNotificationService {
       debugPrint('Error starting Supabase notification listener: $e');
     }
 
-    // 2. فحص دوري متزامن كل 4 ثوانٍ لجلب الإشعارات الجديدة غير المقروءة فقط
+    // فحص الإشعارات الجديدة مرة واحدة عند فتح التطبيق مع إلغاء المؤقت الدوري لمنع التكرار مع FCM
     _pollTimer?.cancel();
+    _pollTimer = null;
     _checkForNewNotifications();
-    _pollTimer = Timer.periodic(const Duration(seconds: 4), (_) {
-      _checkForNewNotifications();
-    });
   }
 
   /// فحص الإشعارات الجديدة من قاعدة البيانات (فقط غير المقروءة والتي لم يصدر لها تنبيه)
@@ -313,6 +312,19 @@ class SystemNotificationService {
     String? payload,
   }) async {
     if (kIsWeb) return;
+
+    // حماية قاطعة لمنع تكرار الإشعار:
+    // إذا وصل نفس الإشعار (العنوان والمحتوى) خلال آخر 15 ثانية، يتم إهماله فوراً
+    final dedupeKey = '${title.trim()}:::${body.trim()}';
+    final now = DateTime.now();
+    if (_recentlyShownNotifications.containsKey(dedupeKey)) {
+      final diff = now.difference(_recentlyShownNotifications[dedupeKey]!).inSeconds;
+      if (diff < 15) {
+        debugPrint('[Notifications Deduplication]: Suppressed duplicate notification within ${diff}s: "$title"');
+        return;
+      }
+    }
+    _recentlyShownNotifications[dedupeKey] = now;
 
     try {
       final int notifId = Random().nextInt(1000000);

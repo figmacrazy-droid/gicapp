@@ -351,9 +351,30 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
 
   void _showSnackbar(String msg, {bool isError = false}) {
     if (!mounted) return;
+    String cleanMsg = msg;
+    if (isError) {
+      debugPrint('[AdminTree Error]: $msg');
+      if (cleanMsg.contains('PostgrestException') ||
+          cleanMsg.contains('Exception') ||
+          cleanMsg.contains('SocketException') ||
+          cleanMsg.contains('code:')) {
+        if (cleanMsg.contains('duplicate') || cleanMsg.contains('23505') || cleanMsg.contains('already exists')) {
+          cleanMsg = 'هذا السجل أو الرقم مسجل مسبقاً في النظام';
+        } else if (cleanMsg.contains('SocketException') || cleanMsg.contains('Failed host lookup') || cleanMsg.contains('timed out')) {
+          cleanMsg = 'تعذر الاتصال بالخادم، يرجى التحقق من اتصال الإنترنت';
+        } else {
+          final colonIdx = cleanMsg.indexOf(':');
+          if (colonIdx > 0 && colonIdx < 40) {
+            cleanMsg = cleanMsg.substring(0, colonIdx).trim() + '، يرجى المحاولة مجدداً أو التحقق من البيانات';
+          } else {
+            cleanMsg = 'حدث خطأ أثناء تنفيذ العملية، يرجى التحقق وإعادة المحاولة';
+          }
+        }
+      }
+    }
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(msg, textDirection: TextDirection.rtl),
+        content: Text(cleanMsg, textDirection: TextDirection.rtl),
         backgroundColor: isError ? Colors.red.shade700 : Colors.green.shade700,
         behavior: SnackBarBehavior.floating,
       ),

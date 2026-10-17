@@ -34,12 +34,12 @@ jobs:
         working-directory: ALghad
         run: flutter pub get
 
-      - name: Build APK
+      - name: Build Split APKs (Optimized & Compressed)
         working-directory: ALghad
-        run: flutter build apk --release --no-tree-shake-icons --android-skip-build-dependency-validation
+        run: flutter build apk --release --split-per-abi --no-tree-shake-icons --android-skip-build-dependency-validation
 
-      - name: Upload Student App APK
+      - name: Upload Student App APKs
         uses: actions/upload-artifact@v4
         with:
-          name: ALghad-Student-App-release
-          path: ALghad/build/app/outputs/flutter-apk/app-release.apk
+          name: ALghad-Student-App-APKs
+          path: ALghad/build/app/outputs/flutter-apk/*.apk

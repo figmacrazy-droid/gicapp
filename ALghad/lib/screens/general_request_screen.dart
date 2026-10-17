@@ -1,5 +1,7 @@
-import 'dart:io';
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -24,7 +26,10 @@ class _GeneralRequestScreenState extends State<GeneralRequestScreen> {
   final ImagePicker _picker = ImagePicker();
 
   String? _selectedCategory;
-  File? _capturedImage;
+  XFile? _capturedImage;
+  Uint8List? _capturedImageBytes;
+  String? _capturedImageName;
+  String _uploadStatusText = '';
   StudentProfileModel? _student;
   bool _isSending = false;
   int _dailyRequestsCount = 0;
@@ -52,16 +57,16 @@ class _GeneralRequestScreenState extends State<GeneralRequestScreen> {
     final session = await AuthService.getSavedSession();
     final student = session ??
         const StudentProfileModel(
-          academicId: '2024000001',
-          fullName: 'عبد الله أحمد الطالب',
-          password: 'studentpassword',
-          email: 'abdallah@alghad.edu.ye',
-          specialty: 'علوم مختبرات طبية',
-          level: 'المستوى الثاني',
-          batch: 'الدفعة الخامسة',
-          semester: 'الفصل الأول',
-          group: 'المجموعة الأولى',
-          studyShift: 'الفترة الصباحية',
+          academicId: '',
+          fullName: 'طالب أكاديمي',
+          password: '',
+          email: '',
+          specialty: '',
+          level: 'المستوى الأول',
+          batch: '',
+          semester: '',
+          group: '',
+          studyShift: '',
         );
 
     final prefs = await SharedPreferences.getInstance();
@@ -81,23 +86,87 @@ class _GeneralRequestScreenState extends State<GeneralRequestScreen> {
       final XFile? photo = await _picker.pickImage(
         source: ImageSource.camera,
         preferredCameraDevice: CameraDevice.rear,
+        maxWidth: 1600,
+        maxHeight: 1600,
+        imageQuality: 85,
       );
       if (photo != null) {
+        final bytes = await photo.readAsBytes();
         setState(() {
-          _capturedImage = File(photo.path);
+          _capturedImage = photo;
+          _capturedImageBytes = bytes;
+          _capturedImageName = photo.name;
         });
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('حدث خطأ أثناء فتح الكاميرا: $e')),
-      );
+      debugPrint('Error capturing photo with camera: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('تعذر فتح الكاميرا، يرجى التحقق من أذونات الكاميرا')),
+        );
+      }
     }
   }
 
   void _removeCapturedImage() {
     setState(() {
       _capturedImage = null;
+      _capturedImageBytes = null;
+      _capturedImageName = null;
     });
+  }
+
+  Future<String?> _uploadImage(Uint8List bytes, String fileName) async {
+    try {
+      final safeName = fileName.isNotEmpty ? fileName : 'request_photo.jpg';
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('https://catbox.moe/user/api.php'),
+      );
+      request.fields['reqtype'] = 'fileupload';
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'fileToUpload',
+          bytes,
+          filename: safeName,
+        ),
+      );
+      final streamedResponse = await request.send().timeout(const Duration(seconds: 14));
+      final response = await http.Response.fromStream(streamedResponse);
+      if (response.statusCode == 200 && response.body.startsWith('http')) {
+        return response.body.trim();
+      }
+    } catch (e) {
+      debugPrint('Catbox upload error: $e');
+    }
+
+    try {
+      final safeName = fileName.isNotEmpty ? fileName : 'request_photo.jpg';
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('https://tmpfiles.org/api/v1/upload'),
+      );
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'file',
+          bytes,
+          filename: safeName,
+        ),
+      );
+      final streamedResponse = await request.send().timeout(const Duration(seconds: 12));
+      final response = await http.Response.fromStream(streamedResponse);
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final rawUrl = data['data']?['url'];
+        if (rawUrl is String && rawUrl.isNotEmpty) {
+          return rawUrl.replaceFirst('tmpfiles.org/', 'tmpfiles.org/dl/');
+        }
+      }
+    } catch (e) {
+      debugPrint('TmpFiles upload error: $e');
+    }
+
+    return null;
   }
 
   void _showSuccessDialog() {
@@ -210,30 +279,48 @@ class _GeneralRequestScreenState extends State<GeneralRequestScreen> {
       return;
     }
 
-    setState(() => _isSending = true);
+    setState(() {
+      _isSending = true;
+      _uploadStatusText = _capturedImageBytes != null ? 'جاري تجهيز الصورة للواتساب...' : 'جاري فتح محادثة الواتساب...';
+    });
+
+    String? uploadedImageUrl;
+    if (_capturedImageBytes != null) {
+      setState(() => _uploadStatusText = 'جاري رفع صورة الطلب لتظهر مباشرة بالواتساب...');
+      uploadedImageUrl = await _uploadImage(
+        _capturedImageBytes!,
+        _capturedImageName ?? 'request_${DateTime.now().millisecondsSinceEpoch}.jpg',
+      );
+    }
+
+    final String imageSection = uploadedImageUrl != null
+        ? '📷 صورة الطلب المباشرة (اضغط للمعاينة الفورية):\n$uploadedImageUrl\n========================================='
+        : (_capturedImage != null
+            ? '📷 مرفق: تم التقاط صورة مباشرة للطلب بالكاميرا'
+            : 'بدون صورة مرفقة');
 
     final String messageText =
         'تقديم طلب عام جديد - كلية الغد المشرق:\n'
-        '-----------------------------------------\n'
-        'اسم الطالب: ${_student?.fullName ?? "غير مسجل"}\n'
-        'الرقم الأكاديمي: ${_student?.academicId ?? "----------"}\n'
-        'التخصص: ${_student?.specialty ?? "غير محدد"}\n'
-        'المستوى: ${_student?.level ?? ""}\n'
-        'فئة الطلب: $category\n'
-        'الموضوع: $subject\n'
-        'تفاصيل ومضمون الطلب:\n$details\n'
-        '-----------------------------------------\n'
-        '${_capturedImage != null ? "مرفق: صورة ملتقطة مباشرة عبر كاميرا التطبيق 📷" : "بدون صورة مرفقة"}';
+        '=========================================\n'
+        '👤 اسم الطالب: ${_student?.fullName ?? "غير مسجل"}\n'
+        '🔢 الرقم الأكاديمي: ${_student?.academicId ?? "----------"}\n'
+        '🎓 التخصص: ${_student?.specialty ?? "غير محدد"}\n'
+        '📚 المستوى الدراسي: ${_student?.level ?? ""}\n'
+        '📌 فئة الطلب: $category\n'
+        '📝 موضوع الطلب: $subject\n'
+        '📄 تفاصيل ومضمون الطلب:\n$details\n'
+        '=========================================\n'
+        '$imageSection';
 
     try {
-      if (_capturedImage != null) {
-        // إرسال الصورة الملتقطة مع النص مباشرة للواتساب عبر share_plus
+      // 1. إذا كان التطبيق على هاتف (أندرويد أو iOS) ومعه صورة، نشارك الصورة والنص معاً للواتساب عبر shareXFiles
+      if (!kIsWeb && _capturedImage != null) {
         await Share.shareXFiles(
-          [XFile(_capturedImage!.path)],
+          [_capturedImage!],
           text: messageText,
         );
       } else {
-        // فتح محادثة الواتساب بالنص مباشرة
+        // 2. إذا كان ويب أو هاتف بدون صورة أو كرابط مباشر لمحادثة الواتساب الرسمية:
         final encoded = Uri.encodeComponent(messageText);
         final whatsappUrl = Uri.parse('whatsapp://send?phone=$collegePhone&text=$encoded');
         final webUrl = Uri.parse('https://api.whatsapp.com/send?phone=$collegePhone&text=$encoded');
@@ -262,13 +349,19 @@ class _GeneralRequestScreenState extends State<GeneralRequestScreen> {
         _showSuccessDialog();
       }
     } catch (e) {
+      debugPrint('Error sending request: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('حدث خطأ أثناء الإرسال: $e'), backgroundColor: Colors.red),
+          const SnackBar(content: Text('تعذر إرسال الطلب، يرجى التحقق من الاتصال بالإنترنت والمحاولة مجدداً'), backgroundColor: Colors.red),
         );
       }
     } finally {
-      if (mounted) setState(() => _isSending = false);
+      if (mounted) {
+        setState(() {
+          _isSending = false;
+          _uploadStatusText = '';
+        });
+      }
     }
   }
 
@@ -432,20 +525,45 @@ class _GeneralRequestScreenState extends State<GeneralRequestScreen> {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
+                    elevation: 0,
                   ),
                   child: _isSending
-                      ? const SizedBox(
-                          height: 22,
-                          width: 22,
-                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                      ? Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                            ),
+                            const SizedBox(width: 12),
+                            Flexible(
+                              child: Text(
+                                _uploadStatusText.isNotEmpty ? _uploadStatusText : 'جاري التجهيز والإرسال...',
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ],
                         )
-                      : Text(
-                          isLimitReached ? 'تم استنفاد الحد اليومي (3/3)' : 'إرسال الطلب',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
+                      : Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.send_rounded, color: Colors.white, size: 20),
+                            const SizedBox(width: 8),
+                            Text(
+                              isLimitReached ? 'تم استنفاد الحد اليومي (3/3)' : 'إرسال الطلب عبر الواتساب',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
                         ),
                 ),
               ],
@@ -538,9 +656,9 @@ class _GeneralRequestScreenState extends State<GeneralRequestScreen> {
     );
   }
 
-  // قسم التقاط الصورة المباشرة بالكاميرا
+  // قسم التقاط وإرفاق صورة الطلب
   Widget _buildCameraCaptureSection({bool enabled = true}) {
-    if (_capturedImage != null) {
+    if (_capturedImageBytes != null) {
       return Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
@@ -552,10 +670,10 @@ class _GeneralRequestScreenState extends State<GeneralRequestScreen> {
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
-              child: Image.file(
-                _capturedImage!,
-                width: 55,
-                height: 55,
+              child: Image.memory(
+                _capturedImageBytes!,
+                width: 60,
+                height: 60,
                 fit: BoxFit.cover,
               ),
             ),
@@ -569,14 +687,14 @@ class _GeneralRequestScreenState extends State<GeneralRequestScreen> {
                       Icon(Icons.check_circle, color: Color(0xFF00C853), size: 18),
                       SizedBox(width: 6),
                       Text(
-                        'تم التقاط الصورة بنجاح',
+                        'تم إرفاق صورة الطلب بنجاح',
                         style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: textColor),
                       ),
                     ],
                   ),
                   SizedBox(height: 4),
                   Text(
-                    'سيتم إرفاقها ومشاركتها مع تفاصيل الطلب',
+                    'سيتم إرسالها ومعاينتها مباشرة في الواتساب',
                     style: TextStyle(color: Colors.grey, fontSize: 11),
                   ),
                 ],
@@ -585,7 +703,7 @@ class _GeneralRequestScreenState extends State<GeneralRequestScreen> {
             if (enabled) ...[
               IconButton(
                 icon: const Icon(Icons.camera_alt, color: textColor),
-                tooltip: 'إعادة التقاط',
+                tooltip: 'إعادة التقاط صورة بالكاميرا',
                 onPressed: _takeLiveCameraPhoto,
               ),
               IconButton(

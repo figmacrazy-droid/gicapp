@@ -210,9 +210,28 @@ class _NotificationsManagementViewState extends State<NotificationsManagementVie
   }
 
   void _showSnackbar(String msg, {bool isError = false}) {
+    String cleanMsg = msg;
+    if (isError) {
+      debugPrint('[Notifications Error]: $msg');
+      if (cleanMsg.contains('PostgrestException') ||
+          cleanMsg.contains('Exception') ||
+          cleanMsg.contains('SocketException') ||
+          cleanMsg.contains('code:')) {
+        if (cleanMsg.contains('SocketException') || cleanMsg.contains('timed out')) {
+          cleanMsg = 'تعذر الاتصال بالخادم، يرجى التحقق من اتصال الإنترنت';
+        } else {
+          final colonIdx = cleanMsg.indexOf(':');
+          if (colonIdx > 0 && colonIdx < 40) {
+            cleanMsg = cleanMsg.substring(0, colonIdx).trim() + '، يرجى المحاولة مجدداً';
+          } else {
+            cleanMsg = 'حدث خطأ أثناء تنفيذ العملية، يرجى إعادة المحاولة';
+          }
+        }
+      }
+    }
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(msg, style: const TextStyle(fontWeight: FontWeight.bold)),
+        content: Text(cleanMsg, style: const TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: isError ? Colors.red.shade800 : Colors.green.shade800,
         behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 3),

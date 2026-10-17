@@ -67,6 +67,25 @@ class _AccountsManagementViewState extends State<AccountsManagementView> {
   void _showSnackbar(String msg, {bool isError = false}) {
     if (!mounted) return;
     if (isError) {
+      debugPrint('[Accounts Error]: $msg');
+      String cleanMsg = msg;
+      if (cleanMsg.contains('PostgrestException') ||
+          cleanMsg.contains('Exception') ||
+          cleanMsg.contains('SocketException') ||
+          cleanMsg.contains('code:')) {
+        if (cleanMsg.contains('duplicate') || cleanMsg.contains('23505')) {
+          cleanMsg = 'هذا الحساب أو الرابط مسجل مسبقاً في النظام';
+        } else if (cleanMsg.contains('SocketException') || cleanMsg.contains('timed out')) {
+          cleanMsg = 'تعذر الاتصال بقاعدة البيانات، يرجى التحقق من اتصال الإنترنت';
+        } else {
+          final colonIdx = cleanMsg.indexOf(':');
+          if (colonIdx > 0 && colonIdx < 40) {
+            cleanMsg = cleanMsg.substring(0, colonIdx).trim() + '، يرجى التحقق من البيانات والمحاولة مجدداً';
+          } else {
+            cleanMsg = 'حدث خطأ أثناء معالجة العملية، يرجى إعادة المحاولة';
+          }
+        }
+      }
       showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
@@ -75,7 +94,7 @@ class _AccountsManagementViewState extends State<AccountsManagementView> {
             children: [
               Icon(Icons.error_outline, color: Colors.red, size: 28),
               SizedBox(width: 8),
-              Text('تنبيه - تفاصيل الخطأ', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 16)),
+              Text('تنبيه', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 16)),
             ],
           ),
           content: Container(
@@ -85,8 +104,8 @@ class _AccountsManagementViewState extends State<AccountsManagementView> {
               borderRadius: BorderRadius.circular(8),
               border: Border.all(color: Colors.red.shade200),
             ),
-            child: SelectableText(
-              msg,
+            child: Text(
+              cleanMsg,
               textDirection: TextDirection.rtl,
               style: const TextStyle(fontSize: 13, color: Colors.black87),
             ),

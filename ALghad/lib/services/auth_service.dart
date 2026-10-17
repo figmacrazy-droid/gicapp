@@ -37,45 +37,8 @@ class AuthService {
     return null;
   }
 
-  // قاعدة بيانات وهمية تجريبية للطلاب (مطابقة لجدول الإكسل المطلوب)
-  static final List<StudentProfileModel> _mockStudents = [
-    const StudentProfileModel(
-      academicId: '2024000001',
-      fullName: 'عبد الله أحمد الطالب',
-      password: 'studentpassword',
-      email: 'abdallah@alghad.edu.ye',
-      specialty: 'علوم مختبرات طبية',
-      level: 'المستوى الثاني',
-      batch: 'الدفعة الخامسة',
-      semester: 'الفصل الأول',
-      group: 'المجموعة الأولى',
-      studyShift: 'الفترة الصباحية',
-    ),
-    const StudentProfileModel(
-      academicId: '2024000002',
-      fullName: 'فاطمة محمد العبسي',
-      password: 'fatimapassword',
-      email: 'fatima@alghad.edu.ye',
-      specialty: 'صيدلة سريرية',
-      level: 'المستوى الثالث',
-      batch: 'الدفعة الخامسة',
-      semester: 'الفصل الأول',
-      group: 'المجموعة الثانية',
-      studyShift: 'الفترة الصباحية',
-    ),
-    const StudentProfileModel(
-      academicId: '2024000003',
-      fullName: 'مهندس النظام',
-      password: 'password',
-      email: 'figmacrazy@gmail.com',
-      specialty: 'أمن سيبراني',
-      level: 'المستوى الأول',
-      batch: 'الدفعة الأولى',
-      semester: 'الفصل الأول',
-      group: 'المجموعة الأولى',
-      studyShift: 'الفترة الصباحية',
-    ),
-  ];
+  // لا توجد بيانات وهمية - الاعتماد فقط على قاعدة البيانات الحقيقية
+  static final List<StudentProfileModel> _mockStudents = [];
 
   // 2. فحص نظام الحظر التراكمي للمحاولات الخاطئة
   static Future<Map<String, dynamic>> checkLockoutStatus(String academicId) async {

@@ -26,7 +26,7 @@ class HomeScreen extends StatefulWidget {
 
   const HomeScreen({
     super.key,
-    this.studentFullName = 'عبدالله حمود محمد أبوطالب',
+    this.studentFullName = '',
     this.userName,
   });
 
@@ -41,12 +41,24 @@ class _HomeScreenState extends State<HomeScreen>
   int _unreadNotificationsCount = 0;
   String? _sessionFullName;
 
-  String get _effectiveFullName =>
-      _sessionFullName ?? widget.userName ?? widget.studentFullName;
+  String get _effectiveFullName {
+    if (_sessionFullName != null && _sessionFullName!.trim().isNotEmpty) {
+      return _sessionFullName!.trim();
+    }
+    if (widget.userName != null && widget.userName!.trim().isNotEmpty) {
+      return widget.userName!.trim();
+    }
+    if (widget.studentFullName.trim().isNotEmpty) {
+      return widget.studentFullName.trim();
+    }
+    return 'طالب أكاديمي';
+  }
 
   String get _firstName {
-    final parts = _effectiveFullName.trim().split(RegExp(r'\s+'));
-    if (parts.isEmpty) return '';
+    final name = _effectiveFullName;
+    if (name == 'طالب أكاديمي') return 'طالبنا العزيز';
+    final parts = name.trim().split(RegExp(r'\s+'));
+    if (parts.isEmpty) return 'طالبنا العزيز';
     if (parts.length > 1 && (parts[0] == 'عبد' || parts[0] == 'أمة' || parts[0] == 'امانة')) {
       return '${parts[0]} ${parts[1]}';
     }
