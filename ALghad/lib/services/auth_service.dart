@@ -111,11 +111,10 @@ class AuthService {
   static Future<StudentProfileModel?> verifyCredentials({
     required String academicId,
     required String password,
-    required String email,
+    String? email,
   }) async {
     final trimmedId = academicId.trim();
     final trimmedPass = password.trim();
-    final trimmedEmail = email.trim();
 
     try {
       final response = await Supabase.instance.client
@@ -123,7 +122,6 @@ class AuthService {
           .select()
           .eq('academic_id', trimmedId)
           .eq('password', trimmedPass)
-          .eq('email', trimmedEmail)
           .maybeSingle();
 
       if (response != null) {
@@ -145,8 +143,7 @@ class AuthService {
 
     for (var student in _mockStudents) {
       if (student.academicId == trimmedId &&
-          student.password == trimmedPass &&
-          student.email.toLowerCase() == trimmedEmail.toLowerCase()) {
+          student.password == trimmedPass) {
         return student;
       }
     }

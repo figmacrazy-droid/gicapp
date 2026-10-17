@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../models/app_models.dart';
 import '../services/auth_service.dart';
-import '../services/email_otp_service.dart';
-import 'verification_screen.dart';
+import '../services/system_notification_service.dart';
+import 'home_screen.dart';
 
 class LoginFormScreen extends StatefulWidget {
   const LoginFormScreen({super.key});
@@ -18,7 +18,6 @@ class _LoginFormScreenState extends State<LoginFormScreen>
 
   final TextEditingController _academicIdController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _emailController = TextEditingController();
   bool _isLoading = false;
 
   @override
@@ -35,7 +34,6 @@ class _LoginFormScreenState extends State<LoginFormScreen>
     _shimmerController.dispose();
     _academicIdController.dispose();
     _passwordController.dispose();
-    _emailController.dispose();
     super.dispose();
   }
 
@@ -145,17 +143,10 @@ class _LoginFormScreenState extends State<LoginFormScreen>
                                             ),
                                             _buildField(
                                               label: 'كلمة المرور',
-                                              hint: '00000000000',
+                                              hint: '••••••••••',
                                               icon: Icons.lock_outline,
                                               controller: _passwordController,
                                               obscureText: true,
-                                            ),
-                                            _buildField(
-                                              label: 'البريد الإلكتروني',
-                                              hint: 'name@example.com',
-                                              icon: Icons.email_outlined,
-                                              controller: _emailController,
-                                              keyboardType: TextInputType.emailAddress,
                                             ),
                                             Center(
                                               child: _buildGlassButton(),
@@ -204,12 +195,11 @@ class _LoginFormScreenState extends State<LoginFormScreen>
   void _handleLogin() async {
     final academicId = _academicIdController.text.trim();
     final password = _passwordController.text.trim();
-    final email = _emailController.text.trim();
 
-    if (academicId.isEmpty || password.isEmpty || email.isEmpty) {
+    if (academicId.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('يرجى ملء جميع الحقول للمتابعة'),
+          content: Text('يرجى إدخال الرقم الأكاديمي وكلمة المرور للمتابعة'),
           backgroundColor: Colors.red,
         ),
       );
@@ -221,7 +211,6 @@ class _LoginFormScreenState extends State<LoginFormScreen>
     final student = await AuthService.verifyCredentials(
       academicId: academicId,
       password: password,
-      email: email,
     );
 
     if (student == null) {
@@ -229,7 +218,7 @@ class _LoginFormScreenState extends State<LoginFormScreen>
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('بيانات الدخول غير صحيحة، يرجى التأكد وإعادة المحاولة'),
+            content: Text('الرقم الأكاديمي أو كلمة المرور غير صحيحة، يرجى التأكد وإعادة المحاولة'),
             backgroundColor: Colors.red,
           ),
         );
@@ -252,26 +241,21 @@ class _LoginFormScreenState extends State<LoginFormScreen>
       return;
     }
 
-    // توليد رمز تحقق عشوائي من 4 أرقام
-    final otpCode = EmailOtpService.generateOtp();
-
-    // إرسال الرمز عبر Resend إلى بريد الطالب
-    await EmailOtpService.sendOtpEmail(
-      targetEmail: student.email,
-      otpCode: otpCode,
-      studentName: student.fullName,
-    );
+    // حفظ جلسة الطالب والاشتراك في التنبيهات والدخول المباشر
+    await AuthService.saveStudentSession(student);
+    SystemNotificationService.startRealtimeListener(student.academicId);
 
     if (mounted) {
       setState(() => _isLoading = false);
-      Navigator.push(
+      Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(
-          builder: (context) => VerificationScreen(
-            student: student,
-            expectedOtp: otpCode,
+          builder: (context) => HomeScreen(
+            studentFullName: student.fullName,
+            userName: student.fullName,
           ),
         ),
+        (route) => false,
       );
     }
   }
