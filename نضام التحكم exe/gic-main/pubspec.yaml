@@ -40,6 +40,7 @@ dependencies:
   googleapis_auth: ^2.3.4
   http: ^1.6.0
   dart_jsonwebtoken: ^3.4.1
+  shared_preferences: ^2.3.2
 
 dev_dependencies:
   flutter_test:

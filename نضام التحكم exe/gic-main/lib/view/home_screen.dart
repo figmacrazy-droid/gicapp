@@ -117,6 +117,124 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  void _openChangePasswordDialog() {
+    final newPassCtrl = TextEditingController();
+    final confirmPassCtrl = TextEditingController();
+    bool isSaving = false;
+    String? errorText;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => Directionality(
+          textDirection: TextDirection.rtl,
+          child: AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            title: const Row(
+              children: [
+                Icon(Icons.lock_reset, color: primaryNavy, size: 26),
+                SizedBox(width: 10),
+                Text('تغيير كلمة المرور الخاصة بك', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: primaryNavy)),
+              ],
+            ),
+            content: SizedBox(
+              width: 380,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'أدخل كلمة المرور الجديدة لحسابك:',
+                    style: TextStyle(fontSize: 13, color: Colors.black87),
+                  ),
+                  const SizedBox(height: 14),
+                  TextField(
+                    controller: newPassCtrl,
+                    obscureText: true,
+                    textDirection: TextDirection.ltr,
+                    decoration: const InputDecoration(
+                      labelText: 'كلمة المرور الجديدة *',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.lock_outline),
+                      isDense: true,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: confirmPassCtrl,
+                    obscureText: true,
+                    textDirection: TextDirection.ltr,
+                    decoration: const InputDecoration(
+                      labelText: 'تأكيد كلمة المرور الجديدة *',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.lock),
+                      isDense: true,
+                    ),
+                  ),
+                  if (errorText != null) ...[
+                    const SizedBox(height: 10),
+                    Text(errorText!, style: const TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.bold)),
+                  ],
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('إلغاء'),
+              ),
+              ElevatedButton.icon(
+                onPressed: isSaving
+                    ? null
+                    : () async {
+                        final p1 = newPassCtrl.text.trim();
+                        final p2 = confirmPassCtrl.text.trim();
+                        if (p1.isEmpty) {
+                          setDialogState(() => errorText = 'يرجى إدخال كلمة المرور الجديدة');
+                          return;
+                        }
+                        if (p1 != p2) {
+                          setDialogState(() => errorText = 'كلمتا المرور غير متطابقتين');
+                          return;
+                        }
+
+                        setDialogState(() {
+                          isSaving = true;
+                          errorText = null;
+                        });
+
+                        try {
+                          await AuthService.changeCurrentAdminPassword(p1);
+                          Navigator.pop(ctx);
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('تم تغيير كلمة المرور بنجاح!', textDirection: TextDirection.rtl),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                            setState(() {});
+                          }
+                        } catch (e) {
+                          setDialogState(() {
+                            isSaving = false;
+                            errorText = e.toString().replaceAll('Exception:', '').trim();
+                          });
+                        }
+                      },
+                icon: isSaving
+                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : const Icon(Icons.save, size: 18, color: Colors.white),
+                label: const Text('حفظ التغيير', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                style: ElevatedButton.styleFrom(backgroundColor: primaryNavy),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = AuthService.currentUser;
@@ -378,6 +496,28 @@ class _HomeScreenState extends State<HomeScreen> {
                             Text(
                               'مرحباً: ${user?.fullName ?? "المدير"} (${isSuper ? "المدير العام" : "موظف"})',
                               style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(width: 14),
+                            InkWell(
+                              onTap: _openChangePasswordDialog,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: accentGold.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(color: accentGold, width: 0.8),
+                                ),
+                                child: const Row(
+                                  children: [
+                                    Icon(Icons.key, size: 12, color: accentGold),
+                                    SizedBox(width: 5),
+                                    Text(
+                                      'تغيير كلمة المرور',
+                                      style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
                           ],
                         ),

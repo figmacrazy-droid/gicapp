@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:gic/models/admin_user.dart';
+import 'package:gic/services/auth_service.dart';
 import 'package:gic/services/audit_log_service.dart';
 import 'package:gic/services/permission_service.dart';
 import 'package:gic/services/supabase_service.dart';
@@ -35,6 +36,9 @@ class _EmployeesManagementViewState extends State<EmployeesManagementView> {
 
   Future<void> _loadEmployees() async {
     setState(() => _isLoading = true);
+    final List<AdminUser> combined = [];
+
+    // 1. محاولة الجلب من Supabase
     try {
       final res = await AdminSupabase.client
           .from('admin_users')
@@ -42,17 +46,24 @@ class _EmployeesManagementViewState extends State<EmployeesManagementView> {
           .order('created_at', ascending: false);
 
       final list = (res as List).map((e) => AdminUser.fromJson(e)).toList();
-      if (mounted) {
-        setState(() {
-          _employees = list;
-          _isLoading = false;
-        });
-      }
+      combined.addAll(list);
     } catch (e) {
-      debugPrint('Error loading employees: $e');
-      if (mounted) {
-        setState(() => _isLoading = false);
+      debugPrint('⚠️ جدول Supabase غير متوفر حالياً: $e');
+    }
+
+    // 2. دمج الموظفين من التخزين المحلي (Local Fallback)
+    final localList = await AuthService.getLocalEmployees();
+    for (final loc in localList) {
+      if (!combined.any((e) => e.username.toLowerCase() == loc.username.toLowerCase())) {
+        combined.add(loc);
       }
+    }
+
+    if (mounted) {
+      setState(() {
+        _employees = combined;
+        _isLoading = false;
+      });
     }
   }
 
@@ -88,19 +99,19 @@ class _EmployeesManagementViewState extends State<EmployeesManagementView> {
           .from('admin_users')
           .update({'is_active': newStatus})
           .eq('id', emp.id);
+    } catch (_) {}
 
-      await AuditLogService.log(
-        actionType: 'STATUS_CHANGE',
-        module: 'الموظفين والصلاحيات',
-        targetService: emp.fullName,
-        description: 'قام المدير بتغيير حالة الموظف ${emp.fullName} إلى: ${newStatus ? "نشط" : "معطل"}',
-      );
+    await AuthService.toggleLocalEmployeeStatus(emp.id);
 
-      _showNotification('تم تحديث حالة الموظف');
-      _loadEmployees();
-    } catch (e) {
-      _showNotification('فشل تحديث الحالة: $e', isError: true);
-    }
+    await AuditLogService.log(
+      actionType: 'STATUS_CHANGE',
+      module: 'الموظفين والصلاحيات',
+      targetService: emp.fullName,
+      description: 'قام المدير بتغيير حالة الموظف ${emp.fullName} إلى: ${newStatus ? "نشط" : "معطل"}',
+    );
+
+    _showNotification('تم تحديث حالة الموظف');
+    _loadEmployees();
   }
 
   Future<void> _deleteEmployee(AdminUser emp) async {
@@ -130,19 +141,19 @@ class _EmployeesManagementViewState extends State<EmployeesManagementView> {
 
     try {
       await AdminSupabase.client.from('admin_users').delete().eq('id', emp.id);
+    } catch (_) {}
 
-      await AuditLogService.log(
-        actionType: 'DELETE',
-        module: 'الموظفين والصلاحيات',
-        targetService: emp.fullName,
-        description: 'قام المدير بحذف حساب الموظف: ${emp.fullName} (${emp.username})',
-      );
+    await AuthService.deleteLocalEmployee(emp.id);
 
-      _showNotification('تم حذف حساب الموظف');
-      _loadEmployees();
-    } catch (e) {
-      _showNotification('فشل حذف الموظف: $e', isError: true);
-    }
+    await AuditLogService.log(
+      actionType: 'DELETE',
+      module: 'الموظفين والصلاحيات',
+      targetService: emp.fullName,
+      description: 'قام المدير بحذف حساب الموظف: ${emp.fullName} (${emp.username})',
+    );
+
+    _showNotification('تم حذف حساب الموظف');
+    _loadEmployees();
   }
 
   @override
@@ -151,8 +162,7 @@ class _EmployeesManagementViewState extends State<EmployeesManagementView> {
       final q = _searchQuery.trim().toLowerCase();
       if (q.isEmpty) return true;
       return emp.fullName.toLowerCase().contains(q) ||
-          emp.username.toLowerCase().contains(q) ||
-          (emp.phone?.contains(q) ?? false);
+          emp.username.toLowerCase().contains(q);
     }).toList();
 
     return Directionality(
@@ -252,7 +262,7 @@ class _EmployeesManagementViewState extends State<EmployeesManagementView> {
                     child: TextField(
                       onChanged: (val) => setState(() => _searchQuery = val),
                       decoration: const InputDecoration(
-                        hintText: 'ابحث بالاسم، اسم المستخدم، أو رقم الهاتف...',
+                        hintText: 'ابحث بالاسم أو اسم المستخدم...',
                         prefixIcon: Icon(Icons.search),
                         border: InputBorder.none,
                         isDense: true,
@@ -315,7 +325,6 @@ class _EmployeesManagementViewState extends State<EmployeesManagementView> {
                       DataColumn(label: Text('اسم الموظف الكامل')),
                       DataColumn(label: Text('اسم المستخدم')),
                       DataColumn(label: Text('الدور الوظيفي')),
-                      DataColumn(label: Text('الهاتف')),
                       DataColumn(label: Text('الحالة')),
                       DataColumn(label: Text('نطاق الصلاحيات')),
                       DataColumn(label: Text('الإجراءات')),
@@ -357,7 +366,6 @@ class _EmployeesManagementViewState extends State<EmployeesManagementView> {
                             ),
                           ),
                         ),
-                        DataCell(Text(emp.phone ?? '-')),
                         DataCell(
                           Switch(
                             value: emp.isActive,
@@ -482,7 +490,6 @@ class _EmployeeFormDialogState extends State<_EmployeeFormDialog> {
   final TextEditingController _fullNameController = TextEditingController();
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _phoneController = TextEditingController();
 
   String _role = 'employee';
   bool _isActive = true;
@@ -497,7 +504,6 @@ class _EmployeeFormDialogState extends State<_EmployeeFormDialog> {
       final emp = widget.employee!;
       _fullNameController.text = emp.fullName;
       _usernameController.text = emp.username;
-      _phoneController.text = emp.phone ?? '';
       _role = emp.role;
       _isActive = emp.isActive;
       // استنساخ عميق للصلاحيات
@@ -571,7 +577,6 @@ class _EmployeeFormDialogState extends State<_EmployeeFormDialog> {
       final payload = {
         'full_name': _fullNameController.text.trim(),
         'username': _usernameController.text.trim(),
-        'phone': _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
         'role': _role,
         'is_active': _isActive,
         'permissions': _role == 'super_admin' ? {} : _permissions,
@@ -584,37 +589,38 @@ class _EmployeeFormDialogState extends State<_EmployeeFormDialog> {
         throw Exception('كلمة المرور مطلوبة للموظف الجديد');
       }
 
-      if (widget.employee == null) {
-        // إضافة موظف جديد
-        payload['created_at'] = DateTime.now().toIso8601String();
-        await AdminSupabase.client.from('admin_users').insert(payload);
-
-        await AuditLogService.log(
-          actionType: 'CREATE',
-          module: 'الموظفين والصلاحيات',
-          targetService: payload['full_name']?.toString(),
-          description: 'قام المدير بإنشاء حساب موظف جديد: ${payload['full_name']} (${payload['username']}) بدقة صلاحيات محددة',
-          details: payload,
-        );
-      } else {
-        // تحديث موظف حالي
-        await AdminSupabase.client.from('admin_users').update(payload).eq('id', widget.employee!.id);
-
-        await AuditLogService.log(
-          actionType: 'UPDATE',
-          module: 'الموظفين والصلاحيات',
-          targetService: payload['full_name']?.toString(),
-          description: 'قام المدير بتحديث بيانات وصلاحيات الموظف: ${payload['full_name']}',
-          details: payload,
-        );
+      // 1. محاولة الحفظ في Supabase
+      try {
+        if (widget.employee == null) {
+          payload['created_at'] = DateTime.now().toIso8601String();
+          await AdminSupabase.client.from('admin_users').insert(payload);
+        } else {
+          await AdminSupabase.client.from('admin_users').update(payload).eq('id', widget.employee!.id);
+        }
+      } catch (e) {
+        debugPrint('⚠️ جدول Supabase غير متوفر حالياً، سيتم الحفظ محلياً: $e');
       }
+
+      // 2. الحفظ المحلي المضمون (يعمل في كافة الظروف فوراً)
+      if (widget.employee != null) {
+        payload['id'] = widget.employee!.id;
+      }
+      await AuthService.saveLocalEmployee(payload);
+
+      await AuditLogService.log(
+        actionType: widget.employee == null ? 'CREATE' : 'UPDATE',
+        module: 'الموظفين والصلاحيات',
+        targetService: payload['full_name']?.toString(),
+        description: 'قام المدير بحفظ بيانات الموظف: ${payload['full_name']} (${payload['username']})',
+        details: payload,
+      );
 
       Navigator.of(context).pop();
       widget.onSaved();
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('فشل الحفظ: $e', textDirection: TextDirection.rtl),
+          content: Text('تنبيه: $e', textDirection: TextDirection.rtl),
           backgroundColor: Colors.red.shade700,
         ),
       );
@@ -730,18 +736,7 @@ class _EmployeeFormDialogState extends State<_EmployeeFormDialog> {
                         Row(
                           children: [
                             Expanded(
-                              child: TextFormField(
-                                controller: _phoneController,
-                                decoration: const InputDecoration(
-                                  labelText: 'رقم الهاتف / الواتساب',
-                                  hintText: 'مثال: 777123456',
-                                  border: OutlineInputBorder(),
-                                  prefixIcon: Icon(Icons.phone),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 14),
-                            Expanded(
+                              flex: 3,
                               child: DropdownButtonFormField<String>(
                                 value: _role,
                                 decoration: const InputDecoration(
@@ -758,7 +753,7 @@ class _EmployeeFormDialogState extends State<_EmployeeFormDialog> {
                                 },
                               ),
                             ),
-                            const SizedBox(width: 14),
+                            const SizedBox(width: 16),
                             Row(
                               children: [
                                 Switch(
