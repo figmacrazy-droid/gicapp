@@ -103,6 +103,7 @@ class _ServicesViewState extends State<ServicesView> {
   final TextEditingController _finAmountController = TextEditingController();
   List<Map<String, dynamic>> _finList = [];
   bool _isLoadingFin = false;
+  String? _finDetectedStudent;
 
   // --- وحدات التحكم للنتائج وكشوف درجات الطلاب (Results Management) ---
   List<Map<String, dynamic>> _resultsList = [];
@@ -203,40 +204,112 @@ class _ServicesViewState extends State<ServicesView> {
     });
   }
 
+  String? _getCategoryKey(String? categoryTitle) {
+    if (categoryTitle == null) return null;
+    final keyMap = {
+      'القبول والتسجيل': 'admission',
+      'الأكاديمية': 'academic',
+      'شؤون الطلاب': 'student_affairs',
+      'شؤون الخريجين': 'graduates',
+      'الكنترول': 'control',
+      'المالية': 'finance',
+      'معلومات الكلية والدعم': 'college_info',
+      'الإعلانات والإنجازات': 'banners_achieve',
+    };
+    for (final entry in keyMap.entries) {
+      if (categoryTitle.contains(entry.key) || entry.key.contains(categoryTitle)) {
+        return entry.value;
+      }
+    }
+    return null;
+  }
+
   bool _canAccessCategory(String title) {
     final user = AuthService.currentUser;
     if (user == null || user.isSuperAdmin) return true;
-    final keyMap = {
-      'القبول والتسجيل': 'admission',
-      'الأكاديمية': 'academic',
-      'شؤون الطلاب': 'student_affairs',
-      'شؤون الخريجين': 'graduates',
-      'الكنترول': 'control',
-      'المالية': 'finance',
-      'معلومات الكلية والدعم': 'college_info',
-      'الإعلانات والإنجازات': 'banners_achieve',
-    };
-    final key = keyMap[title];
-    if (key == null) return true;
+    final key = _getCategoryKey(title);
+    if (key == null) return false;
     return PermissionService.can('services', key, PermissionAction.read);
   }
 
-  bool _canPerformAction(String categoryTitle, PermissionAction action) {
+  bool _canPerformAction(String? categoryTitle, PermissionAction action) {
     final user = AuthService.currentUser;
     if (user == null || user.isSuperAdmin) return true;
-    final keyMap = {
-      'القبول والتسجيل': 'admission',
-      'الأكاديمية': 'academic',
-      'شؤون الطلاب': 'student_affairs',
-      'شؤون الخريجين': 'graduates',
-      'الكنترول': 'control',
-      'المالية': 'finance',
-      'معلومات الكلية والدعم': 'college_info',
-      'الإعلانات والإنجازات': 'banners_achieve',
-    };
-    final key = keyMap[categoryTitle];
-    if (key == null) return true;
+    final key = _getCategoryKey(categoryTitle);
+    if (key == null) return false;
     return PermissionService.can('services', key, action);
+  }
+
+  bool _isReadOnly(String? categoryTitle) {
+    final user = AuthService.currentUser;
+    if (user == null || user.isSuperAdmin) return false;
+    final canUpdate = _canPerformAction(categoryTitle, PermissionAction.update);
+    final canCreate = _canPerformAction(categoryTitle, PermissionAction.create);
+    final canDelete = _canPerformAction(categoryTitle, PermissionAction.delete);
+    return !canUpdate && !canCreate && !canDelete;
+  }
+
+  String _normalizeDigits(String input) {
+    const arabic = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+    const english = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+    String result = input;
+    for (int i = 0; i < 10; i++) {
+      result = result.replaceAll(arabic[i], english[i]);
+    }
+    return result.trim();
+  }
+
+  Widget _buildReadOnlyBanner() {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF8E1),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFFFB300), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.amber.withOpacity(0.12),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.amber.shade700,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.lock_rounded, color: Colors.white, size: 20),
+          ),
+          const SizedBox(width: 14),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'وضع الاستعراض فقط (صلاحية قراءة)',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                    color: Color(0xFF8D6E00),
+                  ),
+                ),
+                SizedBox(height: 3),
+                Text(
+                  'أنت تتصفح هذا القسم بصلاحية قراءة فقط. تم قفل وتعطيل عمليات الحفظ والتعديل والحذف بناءً على الصلاحيات الممنوحة لحسابك.',
+                  style: TextStyle(fontSize: 13, color: Color(0xFF6D4C00)),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showNotification(String msg, {bool isError = false}) {
@@ -287,6 +360,11 @@ class _ServicesViewState extends State<ServicesView> {
 
   Future<void> _saveInstructionData() async {
     if (selectedSubService == null) return;
+    if (!_canPerformAction(openServiceTitle, PermissionAction.update) &&
+        !_canPerformAction(openServiceTitle, PermissionAction.create)) {
+      _showNotification('⚠️ عذراً، حسابك يملك صلاحية قراءة فقط ولا يحق لك التعديل أو الحفظ.', isError: true);
+      return;
+    }
     setState(() => _isSavingInstruction = true);
 
     try {
@@ -713,6 +791,11 @@ class _ServicesViewState extends State<ServicesView> {
   }
 
   Future<void> _saveStaffData() async {
+    if (!_canPerformAction('الأكاديمية', PermissionAction.create)) {
+      _showNotification('⚠️ عذراً، حسابك يملك صلاحية قراءة فقط ولا يحق لك إضافة كادر.', isError: true);
+      return;
+    }
+
     final name = _staffNameController.text.trim();
     final spec = _staffSpecialtyController.text.trim();
     if (name.isEmpty || spec.isEmpty) {
@@ -743,6 +826,11 @@ class _ServicesViewState extends State<ServicesView> {
   }
 
   Future<void> _deleteStaff(dynamic id) async {
+    if (!_canPerformAction('الأكاديمية', PermissionAction.delete)) {
+      _showNotification('⚠️ عذراً، حسابك لا يملك صلاحية حذف أعضاء الكادر.', isError: true);
+      return;
+    }
+
     try {
       await AdminSupabase.client.from('academic_staff').delete().eq('id', id);
       _showNotification('تم حذف عضو الكادر بنجاح');
@@ -773,6 +861,11 @@ class _ServicesViewState extends State<ServicesView> {
   }
 
   Future<void> _saveSpecialtyData() async {
+    if (!_canPerformAction('الأكاديمية', PermissionAction.create)) {
+      _showNotification('⚠️ عذراً، حسابك يملك صلاحية قراءة فقط ولا يحق لك إضافة تخصصات.', isError: true);
+      return;
+    }
+
     final title = _specTitleController.text.trim();
     if (title.isEmpty) {
       _showNotification('يرجى كتابة اسم التخصص', isError: true);
@@ -798,6 +891,11 @@ class _ServicesViewState extends State<ServicesView> {
   }
 
   Future<void> _deleteSpecialty(dynamic id) async {
+    if (!_canPerformAction('الأكاديمية', PermissionAction.delete)) {
+      _showNotification('⚠️ عذراً، حسابك لا يملك صلاحية حذف التخصصات.', isError: true);
+      return;
+    }
+
     try {
       await AdminSupabase.client.from('specialties').delete().eq('id', id);
       _showNotification('تم حذف التخصص بنجاح');
@@ -828,7 +926,37 @@ class _ServicesViewState extends State<ServicesView> {
     }
   }
 
+  Future<void> _lookupFinanceStudent(String id) async {
+    final cleanId = _normalizeDigits(id);
+    if (cleanId.length < 3) {
+      if (_finDetectedStudent != null) setState(() => _finDetectedStudent = null);
+      return;
+    }
+    try {
+      final res = await AdminSupabase.client
+          .from('students')
+          .select('full_name, specialty')
+          .eq('academic_id', cleanId)
+          .maybeSingle();
+
+      if (mounted) {
+        setState(() {
+          if (res != null) {
+            _finDetectedStudent = '✓ الطالب: ${res['full_name']} (${res['specialty'] ?? ''})';
+          } else {
+            _finDetectedStudent = '⚠️ تنبيه: لا يوجد طالب مسجل بهذا الرقم في قائمة الطلاب';
+          }
+        });
+      }
+    } catch (_) {}
+  }
+
   Future<void> _saveFinanceData() async {
+    if (!_canPerformAction('المالية', PermissionAction.create)) {
+      _showNotification('⚠️ عذراً، حسابك يملك صلاحية قراءة فقط ولا يحق لك إرسال إشعارات مالية.', isError: true);
+      return;
+    }
+
     final title = _finTitleController.text.trim();
     final details = _finDetailsController.text.trim();
     if (title.isEmpty || details.isEmpty) {
@@ -836,8 +964,30 @@ class _ServicesViewState extends State<ServicesView> {
       return;
     }
 
-    final acadId = _finAcademicIdController.text.trim();
-    final amount = double.tryParse(_finAmountController.text.trim()) ?? 0.0;
+    final acadId = _normalizeDigits(_finAcademicIdController.text);
+    final rawAmount = _normalizeDigits(_finAmountController.text.replaceAll(',', ''));
+    final amount = double.tryParse(rawAmount) ?? 0.0;
+
+    // التحقق من وجود الطالب في قاعدة البيانات إذا تم إدخال رقم أكاديمي
+    if (acadId.isNotEmpty) {
+      try {
+        final studentCheck = await AdminSupabase.client
+            .from('students')
+            .select('academic_id, full_name')
+            .eq('academic_id', acadId)
+            .maybeSingle();
+
+        if (studentCheck == null) {
+          _showNotification(
+            '⚠️ لا يمكن الإرسال: الرقم الأكاديمي ($acadId) غير مسجل في قائمة الطلاب! يرجى التأكد من الرقم أو تركه فارغاً للإرسال لجميع الطلاب.',
+            isError: true,
+          );
+          return;
+        }
+      } catch (checkErr) {
+        debugPrint('Student check note: $checkErr');
+      }
+    }
 
     try {
       await AdminSupabase.client.from('finance_notifications').insert({
@@ -851,6 +1001,8 @@ class _ServicesViewState extends State<ServicesView> {
       _finTitleController.clear();
       _finDetailsController.clear();
       _finAmountController.clear();
+      _finAcademicIdController.clear();
+      if (mounted) setState(() => _finDetectedStudent = null);
 
       try {
         await AdminSupabase.client.from('notifications').insert({
@@ -875,7 +1027,11 @@ class _ServicesViewState extends State<ServicesView> {
       _showNotification('تم إرسال الإشعار المالي بنجاح وحفظه في حساب الطالب!');
       _loadFinanceData();
     } catch (e) {
-      _showNotification('فشل الإرسال: $e', isError: true);
+      String errStr = e.toString();
+      if (errStr.contains('23503') || errStr.contains('foreign key') || errStr.contains('students')) {
+        errStr = 'الرقم الأكاديمي ($acadId) غير موجود في جدول الطلاب بالكلية.';
+      }
+      _showNotification('فشل الإرسال: $errStr', isError: true);
     }
   }
 
@@ -926,8 +1082,14 @@ class _ServicesViewState extends State<ServicesView> {
   }
 
   Future<void> _saveSeatingNumber() async {
-    final acadId = _seatingAcademicIdController.text.trim();
-    final seatNo = _seatingNumberController.text.trim();
+    final action = _editingSeatingAcademicId != null ? PermissionAction.update : PermissionAction.create;
+    if (!_canPerformAction('الكنترول', action)) {
+      _showNotification('⚠️ عذراً، حسابك يملك صلاحية قراءة فقط ولا يحق لك حفظ أو تعديل أرقام الجلوس.', isError: true);
+      return;
+    }
+
+    final acadId = _normalizeDigits(_seatingAcademicIdController.text);
+    final seatNo = _normalizeDigits(_seatingNumberController.text);
     final hall = _seatingHallController.text.trim().isEmpty ? 'القاعة الكبرى' : _seatingHallController.text.trim();
     final term = _seatingTermController.text.trim().isEmpty ? 'الفصل الدراسي الأول 2024/2025' : _seatingTermController.text.trim();
 
@@ -1012,6 +1174,11 @@ class _ServicesViewState extends State<ServicesView> {
   }
 
   Future<void> _deleteSeatingNumber(String academicId) async {
+    if (!_canPerformAction('الكنترول', PermissionAction.delete)) {
+      _showNotification('⚠️ عذراً، حسابك لا يملك صلاحية حذف أرقام الجلوس.', isError: true);
+      return;
+    }
+
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -1056,6 +1223,10 @@ class _ServicesViewState extends State<ServicesView> {
 
   // --- 6. استيراد الإكسل للكنترول والنتائج ---
   Future<void> _importControlExcel() async {
+    if (!_canPerformAction('الكنترول', PermissionAction.create)) {
+      _showNotification('⚠️ عذراً، حسابك يملك صلاحية قراءة فقط ولا يحق لك استيراد أو رفع ملفات الكنترول.', isError: true);
+      return;
+    }
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
@@ -1405,40 +1576,44 @@ class _ServicesViewState extends State<ServicesView> {
       );
     }
 
+    final bool readOnly = _isReadOnly(openServiceTitle);
+    Widget content;
+
     if (selectedSubService == 'التسجيل أونلاين') {
-      return _buildMessageOnly('هذه الخدمة مرتبطة بنموذج استمارة الطالب وترسل بياناتها مباشرة إلى رقم الواتساب المخصص للكلية (967776166321).');
+      content = _buildMessageOnly('هذه الخدمة مرتبطة بنموذج استمارة الطالب وترسل بياناتها مباشرة إلى رقم الواتساب المخصص للكلية (967776166321).');
+    } else if (selectedSubService!.contains('الجداول الدراسية') || selectedSubService!.contains('جداول الامتحانات')) {
+      content = _buildPdfUploadEditor();
+    } else if (selectedSubService == 'أرقام الجلوس') {
+      content = _buildSeatingNumbersEditor();
+    } else if (selectedSubService == 'النتائج') {
+      content = _buildResultsControlEditor();
+    } else if (selectedSubService == 'أوائل الطلاب') {
+      content = _buildExcelUploadEditor(title: 'إدارة واستيراد: $selectedSubService');
+    } else if (selectedSubService == 'الكادر الأكاديمي والتدريس') {
+      content = _buildStaffEditor();
+    } else if (selectedSubService == 'التخصصات الأكاديمية') {
+      content = _buildSpecialtyEditor();
+    } else if (selectedSubService == 'الإشعارات المالية وكشوفات الحساب') {
+      content = _buildFinanceEditor();
+    } else {
+      bool hasUrl = selectedSubService == 'التسجيل عبر البوابة الإلكترونية لوزارة التربية';
+      content = _buildTextInstructionEditor(hasUrl: hasUrl);
     }
 
-    if (selectedSubService!.contains('الجداول الدراسية') || selectedSubService!.contains('جداول الامتحانات')) {
-      return _buildPdfUploadEditor();
+    if (readOnly) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(left: 24, right: 24, top: 16),
+            child: _buildReadOnlyBanner(),
+          ),
+          Expanded(child: content),
+        ],
+      );
     }
 
-    if (selectedSubService == 'أرقام الجلوس') {
-      return _buildSeatingNumbersEditor();
-    }
-
-    if (selectedSubService == 'النتائج') {
-      return _buildResultsControlEditor();
-    }
-
-    if (selectedSubService == 'أوائل الطلاب') {
-      return _buildExcelUploadEditor(title: 'إدارة واستيراد: $selectedSubService');
-    }
-
-    if (selectedSubService == 'الكادر الأكاديمي والتدريس') {
-      return _buildStaffEditor();
-    }
-
-    if (selectedSubService == 'التخصصات الأكاديمية') {
-      return _buildSpecialtyEditor();
-    }
-
-    if (selectedSubService == 'الإشعارات المالية وكشوفات الحساب') {
-      return _buildFinanceEditor();
-    }
-
-    bool hasUrl = selectedSubService == 'التسجيل عبر البوابة الإلكترونية لوزارة التربية';
-    return _buildTextInstructionEditor(hasUrl: hasUrl);
+    return content;
   }
 
   // --- محرر التعليمات النصية ---
@@ -1455,12 +1630,15 @@ class _ServicesViewState extends State<ServicesView> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text('إدارة ونشر محتوى: $selectedSubService', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: primaryNavy)),
-                ElevatedButton.icon(
-                  onPressed: _isSavingInstruction ? null : _saveInstructionData,
-                  icon: const Icon(Icons.cloud_upload_outlined, color: Colors.white, size: 20),
-                  label: Text(_isSavingInstruction ? 'جاري الحفظ...' : 'حفظ ونشر في التطبيق', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.green.shade700, padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14)),
-                ),
+                Builder(builder: (ctx) {
+                  final bool readOnly = _isReadOnly(openServiceTitle);
+                  return ElevatedButton.icon(
+                    onPressed: (_isSavingInstruction || readOnly) ? null : _saveInstructionData,
+                    icon: Icon(readOnly ? Icons.lock : Icons.cloud_upload_outlined, color: Colors.white, size: 20),
+                    label: Text(readOnly ? 'معطل (قراءة فقط)' : (_isSavingInstruction ? 'جاري الحفظ...' : 'حفظ ونشر في التطبيق'), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+                    style: ElevatedButton.styleFrom(backgroundColor: readOnly ? Colors.grey : Colors.green.shade700, padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14)),
+                  );
+                }),
               ],
             ),
             const Divider(height: 32),
@@ -1782,19 +1960,22 @@ class _ServicesViewState extends State<ServicesView> {
                         ),
                       ),
                       const SizedBox(width: 12),
-                      ElevatedButton.icon(
-                        onPressed: _pickScheduleFile,
-                        icon: const Icon(Icons.upload_file, color: Colors.white, size: 18),
-                        label: Text(
-                          _selectedScheduleFileName != null ? 'استبدال الملف من الجهاز' : 'اختيار ملف من الجهاز',
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: primaryNavy,
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        ),
-                      ),
+                      Builder(builder: (ctx) {
+                        final bool readOnly = _isReadOnly(openServiceTitle);
+                        return ElevatedButton.icon(
+                          onPressed: readOnly ? null : _pickScheduleFile,
+                          icon: Icon(readOnly ? Icons.lock : Icons.upload_file, color: Colors.white, size: 18),
+                          label: Text(
+                            readOnly ? 'معطل (قراءة فقط)' : (_selectedScheduleFileName != null ? 'استبدال الملف من الجهاز' : 'اختيار ملف من الجهاز'),
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: readOnly ? Colors.grey : primaryNavy,
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                        );
+                      }),
                     ],
                   ),
                 ),
@@ -1803,25 +1984,30 @@ class _ServicesViewState extends State<ServicesView> {
                 // زر الحفظ والنشر
                 Align(
                   alignment: Alignment.centerLeft,
-                  child: ElevatedButton.icon(
-                    onPressed: _isSavingSchedule ? null : _saveScheduleData,
-                    icon: Icon(
-                      _editingScheduleId != null ? Icons.save : Icons.cloud_upload,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                    label: Text(
-                      _isSavingSchedule
-                          ? 'جاري المعالجة والحفظ...'
-                          : (_editingScheduleId != null ? 'حفظ التعديلات على الجدول' : 'حفظ ونشر الجدول للطلاب'),
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _editingScheduleId != null ? accentGold : Colors.green.shade700,
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    ),
-                  ),
+                  child: Builder(builder: (ctx) {
+                    final bool readOnly = _isReadOnly(openServiceTitle);
+                    return ElevatedButton.icon(
+                      onPressed: (_isSavingSchedule || readOnly) ? null : _saveScheduleData,
+                      icon: Icon(
+                        readOnly ? Icons.lock : (_editingScheduleId != null ? Icons.save : Icons.cloud_upload),
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                      label: Text(
+                        readOnly
+                            ? 'معطل (قراءة فقط)'
+                            : (_isSavingSchedule
+                                ? 'جاري المعالجة والحفظ...'
+                                : (_editingScheduleId != null ? 'حفظ التعديلات على الجدول' : 'حفظ ونشر الجدول للطلاب')),
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: readOnly ? Colors.grey : (_editingScheduleId != null ? accentGold : Colors.green.shade700),
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                    );
+                  }),
                 ),
               ],
             ),
@@ -2008,6 +2194,7 @@ class _ServicesViewState extends State<ServicesView> {
 
   // --- محرر الكادر التدريسي ---
   Widget _buildStaffEditor() {
+    final bool readOnly = _isReadOnly('الأكاديمية');
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -2018,10 +2205,10 @@ class _ServicesViewState extends State<ServicesView> {
             children: [
               const Text('إدارة الكادر الأكاديمي والتدريس', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: primaryNavy)),
               ElevatedButton.icon(
-                onPressed: _saveStaffData,
+                onPressed: readOnly ? null : _saveStaffData,
                 icon: const Icon(Icons.add, color: Colors.white),
-                label: const Text('إضافة عضو جديد ونشره', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.green.shade700, padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12)),
+                label: Text(readOnly ? 'معطل (قراءة فقط)' : 'إضافة عضو جديد ونشره', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                style: ElevatedButton.styleFrom(backgroundColor: readOnly ? Colors.grey : Colors.green.shade700, padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12)),
               ),
             ],
           ),
@@ -2071,7 +2258,7 @@ class _ServicesViewState extends State<ServicesView> {
                     leading: const CircleAvatar(backgroundColor: accentGold, child: Icon(Icons.person, color: Colors.white)),
                     title: Text(item['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
                     subtitle: Text('${item['specialty'] ?? ''} - ${item['experience_years'] ?? ''}'),
-                    trailing: IconButton(icon: const Icon(Icons.delete, color: Colors.red), onPressed: () => _deleteStaff(item['id'])),
+                    trailing: readOnly ? null : IconButton(icon: const Icon(Icons.delete, color: Colors.red), onPressed: () => _deleteStaff(item['id'])),
                   ),
                 );
               },
@@ -2083,6 +2270,7 @@ class _ServicesViewState extends State<ServicesView> {
 
   // --- محرر التخصصات ---
   Widget _buildSpecialtyEditor() {
+    final bool readOnly = _isReadOnly('الأكاديمية');
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -2093,10 +2281,10 @@ class _ServicesViewState extends State<ServicesView> {
             children: [
               const Text('إدارة التخصصات الأكاديمية', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: primaryNavy)),
               ElevatedButton.icon(
-                onPressed: _saveSpecialtyData,
+                onPressed: readOnly ? null : _saveSpecialtyData,
                 icon: const Icon(Icons.add, color: Colors.white),
-                label: const Text('إضافة تخصص ونشره', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.green.shade700, padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12)),
+                label: Text(readOnly ? 'معطل (قراءة فقط)' : 'إضافة تخصص ونشره', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                style: ElevatedButton.styleFrom(backgroundColor: readOnly ? Colors.grey : Colors.green.shade700, padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12)),
               ),
             ],
           ),
@@ -2144,7 +2332,7 @@ class _ServicesViewState extends State<ServicesView> {
                     leading: const Icon(Icons.school, color: primaryNavy),
                     title: Text(item['title'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
                     subtitle: Text('${item['degree_type'] ?? ''} - ${item['location'] ?? ''}'),
-                    trailing: IconButton(icon: const Icon(Icons.delete, color: Colors.red), onPressed: () => _deleteSpecialty(item['id'])),
+                    trailing: readOnly ? null : IconButton(icon: const Icon(Icons.delete, color: Colors.red), onPressed: () => _deleteSpecialty(item['id'])),
                   ),
                 );
               },
@@ -2683,6 +2871,10 @@ class _ServicesViewState extends State<ServicesView> {
 
   // حفظ النتائج المعتمدة وبث الإشعارات المخصصة (درجات أو رسالة حجب)
   Future<void> _commitResultsImport(String detectedTermName, List<Map<String, dynamic>> candidates) async {
+    if (!_canPerformAction('الكنترول', PermissionAction.create)) {
+      _showNotification('⚠️ عذراً، حسابك يملك صلاحية قراءة فقط ولا يحق لك اعتماد أو حفظ النتائج.', isError: true);
+      return;
+    }
     setState(() => _isLoadingResultsControl = true);
     int savedCount = 0;
     int withheldCount = 0;
@@ -2816,6 +3008,10 @@ class _ServicesViewState extends State<ServicesView> {
 
   // تبديل حالة حجب النتيجة للطالب في الجدول الرئيسي مع إرسال إشعار فوري
   Future<void> _toggleStudentResultLock(Map<String, dynamic> item, {required bool unwithhold}) async {
+    if (!_canPerformAction('الكنترول', PermissionAction.update)) {
+      _showNotification('⚠️ عذراً، حسابك يملك صلاحية قراءة فقط ولا يحق لك تعديل حالة الحجب.', isError: true);
+      return;
+    }
     final acadId = item['academic_id']?.toString() ?? '';
     final studentObj = item['students'] is Map ? item['students'] : null;
     final studentName = studentObj?['full_name']?.toString() ?? item['student_name']?.toString() ?? 'طالب أكاديمي';
@@ -2969,6 +3165,10 @@ class _ServicesViewState extends State<ServicesView> {
 
   // نشر النتائج وبث إشعارات فورية سحابية للطلاب
   Future<void> _publishResultsWithNotifications() async {
+    if (!_canPerformAction('الكنترول', PermissionAction.update)) {
+      _showNotification('⚠️ عذراً، حسابك يملك صلاحية قراءة فقط ولا يحق لك نشر النتائج أو بث الإشعارات.', isError: true);
+      return;
+    }
     if (_resultsList.isEmpty) {
       _showNotification('لا توجد نتائج مسجلة لنشرها حالياً. يرجى رفع ملف النتائج أولاً.', isError: true);
       return;
@@ -3065,6 +3265,10 @@ class _ServicesViewState extends State<ServicesView> {
 
   // تعديل نتيجة طالب
   Future<void> _editStudentResultDialog(Map<String, dynamic> item) async {
+    if (!_canPerformAction('الكنترول', PermissionAction.update)) {
+      _showNotification('⚠️ عذراً، حسابك يملك صلاحية قراءة فقط ولا يحق لك تعديل النتائج.', isError: true);
+      return;
+    }
     final acadId = item['academic_id']?.toString() ?? '';
     final studentObj = item['students'] is Map ? item['students'] : null;
     final studentName = studentObj?['full_name']?.toString() ?? item['student_name']?.toString() ?? 'طالب أكاديمي';
@@ -3216,6 +3420,10 @@ class _ServicesViewState extends State<ServicesView> {
 
   // حذف نتيجة طالب
   Future<void> _deleteStudentResult(String academicId, String studentName) async {
+    if (!_canPerformAction('الكنترول', PermissionAction.delete)) {
+      _showNotification('⚠️ عذراً، حسابك لا يملك صلاحية حذف النتائج.', isError: true);
+      return;
+    }
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -3308,33 +3516,44 @@ class _ServicesViewState extends State<ServicesView> {
                   spacing: 10,
                   runSpacing: 10,
                   children: [
-                    // زر رفع ملف الإكسل
-                    ElevatedButton.icon(
-                      onPressed: () async {
-                        await _importControlExcel();
-                        _loadResultsControlData();
-                      },
-                      icon: const Icon(Icons.upload_file, color: Colors.white, size: 18),
-                      label: const Text('رفع كشف النتائج (Excel)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.green.shade800, padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14)),
-                    ),
-                    // زر تصدير الإكسل
-                    ElevatedButton.icon(
-                      onPressed: _exportResultsToExcel,
-                      icon: const Icon(Icons.file_download_outlined, color: Colors.white, size: 18),
-                      label: const Text('تصدير كشف النتائج', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.blueGrey.shade800, padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14)),
-                    ),
-                    // زر نشر النتائج وبث الإشعارات
-                    ElevatedButton.icon(
-                      onPressed: _isPublishingResults ? null : _publishResultsWithNotifications,
-                      icon: _isPublishingResults
-                          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                          : const Icon(Icons.campaign_rounded, color: Colors.white, size: 20),
-                      label: Text(_isPublishingResults ? 'جاري البث...' : 'نشر النتائج وبث الإشعارات',
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                      style: ElevatedButton.styleFrom(backgroundColor: accentGold, padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14)),
-                    ),
+                    // أزرار رفع وتصدير ونشر النتائج
+                    Builder(builder: (ctx) {
+                      final bool readOnly = _isReadOnly('الكنترول');
+                      return Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ElevatedButton.icon(
+                            onPressed: readOnly
+                                ? null
+                                : () async {
+                                    await _importControlExcel();
+                                    _loadResultsControlData();
+                                  },
+                            icon: Icon(readOnly ? Icons.lock : Icons.upload_file, color: Colors.white, size: 18),
+                            label: Text(readOnly ? 'معطل (قراءة فقط)' : 'رفع كشف النتائج (Excel)', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                            style: ElevatedButton.styleFrom(backgroundColor: readOnly ? Colors.grey : Colors.green.shade800, padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14)),
+                          ),
+                          const SizedBox(width: 8),
+                          ElevatedButton.icon(
+                            onPressed: _exportResultsToExcel,
+                            icon: const Icon(Icons.file_download_outlined, color: Colors.white, size: 18),
+                            label: const Text('تصدير كشف النتائج', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                            style: ElevatedButton.styleFrom(backgroundColor: Colors.blueGrey.shade800, padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14)),
+                          ),
+                          const SizedBox(width: 8),
+                          ElevatedButton.icon(
+                            onPressed: (_isPublishingResults || readOnly) ? null : _publishResultsWithNotifications,
+                            icon: _isPublishingResults
+                                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                                : Icon(readOnly ? Icons.lock : Icons.campaign_rounded, color: Colors.white, size: 20),
+                            label: Text(readOnly ? 'النشر معطل' : (_isPublishingResults ? 'جاري البث...' : 'نشر النتائج وبث الإشعارات'),
+                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                            style: ElevatedButton.styleFrom(backgroundColor: readOnly ? Colors.grey : accentGold, padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14)),
+                          ),
+                        ],
+                      );
+                    }),
+                    const SizedBox(width: 8),
                     // زر التحديث
                     OutlinedButton.icon(
                       onPressed: _loadResultsControlData,
@@ -3677,33 +3896,39 @@ class _ServicesViewState extends State<ServicesView> {
                               ),
                               DataCell(Text(updatedAt, style: const TextStyle(color: Colors.black54, fontSize: 12))),
                               DataCell(
-                                Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    if (isWithheld)
+                                Builder(builder: (ctx) {
+                                  final bool readOnly = _isReadOnly('الكنترول');
+                                  if (readOnly) {
+                                    return const Text('استعراض فقط', style: TextStyle(color: Colors.grey, fontSize: 12));
+                                  }
+                                  return Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      if (isWithheld)
+                                        IconButton(
+                                          icon: const Icon(Icons.lock_open, color: Colors.teal, size: 20),
+                                          tooltip: 'فك الحجب عن نتيجة الطالب وإرسال إشعار',
+                                          onPressed: () => _toggleStudentResultLock(item, unwithhold: true),
+                                        )
+                                      else
+                                        IconButton(
+                                          icon: const Icon(Icons.lock_outline, color: Colors.orange, size: 20),
+                                          tooltip: 'حجب النتيجة مع كتابة رسالة مخصصة تصل للطالب',
+                                          onPressed: () => _toggleStudentResultLock(item, unwithhold: false),
+                                        ),
                                       IconButton(
-                                        icon: const Icon(Icons.lock_open, color: Colors.teal, size: 20),
-                                        tooltip: 'فك الحجب عن نتيجة الطالب وإرسال إشعار',
-                                        onPressed: () => _toggleStudentResultLock(item, unwithhold: true),
-                                      )
-                                    else
-                                      IconButton(
-                                        icon: const Icon(Icons.lock_outline, color: Colors.orange, size: 20),
-                                        tooltip: 'حجب النتيجة مع كتابة رسالة مخصصة تصل للطالب',
-                                        onPressed: () => _toggleStudentResultLock(item, unwithhold: false),
+                                        icon: const Icon(Icons.edit_note, color: Colors.blueAccent, size: 22),
+                                        tooltip: 'تعديل الدرجات والنتيجة',
+                                        onPressed: () => _editStudentResultDialog(item),
                                       ),
-                                    IconButton(
-                                      icon: const Icon(Icons.edit_note, color: Colors.blueAccent, size: 22),
-                                      tooltip: 'تعديل الدرجات والنتيجة',
-                                      onPressed: () => _editStudentResultDialog(item),
-                                    ),
-                                    IconButton(
-                                      icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
-                                      tooltip: 'حذف النتيجة',
-                                      onPressed: () => _deleteStudentResult(acadId, sName),
-                                    ),
-                                  ],
-                                ),
+                                      IconButton(
+                                        icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
+                                        tooltip: 'حذف النتيجة',
+                                        onPressed: () => _deleteStudentResult(acadId, sName),
+                                      ),
+                                    ],
+                                  );
+                                }),
                               ),
                             ],
                           );
@@ -3750,12 +3975,15 @@ class _ServicesViewState extends State<ServicesView> {
                   const SizedBox(height: 8),
                   const Text('اختر ملف Excel لرفعه وحفظه فوراً في قاعدة البيانات', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 12),
-                  ElevatedButton.icon(
-                    onPressed: _importControlExcel,
-                    icon: const Icon(Icons.upload_file, color: Colors.white),
-                    label: const Text('اختيار ملف إكسل ورفعه', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.green.shade800, padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12)),
-                  ),
+                  Builder(builder: (ctx) {
+                    final bool readOnly = _isReadOnly('الكنترول');
+                    return ElevatedButton.icon(
+                      onPressed: readOnly ? null : _importControlExcel,
+                      icon: Icon(readOnly ? Icons.lock : Icons.upload_file, color: Colors.white),
+                      label: Text(readOnly ? 'معطل (قراءة فقط)' : 'اختيار ملف إكسل ورفعه', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      style: ElevatedButton.styleFrom(backgroundColor: readOnly ? Colors.grey : Colors.green.shade800, padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12)),
+                    );
+                  }),
                 ],
               ),
             ),
@@ -3767,6 +3995,7 @@ class _ServicesViewState extends State<ServicesView> {
 
   // --- محرر المالية ---
   Widget _buildFinanceEditor() {
+    final bool readOnly = _isReadOnly('المالية');
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -3777,10 +4006,10 @@ class _ServicesViewState extends State<ServicesView> {
             children: [
               const Text('إدارة المطالبات والإشعارات المالية', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: primaryNavy)),
               ElevatedButton.icon(
-                onPressed: _saveFinanceData,
+                onPressed: readOnly ? null : _saveFinanceData,
                 icon: const Icon(Icons.send, color: Colors.white),
-                label: const Text('إرسال الإشعار المالي فوراً', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.red.shade700, padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12)),
+                label: Text(readOnly ? 'معطل (قراءة فقط)' : 'إرسال الإشعار المالي فوراً', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                style: ElevatedButton.styleFrom(backgroundColor: readOnly ? Colors.grey : Colors.red.shade700, padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12)),
               ),
             ],
           ),
@@ -3792,13 +4021,54 @@ class _ServicesViewState extends State<ServicesView> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
                       flex: 2,
-                      child: TextField(
-                        controller: _finAcademicIdController,
-                        textDirection: TextDirection.ltr,
-                        decoration: const InputDecoration(labelText: 'الرقم الأكاديمي للطالب (اتركه فارغاً لإرساله للجميع)', border: OutlineInputBorder(), prefixIcon: Icon(Icons.person_search)),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          TextField(
+                            controller: _finAcademicIdController,
+                            textDirection: TextDirection.ltr,
+                            onChanged: _lookupFinanceStudent,
+                            decoration: InputDecoration(
+                              labelText: 'الرقم الأكاديمي للطالب (اتركه فارغاً لإرساله للجميع)',
+                              border: const OutlineInputBorder(),
+                              prefixIcon: const Icon(Icons.person_search),
+                              suffixIcon: _finAcademicIdController.text.isNotEmpty
+                                  ? IconButton(
+                                      icon: const Icon(Icons.clear, size: 18),
+                                      onPressed: () {
+                                        _finAcademicIdController.clear();
+                                        setState(() => _finDetectedStudent = null);
+                                      },
+                                    )
+                                  : null,
+                            ),
+                          ),
+                          if (_finDetectedStudent != null) ...[
+                            const SizedBox(height: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: _finDetectedStudent!.startsWith('✓') ? Colors.green.shade50 : Colors.red.shade50,
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color: _finDetectedStudent!.startsWith('✓') ? Colors.green.shade300 : Colors.red.shade300,
+                                ),
+                              ),
+                              child: Text(
+                                _finDetectedStudent!,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: _finDetectedStudent!.startsWith('✓') ? Colors.green.shade800 : Colors.red.shade800,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
                     const SizedBox(width: 16),
@@ -4070,25 +4340,30 @@ class _ServicesViewState extends State<ServicesView> {
                 const SizedBox(height: 16),
                 Align(
                   alignment: Alignment.centerLeft,
-                  child: ElevatedButton.icon(
-                    onPressed: _isSavingSeating ? null : _saveSeatingNumber,
-                    icon: Icon(
-                      _editingSeatingAcademicId != null ? Icons.save : Icons.check_circle,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                    label: Text(
-                      _isSavingSeating
-                          ? 'جاري الحفظ...'
-                          : (_editingSeatingAcademicId != null ? 'حفظ التعديلات على رقم الجلوس' : 'اعتماد وحفظ رقم الجلوس للطالب'),
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _editingSeatingAcademicId != null ? accentGold : Colors.green.shade700,
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    ),
-                  ),
+                  child: Builder(builder: (ctx) {
+                    final bool readOnly = _isReadOnly('الكنترول');
+                    return ElevatedButton.icon(
+                      onPressed: (_isSavingSeating || readOnly) ? null : _saveSeatingNumber,
+                      icon: Icon(
+                        readOnly ? Icons.lock : (_editingSeatingAcademicId != null ? Icons.save : Icons.check_circle),
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                      label: Text(
+                        readOnly
+                            ? 'معطل (قراءة فقط)'
+                            : (_isSavingSeating
+                                ? 'جاري الحفظ...'
+                                : (_editingSeatingAcademicId != null ? 'حفظ التعديلات على رقم الجلوس' : 'اعتماد وحفظ رقم الجلوس للطالب')),
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: readOnly ? Colors.grey : (_editingSeatingAcademicId != null ? accentGold : Colors.green.shade700),
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                    );
+                  }),
                 ),
               ],
             ),

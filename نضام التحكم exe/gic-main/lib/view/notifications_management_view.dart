@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/supabase_service.dart';
 import '../services/fcm_sender_service.dart';
+import '../services/auth_service.dart';
+import '../services/permission_service.dart';
 
 class NotificationsManagementView extends StatefulWidget {
   final Function(String path)? onPathChanged;
@@ -81,6 +83,58 @@ class _NotificationsManagementViewState extends State<NotificationsManagementVie
   String _searchQuery = '';
   String _filterType = 'الكل';
   String _filterStatus = 'الكل';
+
+  bool _canNotif(String serviceKey, PermissionAction action) {
+    return PermissionService.can('notifications', serviceKey, action);
+  }
+
+  bool get _isNotifReadOnly =>
+      !_canNotif('send_notifications', PermissionAction.create) &&
+      !_canNotif('notifications_history', PermissionAction.update) &&
+      !_canNotif('notifications_history', PermissionAction.delete);
+
+  void _showNoPermissionSnack([String msg = '⚠️ عذراً، حسابك يملك صلاحية قراءة فقط في قسم الإشعارات.']) {
+    _showSnackbar(msg, isError: true);
+  }
+
+  String _normalizeDigits(String input) {
+    const arabicDigits = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+    const englishDigits = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+    String result = input.trim();
+    for (int i = 0; i < 10; i++) {
+      result = result.replaceAll(arabicDigits[i], englishDigits[i]);
+    }
+    return result;
+  }
+
+  Widget _buildReadOnlyBanner() {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.amber.shade50,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.amber.shade400, width: 1.2),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.lock_outline, color: Colors.amber.shade900, size: 22),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'وضع القراءة فقط: حسابك يملك صلاحية استعراض سجل الإشعارات فقط، ولا يمكنك إرسال أو تعديل أو حذف الإشعارات.',
+              style: TextStyle(
+                color: Colors.amber.shade900,
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   void initState() {
@@ -243,6 +297,10 @@ class _NotificationsManagementViewState extends State<NotificationsManagementVie
 
   // 1. حذف الإشعار بالكامل
   Future<void> _deleteCampaign(NotificationCampaign campaign) async {
+    if (!_canNotif('notifications_history', PermissionAction.delete)) {
+      _showNoPermissionSnack('⚠️ عذراً، حسابك لا يملك صلاحية حذف الإشعارات.');
+      return;
+    }
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -286,6 +344,10 @@ class _NotificationsManagementViewState extends State<NotificationsManagementVie
 
   // 2. تعديل نص وعنوان الإشعار بالكامل
   Future<void> _editCampaign(NotificationCampaign campaign) async {
+    if (!_canNotif('notifications_history', PermissionAction.update)) {
+      _showNoPermissionSnack('⚠️ عذراً، حسابك لا يملك صلاحية تعديل الإشعارات.');
+      return;
+    }
     final titleCtrl = TextEditingController(text: campaign.title);
     final bodyCtrl = TextEditingController(text: campaign.body);
 
@@ -526,6 +588,10 @@ class _NotificationsManagementViewState extends State<NotificationsManagementVie
 
   // 6. حذف الإشعار لطالب مفرد
   Future<void> _deleteForSingleStudent(NotificationTargetStudent target) async {
+    if (!_canNotif('notifications_history', PermissionAction.delete)) {
+      _showNoPermissionSnack('⚠️ عذراً، حسابك لا يملك صلاحية حذف الإشعارات.');
+      return;
+    }
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -555,6 +621,10 @@ class _NotificationsManagementViewState extends State<NotificationsManagementVie
 
   // 7. إرسال إشعار جديد
   Future<void> _showSendNewNotificationDialog() async {
+    if (!_canNotif('send_notifications', PermissionAction.create)) {
+      _showNoPermissionSnack('⚠️ عذراً، حسابك لا يملك صلاحية إرسال إشعارات جديدة.');
+      return;
+    }
     final titleCtrl = TextEditingController();
     final bodyCtrl = TextEditingController();
     String targetMode = 'all'; // 'all', 'specialty', 'single'
@@ -753,12 +823,24 @@ class _NotificationsManagementViewState extends State<NotificationsManagementVie
                     }
                   } else {
                     // طالب مفرد
-                    if (singleAcademicId.isEmpty) {
+                    final normalizedId = _normalizeDigits(singleAcademicId);
+                    if (normalizedId.isEmpty) {
                       _showSnackbar('يرجى إدخال الرقم الأكاديمي', isError: true);
                       return;
                     }
+
+                    // التحقق من وجود الطالب في النظام قبل الإرسال لمنع أخطاء قيود الربط
+                    final studentExists = _studentsMap.containsKey(normalizedId);
+                    if (!studentExists) {
+                      final checkRes = await supabase.from('students').select('academic_id').eq('academic_id', normalizedId).maybeSingle();
+                      if (checkRes == null) {
+                        _showSnackbar('⚠️ الرقم الأكاديمي ($normalizedId) غير مسجل في جدول الطلاب!', isError: true);
+                        return;
+                      }
+                    }
+
                     await supabase.from('notifications').insert({
-                      'academic_id': singleAcademicId,
+                      'academic_id': normalizedId,
                       'title': title,
                       'body': body,
                       'notification_type': selectedType,
@@ -769,7 +851,7 @@ class _NotificationsManagementViewState extends State<NotificationsManagementVie
 
                     // إرسال تنبيه فوري للطالب المحدد عبر Firebase
                     FcmSenderService.sendToTopic(
-                      topic: 'student_$singleAcademicId',
+                      topic: 'student_$normalizedId',
                       title: title,
                       body: body,
                       routeName: selectedType,
@@ -779,7 +861,12 @@ class _NotificationsManagementViewState extends State<NotificationsManagementVie
                   _showSnackbar('تم إرسال الإشعار بنجاح وإيصاله للطلاب!');
                   _loadAllData();
                 } catch (e) {
-                  _showSnackbar('فشل إرسال الإشعار: $e', isError: true);
+                  final errStr = e.toString();
+                  if (errStr.contains('23503')) {
+                    _showSnackbar('فشل الإرسال: الرقم الأكاديمي غير مسجل في قاعدة البيانات', isError: true);
+                  } else {
+                    _showSnackbar('فشل إرسال الإشعار: $e', isError: true);
+                  }
                 }
               },
               icon: const Icon(Icons.send, color: Colors.white, size: 18),
@@ -820,6 +907,8 @@ class _NotificationsManagementViewState extends State<NotificationsManagementVie
             // ترويسة الصفحة
             _buildHeader(),
             const SizedBox(height: 20),
+
+            if (_isNotifReadOnly) _buildReadOnlyBanner(),
 
             // بطاقات الإحصائيات العلوية
             _buildStatsCards(),

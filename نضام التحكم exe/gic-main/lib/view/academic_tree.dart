@@ -6,6 +6,8 @@ import 'package:file_picker/file_picker.dart';
 import 'package:excel/excel.dart' as xl;
 import 'package:gic/services/supabase_service.dart';
 import 'package:gic/services/fcm_sender_service.dart';
+import 'package:gic/services/auth_service.dart';
+import 'package:gic/services/permission_service.dart';
 import 'package:gic/utils/file_exporter.dart';
 
 class TreeNodeData {
@@ -78,6 +80,53 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
   bool _isSendingGenNotif = false;
 
   SupabaseClient get supabase => AdminSupabase.client;
+
+  bool _canTree(String serviceKey, PermissionAction action) {
+    return PermissionService.can('academic_tree', serviceKey, action);
+  }
+
+  bool get _isTreeStructureReadOnly =>
+      !_canTree('tree_structure', PermissionAction.create) &&
+      !_canTree('tree_structure', PermissionAction.update) &&
+      !_canTree('tree_structure', PermissionAction.delete);
+
+  bool get _isTreeStudentsReadOnly =>
+      !_canTree('tree_students', PermissionAction.create) &&
+      !_canTree('tree_students', PermissionAction.update) &&
+      !_canTree('tree_students', PermissionAction.delete);
+
+  void _showNoPermissionSnack([String msg = '⚠️ عذراً، حسابك يملك صلاحية قراءة فقط في هذا القسم.']) {
+    _showSnackbar(msg, isError: true);
+  }
+
+  Widget _buildTreeReadOnlyBanner(String message) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.amber.shade50,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.amber.shade400, width: 1.2),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.lock_outline, color: Colors.amber.shade900, size: 22),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(
+                color: Colors.amber.shade900,
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   void initState() {
@@ -387,6 +436,10 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
 
   // 1. إضافة كلية / مؤسسة جديدة (جذر الشجرة)
   void _showAddYearDialog() {
+    if (!_canTree('tree_structure', PermissionAction.create)) {
+      _showNoPermissionSnack('⚠️ عذراً، حسابك لا يملك صلاحية إضافة فروع للشجرة الأكاديمية.');
+      return;
+    }
     final controller = TextEditingController(text: 'كلية الغد الدولية');
     showDialog(
       context: context,
@@ -429,6 +482,10 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
 
   // 2. إضافة عنصر فرعي في الشجرة (فرع، قسم، تخصص، دفعة، فصل)
   void _showAddChildDialog(TreeNodeData parent) {
+    if (!_canTree('tree_structure', PermissionAction.create)) {
+      _showNoPermissionSnack('⚠️ عذراً، حسابك لا يملك صلاحية إضافة فروع للشجرة الأكاديمية.');
+      return;
+    }
     String childType = '';
     String labelText = '';
     bool isAddingSemester = false;
@@ -544,6 +601,10 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
 
   // 3. تعديل اسم العنصر
   void _showEditTitleDialog(TreeNodeData node) {
+    if (!_canTree('tree_structure', PermissionAction.update)) {
+      _showNoPermissionSnack('⚠️ عذراً، حسابك لا يملك صلاحية تعديل فروع الشجرة الأكاديمية.');
+      return;
+    }
     final controller = TextEditingController(text: node.title);
     showDialog(
       context: context,
@@ -585,6 +646,10 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
 
   // 4. حذف عنصر من الشجرة
   void _showDeleteNodeDialog(TreeNodeData node) {
+    if (!_canTree('tree_structure', PermissionAction.delete)) {
+      _showNoPermissionSnack('⚠️ عذراً، حسابك لا يملك صلاحية حذف فروع الشجرة الأكاديمية.');
+      return;
+    }
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -614,6 +679,10 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
 
   // 5. إضافة طالب يدوياً
   void _showAddStudentManualDialog(TreeNodeData groupNode) {
+    if (!_canTree('tree_students', PermissionAction.create)) {
+      _showNoPermissionSnack('⚠️ عذراً، حسابك لا يملك صلاحية إضافة طلاب في الشجرة الأكاديمية.');
+      return;
+    }
     final ctx = _getHierarchyContext(groupNode.id);
 
     final idController = TextEditingController();
@@ -738,6 +807,10 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
 
   // 6. استيراد الطلاب من ملف Excel
   Future<void> _importStudentsFromExcel(TreeNodeData groupNode) async {
+    if (!_canTree('tree_students', PermissionAction.create)) {
+      _showNoPermissionSnack('⚠️ عذراً، حسابك لا يملك صلاحية استيراد طلاب من Excel.');
+      return;
+    }
     final ctx = _getHierarchyContext(groupNode.id);
 
     try {
@@ -806,6 +879,10 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
 
   // 7. تعديل بيانات طالب (يشمل الرقم الأكاديمي، الاسم، كلمة السر، الإيميل)
   void _showEditStudentDialog(Map<String, dynamic> student, TreeNodeData groupNode) {
+    if (!_canTree('tree_students', PermissionAction.update)) {
+      _showNoPermissionSnack('⚠️ عذراً، حسابك لا يملك صلاحية تعديل بيانات الطلاب.');
+      return;
+    }
     final oldAcademicId = student['academic_id']?.toString() ?? '';
     final idController = TextEditingController(text: oldAcademicId);
     final nameController = TextEditingController(text: student['full_name']);
@@ -880,6 +957,10 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
 
   // 8. توقيف أو تنشيط حساب الطالب
   Future<void> _toggleBlockStudent(Map<String, dynamic> student, TreeNodeData groupNode) async {
+    if (!_canTree('tree_students', PermissionAction.update)) {
+      _showNoPermissionSnack('⚠️ عذراً، حسابك لا يملك صلاحية إيقاف أو تنشيط حسابات الطلاب.');
+      return;
+    }
     final String acadId = (student['academic_id'] ?? '').toString().trim();
     if (acadId.isEmpty) return;
     final bool currentBlocked = student['is_blocked'] ?? false;
@@ -907,6 +988,10 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
 
   // 9. ترقية طلاب هذا الفصل إلى الفصل التالي (إفراغ هذا الفصل ونقل الطلاب إلى الفصل المختار)
   void _showPromoteSemesterDialog(TreeNodeData currentSemesterNode) {
+    if (!_canTree('tree_students', PermissionAction.update)) {
+      _showNoPermissionSnack('⚠️ عذراً، حسابك لا يملك صلاحية ترقية طلاب الفصل.');
+      return;
+    }
     final ctx = _getHierarchyContext(currentSemesterNode.id);
     final currentSemTitle = currentSemesterNode.title;
 
@@ -1026,6 +1111,10 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
 
   // 10. ترقية الكل: ترقية جميع فصول الدفعة خطوة للأمام
   void _showPromoteAllSemestersDialog(TreeNodeData semesterNode) {
+    if (!_canTree('tree_students', PermissionAction.update)) {
+      _showNoPermissionSnack('⚠️ عذراً، حسابك لا يملك صلاحية ترقية فصول الدفعة.');
+      return;
+    }
     TreeNodeData? batchParent;
     if (semesterNode.parentId != null) {
       batchParent = _findNodeById(treeData, semesterNode.parentId!);
@@ -1112,6 +1201,12 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
 
   // 11. إرسال إشعار للطالب
   void _showSendNotificationDialog(List<String> studentIds, String studentName) {
+    final canNotify = PermissionService.can('notifications', 'send_notifications', PermissionAction.create) ||
+        _canTree('tree_students', PermissionAction.create);
+    if (!canNotify) {
+      _showNoPermissionSnack('⚠️ عذراً، حسابك لا يملك صلاحية إرسال إشعارات للطلاب.');
+      return;
+    }
     final titleController = TextEditingController(text: 'إشعار من الكلية');
     final messageController = TextEditingController();
 
@@ -1185,6 +1280,10 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
 
   // 12. نقل الطالب / الطلاب من تخصص إلى تخصص آخر
   void _showTransferSpecialtyDialog(List<String> studentIds, TreeNodeData groupNode) {
+    if (!_canTree('tree_students', PermissionAction.update)) {
+      _showNoPermissionSnack('⚠️ عذراً، حسابك لا يملك صلاحية نقل الطلاب بين التخصصات.');
+      return;
+    }
     // جمع التخصصات والدفعات والفصول من الشجرة
     List<String> availableSpecialties = [];
     Map<String, List<String>> specialtyBatches = {};
@@ -1421,6 +1520,10 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: primaryNavy),
               onPressed: () async {
+                if (!_canTree('tree_students', PermissionAction.update)) {
+                  _showNoPermissionSnack('⚠️ عذراً، حسابك لا يملك صلاحية تعديل درجات الطلاب.');
+                  return;
+                }
                 Navigator.pop(ctx);
                 try {
                   await supabase.from('student_results').upsert({
@@ -1446,6 +1549,10 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
 
   // 14. حجب أو إظهار النتيجة للطالب
   Future<void> _toggleHideResult(Map<String, dynamic> student) async {
+    if (!_canTree('tree_students', PermissionAction.update)) {
+      _showNoPermissionSnack('⚠️ عذراً، حسابك لا يملك صلاحية حجب أو إظهار النتائج.');
+      return;
+    }
     final academicId = student['academic_id']?.toString().trim() ?? '';
     final bool currentHidden = student['is_result_hidden'] ?? false;
     final bool newHidden = !currentHidden;
@@ -1547,6 +1654,10 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
 
   // 16. رفع درجات طلاب الفصل من ملف Excel
   Future<void> _uploadGradesFromExcel(TreeNodeData semesterNode) async {
+    if (!_canTree('tree_students', PermissionAction.update)) {
+      _showNoPermissionSnack('⚠️ عذراً، حسابك لا يملك صلاحية رفع درجات الطلاب.');
+      return;
+    }
     final ctx = _getHierarchyContext(semesterNode.id);
     try {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
@@ -1871,6 +1982,8 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (_isTreeStructureReadOnly)
+            _buildTreeReadOnlyBanner('وضع القراءة فقط: حسابك لا يملك صلاحية إضافة أو تعديل أو حذف عناصر الهيكل الأكاديمي.'),
           Container(
             padding: const EdgeInsets.all(20),
             width: double.infinity,
@@ -1964,6 +2077,12 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
                 const SizedBox(height: 16),
                 ElevatedButton.icon(
                   onPressed: _isSendingGenNotif ? null : () async {
+                    final canNotify = PermissionService.can('notifications', 'send_notifications', PermissionAction.create) ||
+                        _canTree('tree_students', PermissionAction.create);
+                    if (!canNotify) {
+                      _showNoPermissionSnack('⚠️ عذراً، حسابك لا يملك صلاحية إرسال إشعارات للطلاب.');
+                      return;
+                    }
                     final title = _genTitleCtrl.text.trim();
                     final body = _genBodyCtrl.text.trim();
                     if (body.isEmpty) {
@@ -2029,6 +2148,8 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        if (_isTreeStudentsReadOnly)
+          _buildTreeReadOnlyBanner('وضع القراءة فقط: حسابك لا يملك صلاحية إضافة أو تعديل أو ترقية بيانات الطلاب في هذا الفرع.'),
         Text(
           'إدارة بيانات: ${selectedNode.title}',
           style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: primaryNavy),
@@ -2157,6 +2278,10 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
                 const SizedBox(width: 8),
                 TextButton.icon(
                   onPressed: () async {
+                    if (!_canTree('tree_students', PermissionAction.update)) {
+                      _showNoPermissionSnack('⚠️ عذراً، حسابك لا يملك صلاحية إيقاف حسابات الطلاب.');
+                      return;
+                    }
                     setState(() => isLoadingStudents = true);
                     try {
                       for (final id in selectedStudentIds) {
@@ -2175,6 +2300,10 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
                 const SizedBox(width: 8),
                 TextButton.icon(
                   onPressed: () async {
+                    if (!_canTree('tree_students', PermissionAction.update)) {
+                      _showNoPermissionSnack('⚠️ عذراً، حسابك لا يملك صلاحية تنشيط حسابات الطلاب.');
+                      return;
+                    }
                     setState(() => isLoadingStudents = true);
                     try {
                       for (final id in selectedStudentIds) {
