@@ -1,8 +1,18 @@
-#include "flutter_window.h"
+﻿#include "flutter_window.h"
 
 #include <optional>
+#include <string>
 
 #include "flutter/generated_plugin_registrant.h"
+
+static std::wstring Utf8ToWide(const std::string& utf8_str) {
+  if (utf8_str.empty()) return std::wstring();
+  int size = ::MultiByteToWideChar(CP_UTF8, 0, utf8_str.c_str(), -1, NULL, 0);
+  std::wstring wide(size, 0);
+  ::MultiByteToWideChar(CP_UTF8, 0, utf8_str.c_str(), -1, &wide[0], size);
+  if (!wide.empty() && wide.back() == L'\0') wide.pop_back();
+  return wide;
+}
 
 FlutterWindow::FlutterWindow(const flutter::DartProject& project)
     : project_(project) {}
@@ -39,7 +49,7 @@ bool FlutterWindow::OnCreate() {
         if (call.method_name().compare("maximize") == 0) {
           if (hwnd) {
             ::ShowWindow(hwnd, SW_MAXIMIZE);
-            ::SetWindowTextW(hwnd, L"كلية الغد الدولية - لوحة تحكم النظام الإداري");
+            ::SetWindowTextW(hwnd, Utf8ToWide("كلية الغد الدولية - لوحة تحكم النظام الإداري").c_str());
           }
           result->Success();
         } else if (call.method_name().compare("expand") == 0) {
@@ -54,7 +64,7 @@ bool FlutterWindow::OnCreate() {
             if (origin_y < 0) origin_y = 10;
             ::ShowWindow(hwnd, SW_RESTORE);
             ::SetWindowPos(hwnd, HWND_TOP, origin_x, origin_y, window_width, window_height, SWP_SHOWWINDOW);
-            ::SetWindowTextW(hwnd, L"كلية الغد الدولية - لوحة تحكم النظام الإداري");
+            ::SetWindowTextW(hwnd, Utf8ToWide("كلية الغد الدولية - لوحة تحكم النظام الإداري").c_str());
           }
           result->Success();
         } else if (call.method_name().compare("shrinkToLogin") == 0) {
@@ -69,7 +79,7 @@ bool FlutterWindow::OnCreate() {
             if (origin_x < 0) origin_x = 10;
             if (origin_y < 0) origin_y = 10;
             ::SetWindowPos(hwnd, HWND_TOP, origin_x, origin_y, window_width, window_height, SWP_SHOWWINDOW);
-            ::SetWindowTextW(hwnd, L"كلية الغد الدولية - تسجيل الدخول");
+            ::SetWindowTextW(hwnd, Utf8ToWide("كلية الغد الدولية - تسجيل الدخول").c_str());
           }
           result->Success();
         } else {

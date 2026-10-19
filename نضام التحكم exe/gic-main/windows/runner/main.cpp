@@ -1,9 +1,18 @@
-#include <flutter/dart_project.h>
+﻿#include <flutter/dart_project.h>
 #include <flutter/flutter_view_controller.h>
 #include <windows.h>
 
 #include "flutter_window.h"
 #include "utils.h"
+
+static std::wstring Utf8ToWide(const std::string& utf8_str) {
+  if (utf8_str.empty()) return std::wstring();
+  int size = ::MultiByteToWideChar(CP_UTF8, 0, utf8_str.c_str(), -1, NULL, 0);
+  std::wstring wide(size, 0);
+  ::MultiByteToWideChar(CP_UTF8, 0, utf8_str.c_str(), -1, &wide[0], size);
+  if (!wide.empty() && wide.back() == L'\0') wide.pop_back();
+  return wide;
+}
 
 int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
                       _In_ wchar_t *command_line, _In_ int show_command) {
@@ -36,7 +45,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
 
   Win32Window::Point origin(origin_x, origin_y);
   Win32Window::Size size(window_width, window_height);
-  if (!window.Create(L"كلية الغد الدولية - تسجيل الدخول", origin, size)) {
+  if (!window.Create(Utf8ToWide("كلية الغد الدولية - تسجيل الدخول"), origin, size)) {
     return EXIT_FAILURE;
   }
   window.SetQuitOnClose(true);

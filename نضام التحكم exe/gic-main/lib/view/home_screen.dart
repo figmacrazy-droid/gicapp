@@ -6,7 +6,6 @@ import 'package:gic/services/permission_service.dart';
 import 'package:gic/view/academic_tree.dart';
 import 'package:gic/view/accounts_management_view.dart';
 import 'package:gic/view/advertisements.dart';
-import 'package:gic/view/analysis.dart';
 import 'package:gic/view/audit_logs_view.dart';
 import 'package:gic/view/employees_management_view.dart';
 import 'package:gic/view/login_screen.dart';
@@ -86,8 +85,6 @@ class _HomeScreenState extends State<HomeScreen> {
         activeTab = 'الحسابات';
       } else if (PermissionService.canAccessModule('advertisements')) {
         activeTab = 'الاعلانات';
-      } else if (PermissionService.canAccessModule('analysis')) {
-        activeTab = 'التحليل';
       }
     }
   }
@@ -441,12 +438,6 @@ class _HomeScreenState extends State<HomeScreen> {
                           const Divider(color: dividerColor, height: 1),
                         ],
 
-                        // 6. التحليل
-                        if (PermissionService.canAccessModule('analysis')) ...[
-                          _buildNavItem('التحليل', Icons.insert_photo_outlined),
-                          const Divider(color: dividerColor, height: 1),
-                        ],
-
                         // 7. أقسام المدير العام الحصرية (Super Admin Only)
                         if (isSuper) ...[
                           const SizedBox(height: 10),
@@ -651,11 +642,6 @@ class _HomeScreenState extends State<HomeScreen> {
           });
         },
       );
-    }
-
-    // 5. التحليل والإحصائيات
-    else if (activeTab == 'التحليل') {
-      return const AnalysisView();
     }
 
     // 6. الحسابات ودليل الجامعة

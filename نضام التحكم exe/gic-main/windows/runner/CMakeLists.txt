@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.14)
+﻿cmake_minimum_required(VERSION 3.14)
 project(runner LANGUAGES CXX)
 
 # Define the application target. To change its name, change BINARY_NAME in the
@@ -29,6 +29,11 @@ target_compile_definitions(${BINARY_NAME} PRIVATE "FLUTTER_VERSION_BUILD=${FLUTT
 
 # Disable Windows macros that collide with C++ standard library functions.
 target_compile_definitions(${BINARY_NAME} PRIVATE "NOMINMAX")
+
+# Force UTF-8 encoding for MSVC source and execution charset
+if (MSVC)
+  target_compile_options(${BINARY_NAME} PRIVATE "/utf-8")
+endif()
 
 # Add dependency libraries and include directories. Add any application-specific
 # dependencies here.

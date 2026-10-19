@@ -88,14 +88,6 @@ class PermissionService {
         ServiceItemDef(key: 'ads_management', title: 'إدارة وتحديث الإعلانات'),
       ],
     ),
-    ModuleDef(
-      key: 'analysis',
-      title: 'التحليل والإحصائيات',
-      icon: Icons.insert_photo_outlined,
-      services: [
-        ServiceItemDef(key: 'view_statistics', title: 'استعراض الإحصائيات والرسوم البيانية'),
-      ],
-    ),
   ];
 
   /// فحص إذا كان للمستخدم صلاحية دخول للقسم ككل (يملك صلاحية قراءة لخدمة واحدة على الأقل داخله)
