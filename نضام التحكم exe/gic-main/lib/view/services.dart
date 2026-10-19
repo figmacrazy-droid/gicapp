@@ -9,6 +9,7 @@ import 'package:gic/services/auth_service.dart';
 import 'package:gic/services/permission_service.dart';
 import 'package:gic/services/audit_log_service.dart';
 import 'package:gic/utils/file_exporter.dart';
+import 'package:gic/widgets/desktop_scroll_view.dart';
 
 class ServicesView extends StatefulWidget {
   final Function(String path) onServiceTap;
@@ -2713,11 +2714,8 @@ class _ServicesViewState extends State<ServicesView> {
                         border: Border.all(color: Colors.grey.shade300),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.vertical,
-                        child: SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: DataTable(
+                      child: DesktopTableScrollView(
+                        child: DataTable(
                             headingRowColor: MaterialStateProperty.all(Colors.grey.shade100),
                             headingTextStyle: const TextStyle(fontWeight: FontWeight.bold, color: primaryNavy, fontSize: 12),
                             dataRowHeight: 65,
@@ -2835,7 +2833,6 @@ class _ServicesViewState extends State<ServicesView> {
                               );
                             }).toList(),
                           ),
-                        ),
                       ),
                     ),
                   ),
@@ -3720,8 +3717,7 @@ class _ServicesViewState extends State<ServicesView> {
                   )
                 : ClipRRect(
                     borderRadius: BorderRadius.circular(14),
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
+                    child: DesktopHorizontalScroll(
                       child: DataTable(
                         headingRowColor: MaterialStateProperty.all(primaryNavy),
                         headingTextStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
@@ -4483,8 +4479,7 @@ class _ServicesViewState extends State<ServicesView> {
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
+                child: DesktopHorizontalScroll(
                   child: DataTable(
                     headingRowColor: MaterialStateProperty.all(const Color(0xFFF0F4F8)),
                     headingTextStyle: const TextStyle(fontWeight: FontWeight.bold, color: primaryNavy, fontSize: 13),

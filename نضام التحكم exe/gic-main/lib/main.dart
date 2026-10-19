@@ -21,7 +21,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Desktop App',
+      title: 'كلية الغد الدولية - لوحة تحكم النظام الإداري',
       locale: const Locale('ar', ''),
       builder: (context, child) {
         return Directionality(

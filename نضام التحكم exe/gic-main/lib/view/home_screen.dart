@@ -55,9 +55,16 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    // إذا لم يكن هناك مستخدم مسجل، نستخدم حساب المدير العام الافتراضي
+    // التحقق الصارم من تسجيل الدخول - إذا لم يكن مسجلاً يعاد إلى شاشة الدخول فوراً
     if (AuthService.currentUser == null) {
-      AuthService.login('admin', 'admin123').catchError((_) => false);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (context) => const LoginScreen()),
+          );
+        }
+      });
+      return;
     }
 
     _selectInitialTab();
@@ -238,7 +245,13 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final user = AuthService.currentUser;
-    final isSuper = user?.isSuperAdmin ?? false;
+    if (user == null) {
+      return const Scaffold(
+        backgroundColor: Color(0xFF070B19),
+        body: Center(child: CircularProgressIndicator(color: accentGold)),
+      );
+    }
+    final isSuper = user.isSuperAdmin;
 
     return Scaffold(
       backgroundColor: Colors.black,

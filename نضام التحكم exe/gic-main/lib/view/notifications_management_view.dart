@@ -4,6 +4,7 @@ import '../services/supabase_service.dart';
 import '../services/fcm_sender_service.dart';
 import '../services/auth_service.dart';
 import '../services/permission_service.dart';
+import '../widgets/desktop_scroll_view.dart';
 
 class NotificationsManagementView extends StatefulWidget {
   final Function(String path)? onPathChanged;
@@ -1405,10 +1406,8 @@ class _NotificationsManagementViewState extends State<NotificationsManagementVie
 
           // جدول الطلاب المخصص لهم الإشعار
           Expanded(
-            child: SingleChildScrollView(
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: DataTable(
+            child: DesktopTableScrollView(
+              child: DataTable(
                 headingRowColor: MaterialStateProperty.all(primaryNavy),
                 headingTextStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
                 dataRowHeight: 56,
@@ -1557,7 +1556,6 @@ class _NotificationsManagementViewState extends State<NotificationsManagementVie
                 }).toList(),
               ),
             ),
-          ),
         ),
         ],
       ),

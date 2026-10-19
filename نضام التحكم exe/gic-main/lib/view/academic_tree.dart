@@ -9,6 +9,7 @@ import 'package:gic/services/fcm_sender_service.dart';
 import 'package:gic/services/auth_service.dart';
 import 'package:gic/services/permission_service.dart';
 import 'package:gic/utils/file_exporter.dart';
+import 'package:gic/widgets/desktop_scroll_view.dart';
 
 class TreeNodeData {
   final String id;
@@ -2375,16 +2376,9 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
                             ],
                           ),
                         )
-                      : LayoutBuilder(
-                          builder: (context, constraints) {
-                            return SingleChildScrollView(
-                              scrollDirection: Axis.vertical,
-                              child: SingleChildScrollView(
-                                scrollDirection: Axis.horizontal,
-                                child: ConstrainedBox(
-                                  constraints: BoxConstraints(minWidth: constraints.maxWidth),
-                                  child: DataTable(
-                                    columnSpacing: 24,
+                      : DesktopTableScrollView(
+                          child: DataTable(
+                            columnSpacing: 24,
                                     horizontalMargin: 16,
                                     columns: [
                                       DataColumn(
@@ -2604,10 +2598,6 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
                                       );
                                     }).toList(),
                                   ),
-                                ),
-                              ),
-                            );
-                          },
                         ),
             ),
           ),
