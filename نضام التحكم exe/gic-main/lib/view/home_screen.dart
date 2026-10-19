@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:gic/models/admin_user.dart';
 import 'package:gic/services/auth_service.dart';
 import 'package:gic/services/permission_service.dart';
@@ -116,6 +117,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (confirm == true) {
       await AuthService.logout();
+      try {
+        const MethodChannel('gic/window').invokeMethod('shrinkToLogin');
+      } catch (_) {}
       if (mounted) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (context) => const LoginScreen()),

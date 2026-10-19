@@ -105,6 +105,9 @@ class _ServicesViewState extends State<ServicesView> {
   List<Map<String, dynamic>> _finList = [];
   bool _isLoadingFin = false;
   String? _finDetectedStudent;
+  String _finTargetMode = 'single'; // 'single', 'specialty', 'all'
+  String? _finSelectedSpecialty;
+  List<String> _finSpecialtiesList = [];
 
   // --- وحدات التحكم للنتائج وكشوف درجات الطلاب (Results Management) ---
   List<Map<String, dynamic>> _resultsList = [];
@@ -916,6 +919,22 @@ class _ServicesViewState extends State<ServicesView> {
           .order('created_at', ascending: false)
           .limit(20);
 
+      // جلب قائمة التخصصات المسجلة للطلاب لتعبئة قائمة الاستهداف
+      try {
+        final studentsRes = await AdminSupabase.client
+            .from('students')
+            .select('specialty');
+        final Set<String> specs = {};
+        for (var s in (studentsRes as List)) {
+          final sp = s['specialty']?.toString().trim();
+          if (sp != null && sp.isNotEmpty) specs.add(sp);
+        }
+        _finSpecialtiesList = specs.toList()..sort();
+        if (_finSpecialtiesList.isNotEmpty && _finSelectedSpecialty == null) {
+          _finSelectedSpecialty = _finSpecialtiesList.first;
+        }
+      } catch (_) {}
+
       if (mounted) {
         setState(() {
           _finList = List<Map<String, dynamic>>.from(res as List);
@@ -961,43 +980,157 @@ class _ServicesViewState extends State<ServicesView> {
     final title = _finTitleController.text.trim();
     final details = _finDetailsController.text.trim();
     if (title.isEmpty || details.isEmpty) {
-      _showNotification('يرجى كتابة عنوان الإشعار وتفاصيل المطالبة', isError: true);
+      _showNotification('يرجى كتابة عنوان الإشعار وتفاصيل المطالبة المالية', isError: true);
       return;
     }
 
-    final acadId = _normalizeDigits(_finAcademicIdController.text);
     final rawAmount = _normalizeDigits(_finAmountController.text.replaceAll(',', ''));
     final amount = double.tryParse(rawAmount) ?? 0.0;
+    final nowIso = DateTime.now().toIso8601String();
+    final dateStr = DateTime.now().toString().substring(0, 10);
 
-    // التحقق من وجود الطالب في قاعدة البيانات إذا تم إدخال رقم أكاديمي
-    if (acadId.isNotEmpty) {
+    List<Map<String, dynamic>> targetStudents = [];
+
+    if (_finTargetMode == 'single') {
+      final acadId = _normalizeDigits(_finAcademicIdController.text);
+      if (acadId.isEmpty) {
+        _showNotification('يرجى إدخال الرقم الأكاديمي للطالب المستهدف', isError: true);
+        return;
+      }
       try {
         final studentCheck = await AdminSupabase.client
             .from('students')
-            .select('academic_id, full_name')
+            .select('academic_id, full_name, specialty, batch, semester')
             .eq('academic_id', acadId)
             .maybeSingle();
 
         if (studentCheck == null) {
           _showNotification(
-            '⚠️ لا يمكن الإرسال: الرقم الأكاديمي ($acadId) غير مسجل في قائمة الطلاب! يرجى التأكد من الرقم أو تركه فارغاً للإرسال لجميع الطلاب.',
+            '⚠️ لا يمكن الإرسال: الرقم الأكاديمي ($acadId) غير مسجل في قائمة الطلاب! يرجى التأكد من الرقم.',
             isError: true,
           );
           return;
         }
+        targetStudents = [studentCheck];
       } catch (checkErr) {
-        debugPrint('Student check note: $checkErr');
+        _showNotification('خطأ أثناء التحقق من الطالب: $checkErr', isError: true);
+        return;
+      }
+    } else if (_finTargetMode == 'specialty') {
+      if (_finSelectedSpecialty == null || _finSelectedSpecialty!.isEmpty) {
+        _showNotification('يرجى اختيار التخصص المستهدف', isError: true);
+        return;
+      }
+      try {
+        final res = await AdminSupabase.client
+            .from('students')
+            .select('academic_id, full_name, specialty, batch, semester')
+            .eq('specialty', _finSelectedSpecialty!);
+        targetStudents = List<Map<String, dynamic>>.from(res as List);
+        if (targetStudents.isEmpty) {
+          _showNotification('لا يوجد أي طلاب مسجلين في تخصص ($_finSelectedSpecialty)', isError: true);
+          return;
+        }
+      } catch (e) {
+        _showNotification('فشل جلب طلاب التخصص: $e', isError: true);
+        return;
+      }
+    } else {
+      // 'all' جميع الطلاب
+      try {
+        final res = await AdminSupabase.client
+            .from('students')
+            .select('academic_id, full_name, specialty, batch, semester');
+        targetStudents = List<Map<String, dynamic>>.from(res as List);
+        if (targetStudents.isEmpty) {
+          _showNotification('لا يوجد طلاب مسجلين في النظام لإرسال الإشعار لهم', isError: true);
+          return;
+        }
+      } catch (e) {
+        _showNotification('فشل جلب بيانات الطلاب: $e', isError: true);
+        return;
       }
     }
 
     try {
-      await AdminSupabase.client.from('finance_notifications').insert({
-        'academic_id': acadId.isEmpty ? null : acadId,
-        'title': title,
-        'details': details,
-        'amount': amount,
-        'date_str': DateTime.now().toString().substring(0, 10),
-      });
+      final formattedBody = '$details${amount > 0 ? " (المبلغ المطلوب: $amount ر.ي)" : ""}';
+      final formattedTitle = 'إشعار مالي: $title';
+
+      // 1. إدراج في جدول الإشعارات المركزي (notifications) مخصص لكل طالب لتتبع القراءة بدقة
+      final notifInserts = targetStudents.map((st) {
+        final acadId = st['academic_id']?.toString() ?? '';
+        return {
+          'academic_id': acadId,
+          'title': formattedTitle,
+          'body': formattedBody,
+          'notification_type': 'finance',
+          'route_name': 'finance',
+          'is_read': false,
+          'created_at': nowIso,
+        };
+      }).toList();
+
+      for (int i = 0; i < notifInserts.length; i += 200) {
+        final chunk = notifInserts.sublist(i, i + 200 > notifInserts.length ? notifInserts.length : i + 200);
+        await AdminSupabase.client.from('notifications').insert(chunk);
+      }
+
+      // 2. إدراج في جدول finance_notifications لسجل قسم المالية
+      if (_finTargetMode == 'single') {
+        final acadId = targetStudents.first['academic_id']?.toString() ?? '';
+        await AdminSupabase.client.from('finance_notifications').insert({
+          'academic_id': acadId,
+          'title': title,
+          'details': details,
+          'amount': amount,
+          'date_str': dateStr,
+        });
+      } else {
+        await AdminSupabase.client.from('finance_notifications').insert({
+          'academic_id': null,
+          'title': _finTargetMode == 'specialty' ? '$title ($_finSelectedSpecialty)' : '$title (عام لجميع الطلاب)',
+          'details': details,
+          'amount': amount,
+          'date_str': dateStr,
+        });
+      }
+
+      // 3. إرسال تنبيه سحابي فوري عبر Firebase FCM
+      if (_finTargetMode == 'all') {
+        FcmSenderService.sendToTopic(
+          topic: 'all_students',
+          title: formattedTitle,
+          body: formattedBody,
+          routeName: 'finance',
+        );
+      } else if (_finTargetMode == 'single') {
+        final acadId = targetStudents.first['academic_id']?.toString() ?? '';
+        FcmSenderService.sendToTopic(
+          topic: 'student_$acadId',
+          title: formattedTitle,
+          body: formattedBody,
+          routeName: 'finance',
+        );
+      } else {
+        for (var st in targetStudents) {
+          final acadId = st['academic_id']?.toString() ?? '';
+          if (acadId.isNotEmpty) {
+            FcmSenderService.sendToTopic(
+              topic: 'student_$acadId',
+              title: formattedTitle,
+              body: formattedBody,
+              routeName: 'finance',
+            );
+          }
+        }
+      }
+
+      // 4. تسجيل في سجل العمليات والرقابة (Audit Log)
+      await AuditLogService.log(
+        actionType: 'SEND_NOTIFICATION',
+        module: 'المالية',
+        description: 'إرسال إشعار مالي: $title لعدد ${targetStudents.length} طالب بمبلغ $amount ر.ي',
+      );
 
       _finTitleController.clear();
       _finDetailsController.clear();
@@ -1005,32 +1138,12 @@ class _ServicesViewState extends State<ServicesView> {
       _finAcademicIdController.clear();
       if (mounted) setState(() => _finDetectedStudent = null);
 
-      try {
-        await AdminSupabase.client.from('notifications').insert({
-          'academic_id': acadId.isEmpty ? null : acadId,
-          'title': 'إشعار مالي: $title',
-          'body': '$details${amount > 0 ? " (المبلغ المطلوب: $amount ر.ي)" : ""}',
-          'notification_type': 'finance',
-          'route_name': 'finance',
-          'is_read': false,
-        });
-
-        FcmSenderService.sendToTopic(
-          topic: acadId.isEmpty ? 'all_students' : 'student_$acadId',
-          title: 'إشعار مالي: $title',
-          body: '$details${amount > 0 ? " (المبلغ المطلوب: $amount ر.ي)" : ""}',
-          routeName: 'finance',
-        );
-      } catch (notifErr) {
-        debugPrint('Finance notification insert failed: $notifErr');
-      }
-
-      _showNotification('تم إرسال الإشعار المالي بنجاح وحفظه في حساب الطالب!');
+      _showNotification('تم إرسال الإشعار المالي بنجاح لـ (${targetStudents.length}) طالب وتوثيقه بنظام الإشعارات المركزي!');
       _loadFinanceData();
     } catch (e) {
       String errStr = e.toString();
       if (errStr.contains('23503') || errStr.contains('foreign key') || errStr.contains('students')) {
-        errStr = 'الرقم الأكاديمي ($acadId) غير موجود في جدول الطلاب بالكلية.';
+        errStr = 'أحد الأرقام الأكاديمية غير موجود في جدول الطلاب.';
       }
       _showNotification('فشل الإرسال: $errStr', isError: true);
     }
@@ -4016,6 +4129,53 @@ class _ServicesViewState extends State<ServicesView> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                const Text('الفئة المستهدفة بالإشعار المالي:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: primaryNavy)),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 16,
+                  runSpacing: 8,
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Radio<String>(
+                          value: 'single',
+                          groupValue: _finTargetMode,
+                          activeColor: primaryNavy,
+                          onChanged: (v) => setState(() => _finTargetMode = v!),
+                        ),
+                        const Text('طالب محدد (برقم أكاديمي)'),
+                      ],
+                    ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Radio<String>(
+                          value: 'specialty',
+                          groupValue: _finTargetMode,
+                          activeColor: primaryNavy,
+                          onChanged: (v) => setState(() => _finTargetMode = v!),
+                        ),
+                        const Text('تخصص محدد'),
+                      ],
+                    ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Radio<String>(
+                          value: 'all',
+                          groupValue: _finTargetMode,
+                          activeColor: primaryNavy,
+                          onChanged: (v) => setState(() => _finTargetMode = v!),
+                        ),
+                        const Text('جميع الطلاب (عام بالكلية)'),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                // حقول الاستهداف والمبلغ
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -4024,43 +4184,78 @@ class _ServicesViewState extends State<ServicesView> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          TextField(
-                            controller: _finAcademicIdController,
-                            textDirection: TextDirection.ltr,
-                            onChanged: _lookupFinanceStudent,
-                            decoration: InputDecoration(
-                              labelText: 'الرقم الأكاديمي للطالب (اتركه فارغاً لإرساله للجميع)',
-                              border: const OutlineInputBorder(),
-                              prefixIcon: const Icon(Icons.person_search),
-                              suffixIcon: _finAcademicIdController.text.isNotEmpty
-                                  ? IconButton(
-                                      icon: const Icon(Icons.clear, size: 18),
-                                      onPressed: () {
-                                        _finAcademicIdController.clear();
-                                        setState(() => _finDetectedStudent = null);
-                                      },
-                                    )
-                                  : null,
+                          if (_finTargetMode == 'single') ...[
+                            TextField(
+                              controller: _finAcademicIdController,
+                              textDirection: TextDirection.ltr,
+                              onChanged: _lookupFinanceStudent,
+                              decoration: InputDecoration(
+                                labelText: 'الرقم الأكاديمي للطالب *',
+                                hintText: 'مثال: 2025010101',
+                                border: const OutlineInputBorder(),
+                                prefixIcon: const Icon(Icons.person_search),
+                                suffixIcon: _finAcademicIdController.text.isNotEmpty
+                                    ? IconButton(
+                                        icon: const Icon(Icons.clear, size: 18),
+                                        onPressed: () {
+                                          _finAcademicIdController.clear();
+                                          setState(() => _finDetectedStudent = null);
+                                        },
+                                      )
+                                    : null,
+                              ),
                             ),
-                          ),
-                          if (_finDetectedStudent != null) ...[
-                            const SizedBox(height: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: _finDetectedStudent!.startsWith('✓') ? Colors.green.shade50 : Colors.red.shade50,
-                                borderRadius: BorderRadius.circular(6),
-                                border: Border.all(
-                                  color: _finDetectedStudent!.startsWith('✓') ? Colors.green.shade300 : Colors.red.shade300,
+                            if (_finDetectedStudent != null) ...[
+                              const SizedBox(height: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: _finDetectedStudent!.startsWith('✓') ? Colors.green.shade50 : Colors.red.shade50,
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                    color: _finDetectedStudent!.startsWith('✓') ? Colors.green.shade300 : Colors.red.shade300,
+                                  ),
+                                ),
+                                child: Text(
+                                  _finDetectedStudent!,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: _finDetectedStudent!.startsWith('✓') ? Colors.green.shade800 : Colors.red.shade800,
+                                  ),
                                 ),
                               ),
-                              child: Text(
-                                _finDetectedStudent!,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                  color: _finDetectedStudent!.startsWith('✓') ? Colors.green.shade800 : Colors.red.shade800,
-                                ),
+                            ],
+                          ] else if (_finTargetMode == 'specialty') ...[
+                            DropdownButtonFormField<String>(
+                              value: _finSelectedSpecialty,
+                              decoration: const InputDecoration(
+                                labelText: 'اختر التخصص المستهدف *',
+                                border: OutlineInputBorder(),
+                                prefixIcon: Icon(Icons.school_outlined),
+                              ),
+                              items: _finSpecialtiesList.map((sp) => DropdownMenuItem(value: sp, child: Text(sp))).toList(),
+                              onChanged: (v) => setState(() => _finSelectedSpecialty = v),
+                            ),
+                          ] else ...[
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.blue.shade50,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.blue.shade200),
+                              ),
+                              child: const Row(
+                                children: [
+                                  Icon(Icons.info_outline, color: Colors.blue, size: 20),
+                                  SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      'سيتم إرسال هذا الإشعار المالي لجميع طلاب الكلية وبثه سحابياً وإدراجه في سجل الإشعارات.',
+                                      style: TextStyle(fontSize: 12.5, color: Colors.blue),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
@@ -4072,7 +4267,12 @@ class _ServicesViewState extends State<ServicesView> {
                       child: TextField(
                         controller: _finAmountController,
                         textDirection: TextDirection.ltr,
-                        decoration: const InputDecoration(labelText: 'المبلغ المطلوب (ريال)', border: OutlineInputBorder()),
+                        decoration: const InputDecoration(
+                          labelText: 'المبلغ المطلوب (ريال يمني)',
+                          hintText: 'مثال: 50000',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.attach_money),
+                        ),
                       ),
                     ),
                   ],

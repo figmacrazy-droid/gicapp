@@ -27,8 +27,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   FlutterWindow window(project);
   int screen_width = ::GetSystemMetrics(SM_CXSCREEN);
   int screen_height = ::GetSystemMetrics(SM_CYSCREEN);
-  int window_width = 1366;
-  int window_height = 820;
+  int window_width = 450;
+  int window_height = 600;
   int origin_x = (screen_width - window_width) / 2;
   int origin_y = (screen_height - window_height) / 2;
   if (origin_x < 0) origin_x = 10;
@@ -36,7 +36,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
 
   Win32Window::Point origin(origin_x, origin_y);
   Win32Window::Size size(window_width, window_height);
-  if (!window.Create(L"كلية الغد الدولية - لوحة تحكم النظام الإداري", origin, size)) {
+  if (!window.Create(L"كلية الغد الدولية - تسجيل الدخول", origin, size)) {
     return EXIT_FAILURE;
   }
   window.SetQuitOnClose(true);

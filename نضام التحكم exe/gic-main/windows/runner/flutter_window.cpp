@@ -27,6 +27,56 @@ bool FlutterWindow::OnCreate() {
   RegisterPlugins(flutter_controller_->engine());
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
 
+  // Setup window resizing method channel
+  window_channel_ = std::make_unique<flutter::MethodChannel<flutter::EncodableValue>>(
+      flutter_controller_->engine()->messenger(), "gic/window",
+      &flutter::StandardMethodCodec::GetInstance());
+
+  window_channel_->SetMethodCallHandler(
+      [this](const flutter::MethodCall<flutter::EncodableValue>& call,
+             std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result) {
+        HWND hwnd = this->GetHandle();
+        if (call.method_name().compare("maximize") == 0) {
+          if (hwnd) {
+            ::ShowWindow(hwnd, SW_MAXIMIZE);
+            ::SetWindowTextW(hwnd, L"كلية الغد الدولية - لوحة تحكم النظام الإداري");
+          }
+          result->Success();
+        } else if (call.method_name().compare("expand") == 0) {
+          if (hwnd) {
+            int screen_width = ::GetSystemMetrics(SM_CXSCREEN);
+            int screen_height = ::GetSystemMetrics(SM_CYSCREEN);
+            int window_width = 1366;
+            int window_height = 820;
+            int origin_x = (screen_width - window_width) / 2;
+            int origin_y = (screen_height - window_height) / 2;
+            if (origin_x < 0) origin_x = 10;
+            if (origin_y < 0) origin_y = 10;
+            ::ShowWindow(hwnd, SW_RESTORE);
+            ::SetWindowPos(hwnd, HWND_TOP, origin_x, origin_y, window_width, window_height, SWP_SHOWWINDOW);
+            ::SetWindowTextW(hwnd, L"كلية الغد الدولية - لوحة تحكم النظام الإداري");
+          }
+          result->Success();
+        } else if (call.method_name().compare("shrinkToLogin") == 0) {
+          if (hwnd) {
+            ::ShowWindow(hwnd, SW_RESTORE);
+            int screen_width = ::GetSystemMetrics(SM_CXSCREEN);
+            int screen_height = ::GetSystemMetrics(SM_CYSCREEN);
+            int window_width = 450;
+            int window_height = 600;
+            int origin_x = (screen_width - window_width) / 2;
+            int origin_y = (screen_height - window_height) / 2;
+            if (origin_x < 0) origin_x = 10;
+            if (origin_y < 0) origin_y = 10;
+            ::SetWindowPos(hwnd, HWND_TOP, origin_x, origin_y, window_width, window_height, SWP_SHOWWINDOW);
+            ::SetWindowTextW(hwnd, L"كلية الغد الدولية - تسجيل الدخول");
+          }
+          result->Success();
+        } else {
+          result->NotImplemented();
+        }
+      });
+
   flutter_controller_->engine()->SetNextFrameCallback([&]() {
     this->Show();
   });
@@ -40,6 +90,7 @@ bool FlutterWindow::OnCreate() {
 }
 
 void FlutterWindow::OnDestroy() {
+  window_channel_ = nullptr;
   if (flutter_controller_) {
     flutter_controller_ = nullptr;
   }
