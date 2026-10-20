@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:gic/services/permission_service.dart';
 import 'package:gic/services/supabase_service.dart';
 import '../services/fcm_sender_service.dart';
 
@@ -399,6 +400,11 @@ class _AdsViewState extends State<AdsView> {
       debugPrint('Error saving alumni batches: $e');
       rethrow;
     }
+  }
+
+  bool _canAds(PermissionAction action) {
+    return PermissionService.can('advertisements', 'ads_management', action) ||
+        PermissionService.can('services', 'banners_achieve', action);
   }
 
   void _showNotification(String message, {bool isError = false}) {
@@ -886,6 +892,10 @@ class _AdsViewState extends State<AdsView> {
   // دوال الحذف والتعديل والإضافة للبنر
   // ══════════════════════════════════════════════════════════════
   Future<void> _deleteBanner(int index) async {
+    if (!_canAds(PermissionAction.delete)) {
+      _showNotification('⚠️ عذراً، حسابك لا يملك صلاحية الحذف في قسم الإعلانات.', isError: true);
+      return;
+    }
     if (index < 0 || index >= bannersData.length) return;
     final banner = bannersData[index];
 
@@ -922,6 +932,10 @@ class _AdsViewState extends State<AdsView> {
   }
 
   void _showAddBannerDialog(BuildContext context) {
+    if (!_canAds(PermissionAction.create)) {
+      _showNotification('⚠️ عذراً، حسابك لا يملك صلاحية الإضافة في قسم الإعلانات.', isError: true);
+      return;
+    }
     final titleCtrl = TextEditingController();
     String currentImageUrl = 'assets/images/1.jpg';
     String? selectedFileName;
@@ -1030,6 +1044,10 @@ class _AdsViewState extends State<AdsView> {
   }
 
   Future<void> _resetBannerToDefault(int index) async {
+    if (!_canAds(PermissionAction.delete)) {
+      _showNotification('⚠️ عذراً، حسابك لا يملك صلاحية الحذف في قسم الإعلانات.', isError: true);
+      return;
+    }
     if (index < 0 || index >= bannersData.length) return;
     final defaultTitles = [
       'إعلان بدء التنسيق والقبول للعام الجديد',
@@ -1046,6 +1064,10 @@ class _AdsViewState extends State<AdsView> {
   }
 
   void _showEditBannerDialog(BuildContext context, Map<String, dynamic> banner) {
+    if (!_canAds(PermissionAction.update)) {
+      _showNotification('⚠️ عذراً، حسابك لا يملك صلاحية التعديل في قسم الإعلانات.', isError: true);
+      return;
+    }
     final titleCtrl = TextEditingController(text: banner['title']);
     String currentImageUrl = banner['image_url'] ?? '';
     String? selectedFileName;
@@ -1154,6 +1176,10 @@ class _AdsViewState extends State<AdsView> {
   // دوال الحذف والتعديل والإضافة للتخصص ورابط اليوتيوب
   // ══════════════════════════════════════════════════════════════
   Future<void> _deleteSpecialty(int index) async {
+    if (!_canAds(PermissionAction.delete)) {
+      _showNotification('⚠️ عذراً، حسابك لا يملك صلاحية الحذف في قسم الإعلانات.', isError: true);
+      return;
+    }
     if (index < 0 || index >= specialtiesData.length) return;
     final spec = specialtiesData[index];
 
@@ -1192,6 +1218,10 @@ class _AdsViewState extends State<AdsView> {
   }
 
   void _showAddSpecialtyDialog(BuildContext context) {
+    if (!_canAds(PermissionAction.create)) {
+      _showNotification('⚠️ عذراً، حسابك لا يملك صلاحية الإضافة في قسم الإعلانات.', isError: true);
+      return;
+    }
     final titleCtrl = TextEditingController();
     String degreeType = 'بكالوريوس';
     String currentImageUrl = 'assets/images/specialty_1.png';
@@ -1316,6 +1346,10 @@ class _AdsViewState extends State<AdsView> {
   }
 
   void _showEditSpecialtyDialog(BuildContext context, Map<String, dynamic> spec) {
+    if (!_canAds(PermissionAction.update)) {
+      _showNotification('⚠️ عذراً، حسابك لا يملك صلاحية التعديل في قسم الإعلانات.', isError: true);
+      return;
+    }
     final titleCtrl = TextEditingController(text: spec['title']);
     String degreeType = spec['degree_type'] ?? 'بكالوريوس';
     String currentImageUrl = spec['image_url'] ?? '';
@@ -1580,6 +1614,10 @@ class _AdsViewState extends State<AdsView> {
   }
 
   Future<void> _deleteAchievement(int index) async {
+    if (!_canAds(PermissionAction.delete)) {
+      _showNotification('⚠️ عذراً، حسابك لا يملك صلاحية الحذف في قسم الإعلانات.', isError: true);
+      return;
+    }
     if (index < 0 || index >= achievementsData.length) return;
     final item = achievementsData[index];
 
@@ -1616,6 +1654,10 @@ class _AdsViewState extends State<AdsView> {
   }
 
   void _showAddAchievementDialog(BuildContext context) {
+    if (!_canAds(PermissionAction.create)) {
+      _showNotification('⚠️ عذراً، حسابك لا يملك صلاحية الإضافة في قسم الإعلانات.', isError: true);
+      return;
+    }
     final titleCtrl = TextEditingController();
     final dateCtrl = TextEditingController(text: '${DateTime.now().day} أكتوبر ${DateTime.now().year}');
     final descCtrl = TextEditingController();
@@ -1737,6 +1779,10 @@ class _AdsViewState extends State<AdsView> {
   }
 
   void _showEditAchievementDialog(BuildContext context, Map<String, dynamic> item) {
+    if (!_canAds(PermissionAction.update)) {
+      _showNotification('⚠️ عذراً، حسابك لا يملك صلاحية التعديل في قسم الإعلانات.', isError: true);
+      return;
+    }
     final titleCtrl = TextEditingController(text: item['title']);
     final dateCtrl = TextEditingController(text: item['date_str'] ?? item['date'] ?? '');
     final descCtrl = TextEditingController(text: item['description']);
@@ -2010,6 +2056,10 @@ class _AdsViewState extends State<AdsView> {
   }
 
   Future<void> _deleteAlumni(int index) async {
+    if (!_canAds(PermissionAction.delete)) {
+      _showNotification('⚠️ عذراً، حسابك لا يملك صلاحية الحذف في قسم الإعلانات.', isError: true);
+      return;
+    }
     if (index < 0 || index >= alumniData.length) return;
     final item = alumniData[index];
 
@@ -2046,6 +2096,10 @@ class _AdsViewState extends State<AdsView> {
   }
 
   void _showAddAlumniDialog(BuildContext context) {
+    if (!_canAds(PermissionAction.create)) {
+      _showNotification('⚠️ عذراً، حسابك لا يملك صلاحية الإضافة في قسم الإعلانات.', isError: true);
+      return;
+    }
     final titleCtrl = TextEditingController(text: 'دفعة ');
     final batchNameCtrl = TextEditingController(text: 'الدفعة السادسة');
     final countCtrl = TextEditingController(text: '200');
@@ -2196,6 +2250,10 @@ class _AdsViewState extends State<AdsView> {
   }
 
   void _showEditAlumniDialog(BuildContext context, Map<String, dynamic> item) {
+    if (!_canAds(PermissionAction.update)) {
+      _showNotification('⚠️ عذراً، حسابك لا يملك صلاحية التعديل في قسم الإعلانات.', isError: true);
+      return;
+    }
     final titleCtrl = TextEditingController(text: item['title']);
     final batchNameCtrl = TextEditingController(text: item['batch_name']);
     String countRaw = (item['graduates_count'] ?? '').toString();
@@ -2589,6 +2647,10 @@ class _AdsViewState extends State<AdsView> {
   final TextEditingController _eventDescController = TextEditingController();
 
   void _showAddEventDialog(BuildContext context, int clickedDay) {
+    if (!_canAds(PermissionAction.create) && !_canAds(PermissionAction.update)) {
+      _showNotification('⚠️ عذراً، حسابك لا يملك صلاحية تعديل أحداث التقويم.', isError: true);
+      return;
+    }
     bool dialogNotification = false;
     _eventNameController.clear();
     _eventDescController.clear();

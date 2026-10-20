@@ -65,18 +65,40 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       final session = await AuthService.getSavedSession();
       final String? currentId = session?.academicId.trim();
 
-      var query = Supabase.instance.client.from('notifications').select();
-      if (currentId != null && currentId.isNotEmpty) {
-        query = query.or('academic_id.eq.$currentId,academic_id.is.null');
-      } else {
-        query = query.filter('academic_id', 'is', null);
+      List? rawList;
+      if (session?.sessionToken != null && session!.sessionToken!.isNotEmpty) {
+        try {
+          final rpcRes = await Supabase.instance.client.rpc(
+            'app_get_notifications',
+            params: {'p_token': session.sessionToken},
+          );
+          if (rpcRes is List) rawList = rpcRes;
+        } catch (_) {}
       }
 
-      final res = await query.order('created_at', ascending: false);
-      final List list = res as List;
+      if (rawList == null) {
+        var query = Supabase.instance.client.from('notifications').select();
+        if (currentId != null && currentId.isNotEmpty) {
+          query = query.or('academic_id.eq.$currentId,academic_id.is.null');
+        } else {
+          query = query.filter('academic_id', 'is', null);
+        }
+        final res = await query.order('created_at', ascending: false);
+        rawList = res as List;
+      }
+
+      final List list = rawList;
 
       if (list.isNotEmpty) {
         // تحديث قاعدة بيانات Supabase فوراً بأن الطالب قد قرأ جميع الإشعارات الموجهة له
+        if (session?.sessionToken != null && session!.sessionToken!.isNotEmpty) {
+          try {
+            await Supabase.instance.client.rpc(
+              'app_mark_notifications_read',
+              params: {'p_token': session.sessionToken},
+            );
+          } catch (_) {}
+        }
         if (currentId != null && currentId.isNotEmpty) {
           try {
             await Supabase.instance.client

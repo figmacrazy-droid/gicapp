@@ -361,6 +361,7 @@ class StudentProfileModel {
   final String group;
   final String studyShift;
   final bool isPermanentlyBlocked;
+  final String? sessionToken;
 
   const StudentProfileModel({
     required this.academicId,
@@ -374,28 +375,29 @@ class StudentProfileModel {
     required this.group,
     required this.studyShift,
     this.isPermanentlyBlocked = false,
+    this.sessionToken,
   });
 
   factory StudentProfileModel.fromJson(Map<String, dynamic> json) {
     return StudentProfileModel(
-      academicId: json['academic_id'] ?? '',
+      academicId: json['academic_id']?.toString() ?? '',
       fullName: json['full_name'] ?? '',
-      password: json['password'] ?? '',
+      password: '',
       email: json['email'] ?? '',
       specialty: json['specialty'] ?? '',
       level: json['level'] ?? 'المستوى الثاني',
       batch: json['batch'] ?? 'الدفعة الخامسة',
       semester: json['semester'] ?? 'الفصل الأول',
-      group: json['group'] ?? 'المجموعة الأولى',
+      group: json['group'] ?? json['group_name'] ?? 'المجموعة الأولى',
       studyShift: json['study_shift'] ?? 'الفترة الصباحية',
-      isPermanentlyBlocked: json['is_permanently_blocked'] ?? false,
+      isPermanentlyBlocked: json['is_permanently_blocked'] ?? json['is_blocked'] ?? false,
+      sessionToken: json['session_token']?.toString(),
     );
   }
 
   Map<String, dynamic> toJson() => {
         'academic_id': academicId,
         'full_name': fullName,
-        'password': password,
         'email': email,
         'specialty': specialty,
         'level': level,
@@ -404,6 +406,7 @@ class StudentProfileModel {
         'group': group,
         'study_shift': studyShift,
         'is_permanently_blocked': isPermanentlyBlocked,
+        if (sessionToken != null) 'session_token': sessionToken,
       };
 
   StudentProfileModel copyWith({
@@ -418,6 +421,7 @@ class StudentProfileModel {
     String? group,
     String? studyShift,
     bool? isPermanentlyBlocked,
+    String? sessionToken,
   }) {
     return StudentProfileModel(
       academicId: academicId ?? this.academicId,
@@ -431,6 +435,7 @@ class StudentProfileModel {
       group: group ?? this.group,
       studyShift: studyShift ?? this.studyShift,
       isPermanentlyBlocked: isPermanentlyBlocked ?? this.isPermanentlyBlocked,
+      sessionToken: sessionToken ?? this.sessionToken,
     );
   }
 }

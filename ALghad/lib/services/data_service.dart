@@ -1,6 +1,9 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/app_models.dart';
+import 'auth_service.dart';
 
 class DataService {
   static SupabaseClient? get _supabase {
@@ -370,11 +373,33 @@ class DataService {
   static Future<SeatingNumberModel?> searchSeatingNumber(String academicId) async {
     try {
       final client = _supabase;
-      if (client != null && academicId.isNotEmpty) {
-        final res = await client
+      final cleanId = AuthService.normalizeDigits(academicId.trim());
+      if (client != null && cleanId.isNotEmpty) {
+        final session = await AuthService.getSavedSession();
+        // حماية خصوصية الطالب: إذا كان مسجل الدخول لا يستعلم إلا عن رقمه الأكاديمي
+        if (session != null &&
+            session.academicId.isNotEmpty &&
+            session.academicId.trim() != cleanId) {
+          return null;
+        }
+
+        Map<String, dynamic>? res;
+        if (session?.sessionToken != null && session!.sessionToken!.isNotEmpty) {
+          try {
+            final rpcRes = await client.rpc(
+              'app_get_seating',
+              params: {'p_token': session.sessionToken},
+            );
+            if (rpcRes is Map) {
+              res = Map<String, dynamic>.from(rpcRes);
+            }
+          } catch (_) {}
+        }
+
+        res ??= await client
             .from('seating_numbers')
             .select('*, students(full_name, specialty, level)')
-            .eq('academic_id', academicId)
+            .eq('academic_id', cleanId)
             .maybeSingle();
 
         if (res != null) {
@@ -383,7 +408,7 @@ class DataService {
           final specialty = studentObj?['specialty'] ?? res['specialty'] ?? '';
 
           return SeatingNumberModel(
-            academicId: res['academic_id'] ?? academicId,
+            academicId: res['academic_id'] ?? cleanId,
             studentName: studentName.isNotEmpty ? studentName : 'الطالب',
             specialty: specialty.isNotEmpty ? specialty : 'عام',
             term: res['term'] ?? 'الفصل الدراسي الحالي',
@@ -430,23 +455,145 @@ class DataService {
     return defaultList;
   }
 
+  // رقم التواصل والواتساب الموحد للكلية
+  static String? _cachedCollegePhone;
+
+  static Future<String> getCollegeContactPhone() async {
+    if (_cachedCollegePhone != null && _cachedCollegePhone!.isNotEmpty) {
+      return _cachedCollegePhone!;
+    }
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getString('college_contact_phone');
+      if (saved != null && saved.trim().isNotEmpty) {
+        _cachedCollegePhone = saved.trim();
+      }
+    } catch (_) {}
+
+    try {
+      final client = _supabase;
+      if (client != null) {
+        final res = await client
+            .from('system_instructions')
+            .select('note, steps, external_url')
+            .eq('service_key', 'college_whatsapp_phone')
+            .maybeSingle();
+        if (res != null) {
+          String val = (res['note'] ?? res['steps'] ?? '').toString().trim();
+          if (val.isEmpty && res['external_url'] != null) {
+            val = res['external_url'].toString().replaceAll(RegExp(r'[^0-9]'), '');
+          }
+          if (val.isNotEmpty) {
+            _cachedCollegePhone = val;
+            _savePhoneToPrefs(val);
+            return val;
+          }
+        }
+
+        final helpRes = await client
+            .from('system_instructions')
+            .select('note, external_url')
+            .eq('service_key', 'المساعدة والدعم')
+            .maybeSingle();
+        if (helpRes != null) {
+          String val = '';
+          if (helpRes['external_url'] != null) {
+            val = helpRes['external_url'].toString().replaceAll(RegExp(r'[^0-9]'), '');
+          }
+          if (val.isEmpty && helpRes['note'] != null) {
+            final match = RegExp(r'\b(967\d{8,9}|\d{9})\b').firstMatch(helpRes['note'].toString());
+            if (match != null) val = match.group(0)!;
+          }
+          if (val.isNotEmpty) {
+            _cachedCollegePhone = val;
+            _savePhoneToPrefs(val);
+            return val;
+          }
+        }
+      }
+    } catch (_) {}
+
+    return _cachedCollegePhone ?? '967776166321';
+  }
+
+  static void _savePhoneToPrefs(String phone) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('college_contact_phone', phone);
+    } catch (_) {}
+  }
+
   // النتائج
   static Future<StudentResultModel?> getStudentResults(String academicId) async {
     try {
       final client = _supabase;
-      if (client != null && academicId.isNotEmpty) {
-        final res = await client
+      final trimmedId = AuthService.normalizeDigits(academicId.trim());
+      if (client != null && trimmedId.isNotEmpty) {
+        final session = await AuthService.getSavedSession();
+        // حماية الخصوصية: لا يمكن للطالب استعراض نتائج رقم أكاديمي آخر غير رقمه
+        if (session != null &&
+            session.academicId.isNotEmpty &&
+            session.academicId.trim() != trimmedId) {
+          return null;
+        }
+
+        // 1. فحص جدول النتائج مع بيانات الطالب (عبر RPC الآمن أولاً ثم المباشر)
+        Map<String, dynamic>? res;
+        if (session?.sessionToken != null && session!.sessionToken!.isNotEmpty) {
+          try {
+            final rpcRes = await client.rpc(
+              'app_get_result',
+              params: {'p_token': session.sessionToken},
+            );
+            if (rpcRes is Map && rpcRes['result'] is Map) {
+              res = Map<String, dynamic>.from(rpcRes['result'] as Map);
+            }
+          } catch (_) {}
+        }
+
+        res ??= await client
             .from('student_results')
-            .select('*, students(full_name, specialty, batch, level, semester)')
-            .eq('academic_id', academicId)
+            .select('*, students(full_name, specialty, batch, level, semester, is_result_hidden, is_blocked)')
+            .eq('academic_id', trimmedId)
             .maybeSingle();
+
+        // 2. فحص قفل الكنترول العام للنظام
+        bool isSystemLocked = false;
+        try {
+          final lockRes = await client
+              .from('system_instructions')
+              .select('steps')
+              .eq('service_key', 'results_lock_control')
+              .maybeSingle();
+          if (lockRes != null && lockRes['steps'] != null) {
+            final decoded = jsonDecode(lockRes['steps'] as String);
+            if (decoded is Map && decoded['is_locked'] == true) {
+              isSystemLocked = true;
+            }
+          }
+        } catch (_) {}
+
         if (res != null) {
           Map<String, double> subs = {};
           final rawSubs = res['subjects'];
+          bool isRecordHidden = false;
+          String customMessage = 'عذراً، النتيجة محجوبة حالياً من قبل إدارة الكنترول وشؤون الطلاب.\nيرجى مراجعة إدارة الكلية أو الشؤون المالية لتسوية وضعك الأكاديمي والمالي.';
+
           if (rawSubs is Map) {
+            if (rawSubs['is_result_hidden'] == true || rawSubs['is_hidden'] == true) {
+              isRecordHidden = true;
+            }
+            if (rawSubs['withheld_message'] != null && rawSubs['withheld_message'].toString().trim().isNotEmpty) {
+              customMessage = rawSubs['withheld_message'].toString().trim();
+            }
             rawSubs.forEach((k, v) {
-              if (k != 'terms') {
-                subs[k.toString()] = (v as num?)?.toDouble() ?? 0.0;
+              if (k != 'terms' && k != 'is_result_hidden' && k != 'is_hidden' && k != 'withheld_message') {
+                if (v is num) {
+                  subs[k.toString()] = v.toDouble();
+                } else if (v is String) {
+                  final parsed = double.tryParse(v);
+                  if (parsed != null) subs[k.toString()] = parsed;
+                }
               }
             });
           }
@@ -463,6 +610,9 @@ class DataService {
           final sBatch = studentsData?['batch'] ?? res['batch'] ?? '';
           final sSemester = studentsData?['semester'] ?? 'الفصل الدراسي الحالي';
 
+          final bool isStudentHidden = (studentsData?['is_result_hidden'] == true) || (studentsData?['is_blocked'] == true);
+          final bool isWithheld = isSystemLocked || isRecordHidden || isStudentHidden;
+
           if (termsList.isEmpty && subs.isNotEmpty) {
             termsList.add(TermResultModel(
               termName: sSemester,
@@ -474,36 +624,10 @@ class DataService {
             ));
           }
 
-          // فحص حالة حجب النتيجة (حجب عام للكنترول أو حجب خاص بالطالب)
-          bool isWithheld = false;
-          try {
-            final lockRes = await client
-                .from('system_instructions')
-                .select()
-                .eq('service_key', 'results_lock_control')
-                .maybeSingle();
-            if (lockRes != null && lockRes['steps'] != null) {
-              final decoded = jsonDecode(lockRes['steps'] as String);
-              if (decoded is Map && decoded['is_locked'] == true) {
-                isWithheld = true;
-              }
-            }
-          } catch (_) {}
-
-          String customMessage = 'عذراً، النتيجة محجوبة حالياً من قبل إدارة الكنترول وشؤون الطلاب. يرجى مراجعة إدارة الكلية.';
-          if (rawSubs is Map) {
-            if (rawSubs['is_result_hidden'] == true) {
-              isWithheld = true;
-            }
-            if (rawSubs['withheld_message'] != null && rawSubs['withheld_message'].toString().trim().isNotEmpty) {
-              customMessage = rawSubs['withheld_message'].toString().trim();
-            }
-          }
-
           final activeTerm = termsList.isNotEmpty ? termsList.first : null;
 
           return StudentResultModel(
-            academicId: res['academic_id'] ?? academicId,
+            academicId: res['academic_id'] ?? trimmedId,
             studentName: sName,
             specialty: sSpec,
             batch: sBatch,
@@ -515,9 +639,37 @@ class DataService {
             isWithheld: isWithheld,
             withheldMessage: customMessage,
           );
+        } else {
+          try {
+            final studentRow = await client
+                .from('students')
+                .select('full_name, specialty, batch, is_result_hidden, is_blocked')
+                .eq('academic_id', trimmedId)
+                .maybeSingle();
+            if (studentRow != null) {
+              final bool isHidden = (studentRow['is_result_hidden'] == true) || (studentRow['is_blocked'] == true) || isSystemLocked;
+              if (isHidden) {
+                return StudentResultModel(
+                  academicId: trimmedId,
+                  studentName: studentRow['full_name'] ?? 'طالب',
+                  specialty: studentRow['specialty'] ?? '',
+                  batch: studentRow['batch'] ?? '',
+                  terms: const [],
+                  subjects: const {},
+                  totalMarks: 0.0,
+                  gpa: 0.0,
+                  grade: 'محجوب',
+                  isWithheld: true,
+                  withheldMessage: 'عذراً، النتيجة محجوبة حالياً من قبل إدارة الكنترول وشؤون الطلاب.\nيرجى مراجعة إدارة الكلية أو الشؤون المالية لتسوية وضعك الأكاديمي والمالي.',
+                );
+              }
+            }
+          } catch (_) {}
         }
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Error getting student results: $e');
+    }
     return null;
   }
 
@@ -538,12 +690,14 @@ class DataService {
 
   // روابط التواصل الاجتماعي
   static Future<List<SocialMediaLinkModel>> getSocialMediaLinks() async {
-    const defaultLinks = [
-      SocialMediaLinkModel(id: '1', platformName: 'صفحتنا على فيسبوك', url: 'https://facebook.com/alghadcollege', iconPath: 'assets/icons/facebook.png'),
-      SocialMediaLinkModel(id: '2', platformName: 'قناتنا على تليجرام', url: 'https://t.me/alghadcollege', iconPath: 'assets/icons/telegram.png'),
-      SocialMediaLinkModel(id: '3', platformName: 'قناتنا على يوتيوب', url: 'https://youtube.com/@alghadcollege', iconPath: 'assets/icons/youtube.png'),
-      SocialMediaLinkModel(id: '4', platformName: 'تواصل معنا على الواتساب', url: 'https://wa.me/967776166321', iconPath: 'assets/icons/whatsapp.png'),
-      SocialMediaLinkModel(id: '5', platformName: 'الموقع الإلكتروني الرسمي', url: 'https://alghad-college.edu.ye', iconPath: 'assets/icons/website.png'),
+    final phone = await getCollegeContactPhone();
+    final cleanPhone = phone.replaceAll(RegExp(r'[^0-9]'), '');
+    final defaultLinks = [
+      const SocialMediaLinkModel(id: '1', platformName: 'صفحتنا على فيسبوك', url: 'https://facebook.com/alghadcollege', iconPath: 'assets/icons/facebook.png'),
+      const SocialMediaLinkModel(id: '2', platformName: 'قناتنا على تليجرام', url: 'https://t.me/alghadcollege', iconPath: 'assets/icons/telegram.png'),
+      const SocialMediaLinkModel(id: '3', platformName: 'قناتنا على يوتيوب', url: 'https://youtube.com/@alghadcollege', iconPath: 'assets/icons/youtube.png'),
+      SocialMediaLinkModel(id: '4', platformName: 'تواصل معنا على الواتساب', url: 'https://wa.me/$cleanPhone', iconPath: 'assets/icons/whatsapp.png'),
+      const SocialMediaLinkModel(id: '5', platformName: 'الموقع الإلكتروني الرسمي', url: 'https://alghad-college.edu.ye', iconPath: 'assets/icons/website.png'),
     ];
 
     try {
@@ -564,10 +718,15 @@ class DataService {
             else if (iconName.contains('whats')) icon = 'assets/icons/whatsapp.png';
             else if (iconName.contains('insta')) icon = 'assets/icons/instagram.png';
 
+            String url = item['url'] ?? '';
+            if (iconName.contains('whats') || url.contains('wa.me') || url.contains('whatsapp')) {
+              url = 'https://wa.me/$cleanPhone';
+            }
+
             return SocialMediaLinkModel(
               id: item['id']?.toString() ?? '',
               platformName: item['platform_name'] ?? '',
-              url: item['url'] ?? '',
+              url: url,
               iconPath: icon,
             );
           }).toList();
@@ -596,7 +755,9 @@ class DataService {
 
   // المساعدة والدعم
   static Future<InstructionStepModel> getHelpAndSupportInfo() async {
-    const fallback = InstructionStepModel(
+    final phone = await getCollegeContactPhone();
+    final cleanPhone = phone.replaceAll(RegExp(r'[^0-9]'), '');
+    final fallback = InstructionStepModel(
       id: 'help_support',
       title: 'المساعدة والدعم الفني',
       subtitle: 'نحن هنا لمساعدتك والإجابة على جميع استفساراتك',
@@ -605,8 +766,8 @@ class DataService {
         'للاستفسار عن الرسوم الدراسية أو كشوف الحساب يرجى التواصل مع الشؤون المالية.',
         'للمشكلات الأكاديمية أو استخراج الوثائق يرجى مراجعة إدارة التسجيل والقبول.',
       ],
-      note: 'رقم الواتساب الخاص بالدعم المباشر: 967776166321',
-      externalUrl: 'https://wa.me/967776166321',
+      note: 'رقم الواتساب الخاص بالدعم المباشر: $cleanPhone',
+      externalUrl: 'https://wa.me/$cleanPhone',
     );
     return getInstructionFromSupabase('المساعدة والدعم', fallback);
   }
@@ -821,12 +982,34 @@ class DataService {
     try {
       final client = _supabase;
       if (client != null) {
-        var query = client.from('finance_notifications').select();
-        if (academicId != null && academicId.isNotEmpty) {
-          query = query.or('academic_id.eq.$academicId,academic_id.is.null');
+        final session = await AuthService.getSavedSession();
+        final effectiveId = (academicId != null && academicId.trim().isNotEmpty)
+            ? AuthService.normalizeDigits(academicId.trim())
+            : session?.academicId.trim();
+
+        List? rawList;
+        if (session?.sessionToken != null && session!.sessionToken!.isNotEmpty) {
+          try {
+            final rpcRes = await client.rpc(
+              'app_get_finance',
+              params: {'p_token': session.sessionToken},
+            );
+            if (rpcRes is List) rawList = rpcRes;
+          } catch (_) {}
         }
-        final res = await query.order('created_at', ascending: false);
-        final list = res as List;
+
+        if (rawList == null) {
+          var query = client.from('finance_notifications').select();
+          if (effectiveId != null && effectiveId.isNotEmpty) {
+            query = query.or('academic_id.eq.$effectiveId,academic_id.is.null');
+          } else {
+            query = query.filter('academic_id', 'is', null);
+          }
+          final res = await query.order('created_at', ascending: false);
+          rawList = res as List;
+        }
+
+        final list = rawList;
         if (list.isNotEmpty) {
           return list.map((item) => FinanceNotificationModel(
             id: item['id']?.toString() ?? '',

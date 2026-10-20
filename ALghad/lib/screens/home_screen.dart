@@ -1,10 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:ui' as ui;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/auth_service.dart';
+import '../services/data_service.dart';
 import '../services/system_notification_service.dart';
 import 'all_specialties_screen.dart';
 import 'notifications_screen.dart';
@@ -19,6 +20,23 @@ import 'calendar_screen.dart';
 import 'location_screen.dart';
 import 'alumni_screen.dart';
 import 'achievements_screen.dart';
+
+class _ImageBytesCache {
+  static final Map<String, Uint8List> _cache = {};
+
+  static Uint8List? get(String dataUri) {
+    if (_cache.containsKey(dataUri)) return _cache[dataUri];
+    try {
+      final commaIdx = dataUri.indexOf(',');
+      final b64 = commaIdx != -1 ? dataUri.substring(commaIdx + 1) : dataUri;
+      final bytes = base64Decode(b64.replaceAll(RegExp(r'\s+'), ''));
+      _cache[dataUri] = bytes;
+      return bytes;
+    } catch (_) {
+      return null;
+    }
+  }
+}
 
 class HomeScreen extends StatefulWidget {
   final String studentFullName;
@@ -625,17 +643,20 @@ class _HomeScreenState extends State<HomeScreen>
   Widget _buildMessageIcon() {
     return GestureDetector(
       onTap: () async {
-        const String phone = '967776166321';
-        final Uri whatsappUrl = Uri.parse('whatsapp://send?phone=$phone');
-        final Uri webUrl = Uri.parse('https://wa.me/$phone');
+        final phone = await DataService.getCollegeContactPhone();
+        final cleanPhone = phone.replaceAll(RegExp(r'[^0-9]'), '');
+        final targetPhone = cleanPhone.isNotEmpty ? cleanPhone : '967776166321';
+        final Uri waMeUrl = Uri.parse('https://wa.me/$targetPhone');
+        final Uri whatsappUrl = Uri.parse('whatsapp://send?phone=$targetPhone');
         try {
-          if (await canLaunchUrl(whatsappUrl)) {
-            await launchUrl(whatsappUrl);
-          } else {
-            await launchUrl(webUrl, mode: LaunchMode.externalApplication);
+          final launched = await launchUrl(waMeUrl, mode: LaunchMode.externalApplication);
+          if (!launched && await canLaunchUrl(whatsappUrl)) {
+            await launchUrl(whatsappUrl, mode: LaunchMode.externalApplication);
           }
         } catch (_) {
-          await launchUrl(webUrl, mode: LaunchMode.externalApplication);
+          try {
+            await launchUrl(waMeUrl, mode: LaunchMode.externalApplication);
+          } catch (_) {}
         }
       },
       child: Container(
@@ -861,12 +882,12 @@ class _HomeScreenState extends State<HomeScreen>
             imagePath.startsWith('data:image')
                 ? Builder(
                     builder: (context) {
-                      try {
-                        final commaIdx = imagePath.indexOf(',');
-                        final b64 = commaIdx != -1 ? imagePath.substring(commaIdx + 1) : imagePath;
+                      final bytes = _ImageBytesCache.get(imagePath);
+                      if (bytes != null) {
                         return Image.memory(
-                          base64Decode(b64.replaceAll(RegExp(r'\s+'), '')),
+                          bytes,
                           fit: BoxFit.fill,
+                          gaplessPlayback: true,
                           errorBuilder: (_, __, ___) => Container(
                             color: cardCream,
                             child: const Center(
@@ -874,14 +895,13 @@ class _HomeScreenState extends State<HomeScreen>
                             ),
                           ),
                         );
-                      } catch (_) {
-                        return Container(
-                          color: cardCream,
-                          child: const Center(
-                            child: Icon(Icons.image_outlined, size: 40, color: Color(0xFF9E7A2F)),
-                          ),
-                        );
                       }
+                      return Container(
+                        color: cardCream,
+                        child: const Center(
+                          child: Icon(Icons.image_outlined, size: 40, color: Color(0xFF9E7A2F)),
+                        ),
+                      );
                     },
                   )
                 : imagePath.startsWith('http')
@@ -1240,12 +1260,12 @@ class _HomeScreenState extends State<HomeScreen>
                   imagePath.startsWith('data:image')
                       ? Builder(
                           builder: (context) {
-                            try {
-                              final commaIdx = imagePath.indexOf(',');
-                              final b64 = commaIdx != -1 ? imagePath.substring(commaIdx + 1) : imagePath;
+                            final bytes = _ImageBytesCache.get(imagePath);
+                            if (bytes != null) {
                               return Image.memory(
-                                base64Decode(b64),
+                                bytes,
                                 fit: BoxFit.cover,
+                                gaplessPlayback: true,
                                 errorBuilder: (_, __, ___) => Container(
                                   color: const Color(0xFFF2E8D0),
                                   child: const Center(
@@ -1253,14 +1273,13 @@ class _HomeScreenState extends State<HomeScreen>
                                   ),
                                 ),
                               );
-                            } catch (_) {
-                              return Container(
-                                color: const Color(0xFFF2E8D0),
-                                child: const Center(
-                                  child: Icon(Icons.image_outlined, size: 36, color: Color(0xFF9E7A2F)),
-                                ),
-                              );
                             }
+                            return Container(
+                              color: const Color(0xFFF2E8D0),
+                              child: const Center(
+                                child: Icon(Icons.image_outlined, size: 36, color: Color(0xFF9E7A2F)),
+                              ),
+                            );
                           },
                         )
                       : imagePath.startsWith('http')

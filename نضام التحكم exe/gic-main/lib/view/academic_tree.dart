@@ -7,6 +7,7 @@ import 'package:excel/excel.dart' as xl;
 import 'package:gic/services/supabase_service.dart';
 import 'package:gic/services/fcm_sender_service.dart';
 import 'package:gic/services/auth_service.dart';
+import 'package:gic/services/password_security.dart';
 import 'package:gic/services/permission_service.dart';
 import 'package:gic/utils/file_exporter.dart';
 import 'package:gic/widgets/desktop_scroll_view.dart';
@@ -780,7 +781,7 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
                 await supabase.from('students').insert({
                   'academic_id': academicId,
                   'full_name': fullName,
-                  'password': password,
+                  'password': PasswordSecurity.hashPassword(password),
                   'email': email,
                   'academic_year': ctx['academic_year']!,
                   'specialty': ctx['specialty']!,
@@ -846,7 +847,7 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
             studentsToInsert.add({
               'academic_id': academicId,
               'full_name': fullName,
-              'password': password.isEmpty ? 'password' : password,
+              'password': PasswordSecurity.hashPassword(password.isEmpty ? 'password' : password),
               'email': email.isEmpty ? '$academicId@student.gic.edu' : email,
               'academic_year': ctx['academic_year']!,
               'specialty': ctx['specialty']!,
@@ -913,7 +914,7 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
               TextField(
                 controller: passController,
                 textDirection: TextDirection.ltr,
-                decoration: const InputDecoration(labelText: 'كلمة السر', border: OutlineInputBorder(), prefixIcon: Icon(Icons.lock_outline)),
+                decoration: const InputDecoration(labelText: 'كلمة السر الجديدة (اتركه فارغاً للإبقاء على الحالية)', border: OutlineInputBorder(), prefixIcon: Icon(Icons.lock_outline)),
               ),
               const SizedBox(height: 12),
               TextField(
@@ -1826,7 +1827,7 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
           id,
           st['full_name']?.toString() ?? '',
           st['email']?.toString() ?? '',
-          st['password']?.toString() ?? '',
+          PasswordSecurity.isHashed(st['password']?.toString()) ? 'مشفرة (محمية)' : (st['password']?.toString() ?? ''),
           ctx['college'] ?? '',
           ctx['branch'] ?? '',
           ctx['department'] ?? '',

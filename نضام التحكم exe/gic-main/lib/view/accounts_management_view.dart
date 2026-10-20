@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:gic/services/permission_service.dart';
 import 'package:gic/services/supabase_service.dart';
 
 class AccountsManagementView extends StatefulWidget {
@@ -28,6 +29,8 @@ class _AccountsManagementViewState extends State<AccountsManagementView> {
 
   final TextEditingController _guideTitleController = TextEditingController();
   final TextEditingController _guideUrlController = TextEditingController();
+  final TextEditingController _collegePhoneController = TextEditingController();
+  bool _isSavingPhone = false;
 
   SupabaseClient get supabase => AdminSupabase.client;
 
@@ -55,6 +58,40 @@ class _AccountsManagementViewState extends State<AccountsManagementView> {
         currentGuide = list.first;
         _guideTitleController.text = currentGuide!['title'] ?? '';
         _guideUrlController.text = currentGuide!['file_url'] ?? '';
+      }
+
+      // 4. رقم التواصل والواتساب الموحد
+      final phoneRes = await supabase
+          .from('system_instructions')
+          .select('steps, note, external_url')
+          .eq('service_key', 'college_whatsapp_phone')
+          .maybeSingle();
+      if (phoneRes != null) {
+        String num = (phoneRes['note'] ?? phoneRes['steps'] ?? '').toString().trim();
+        if (num.isEmpty && phoneRes['external_url'] != null) {
+          num = phoneRes['external_url'].toString().replaceAll(RegExp(r'[^0-9]'), '');
+        }
+        if (num.isNotEmpty) _collegePhoneController.text = num;
+      } else {
+        final helpRes = await supabase
+            .from('system_instructions')
+            .select('note, external_url')
+            .eq('service_key', 'المساعدة والدعم')
+            .maybeSingle();
+        if (helpRes != null) {
+          String num = '';
+          if (helpRes['external_url'] != null) {
+            num = helpRes['external_url'].toString().replaceAll(RegExp(r'[^0-9]'), '');
+          }
+          if (num.isEmpty && helpRes['note'] != null) {
+            final match = RegExp(r'\b(967\d{8,9}|\d{9})\b').firstMatch(helpRes['note'].toString());
+            if (match != null) num = match.group(0)!;
+          }
+          if (num.isNotEmpty) _collegePhoneController.text = num;
+        }
+      }
+      if (_collegePhoneController.text.trim().isEmpty) {
+        _collegePhoneController.text = '967776166321';
       }
 
       setState(() => isLoading = false);
@@ -133,6 +170,11 @@ class _AccountsManagementViewState extends State<AccountsManagementView> {
 
   // إضافة أو تعديل رابط تواصل
   void _showSocialLinkDialog({Map<String, dynamic>? item}) {
+    final reqAction = item == null ? PermissionAction.create : PermissionAction.update;
+    if (!PermissionService.can('accounts', 'social_links', reqAction)) {
+      _showSnackbar('⚠️ عذراً، حسابك لا يملك صلاحية إضافة أو تعديل حسابات التواصل الاجتماعي.', isError: true);
+      return;
+    }
     _platformNameController.text = item?['platform_name'] ?? '';
     _urlController.text = item?['url'] ?? '';
 
@@ -246,6 +288,10 @@ class _AccountsManagementViewState extends State<AccountsManagementView> {
 
   // حذف رابط تواصل
   Future<void> _deleteSocialLink(dynamic id) async {
+    if (!PermissionService.can('accounts', 'social_links', PermissionAction.delete)) {
+      _showSnackbar('⚠️ عذراً، حسابك لا يملك صلاحية حذف حسابات التواصل الاجتماعي.', isError: true);
+      return;
+    }
     try {
       await supabase.from('social_media_links').delete().eq('id', id);
       _showSnackbar('تم حذف الرابط بنجاح');
@@ -257,6 +303,11 @@ class _AccountsManagementViewState extends State<AccountsManagementView> {
 
   // حفظ دليل الطالب
   Future<void> _saveUniversityGuide() async {
+    final reqAction = currentGuide == null ? PermissionAction.create : PermissionAction.update;
+    if (!PermissionService.can('accounts', 'student_guide', reqAction)) {
+      _showSnackbar('⚠️ عذراً، حسابك لا يملك صلاحية تعديل دليل الطالب الجامعي.', isError: true);
+      return;
+    }
     final title = _guideTitleController.text.trim();
     final url = _guideUrlController.text.trim();
     if (title.isEmpty || url.isEmpty) {
@@ -280,6 +331,65 @@ class _AccountsManagementViewState extends State<AccountsManagementView> {
       _loadAllData();
     } catch (e) {
       _showSnackbar('فشل الحفظ: $e', isError: true);
+    }
+  }
+
+  // حفظ وتحديث رقم التواصل والواتساب الموحد
+  Future<void> _saveCollegePhone() async {
+    if (!PermissionService.can('accounts', 'social_links', PermissionAction.update)) {
+      _showSnackbar('⚠️ عذراً، حسابك لا يملك صلاحية تعديل رقم التواصل والواتساب.', isError: true);
+      return;
+    }
+    final rawPhone = _collegePhoneController.text.trim();
+    final cleanPhone = rawPhone.replaceAll(RegExp(r'[^0-9]'), '');
+    if (cleanPhone.length < 8) {
+      _showSnackbar('يرجى إدخال رقم هاتف/واتساب صحيح (مثل: 967776166321)', isError: true);
+      return;
+    }
+
+    setState(() => _isSavingPhone = true);
+    try {
+      // 1. تحديث/إدراج في system_instructions بالمفتاح المخصص college_whatsapp_phone
+      await supabase.from('system_instructions').upsert({
+        'service_key': 'college_whatsapp_phone',
+        'title': 'رقم الواتساب والتواصل الموحد',
+        'subtitle': 'خدمة الدعم المباشر واستقبال الطلبات العامة والتسجيل',
+        'steps': cleanPhone,
+        'note': cleanPhone,
+        'external_url': 'https://wa.me/$cleanPhone',
+        'updated_at': DateTime.now().toIso8601String(),
+      }, onConflict: 'service_key');
+
+      // 2. تحديث خدمة المساعدة والدعم
+      try {
+        await supabase.from('system_instructions').update({
+          'note': 'رقم الواتساب الخاص بالدعم المباشر: $cleanPhone',
+          'external_url': 'https://wa.me/$cleanPhone',
+          'updated_at': DateTime.now().toIso8601String(),
+        }).eq('service_key', 'المساعدة والدعم');
+      } catch (_) {}
+
+      // 3. تحديث أي رابط واتساب في جدول social_media_links
+      try {
+        final links = await supabase.from('social_media_links').select();
+        for (var l in (links as List)) {
+          final String name = (l['platform_name'] ?? '').toString().toLowerCase();
+          final String icon = (l['icon_name'] ?? '').toString().toLowerCase();
+          final String url = (l['url'] ?? '').toString();
+          if (name.contains('whats') || name.contains('واتساب') || icon.contains('whats') || url.contains('wa.me')) {
+            await supabase.from('social_media_links').update({
+              'url': 'https://wa.me/$cleanPhone',
+            }).eq('id', l['id']);
+          }
+        }
+      } catch (_) {}
+
+      _showSnackbar('تم حفظ وتحديث رقم التواصل ($cleanPhone) بنجاح في تطبيق الطلاب!');
+      _loadAllData();
+    } catch (e) {
+      _showSnackbar('فشل حفظ رقم التواصل: $e', isError: true);
+    } finally {
+      if (mounted) setState(() => _isSavingPhone = false);
     }
   }
 
@@ -324,7 +434,88 @@ class _AccountsManagementViewState extends State<AccountsManagementView> {
 
             const SizedBox(height: 32),
 
-            // 2. قسم إدارة دليل الطالب الجامعي (PDF)
+            // 2. قسم إدارة رقم التواصل والواتساب الموحد للكلية
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 3)),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF25D366).withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.chat_bubble_outline, color: Color(0xFF25D366), size: 28),
+                      ),
+                      const SizedBox(width: 12),
+                      const Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'رقم التواصل والواتساب الموحد للكلية (تطبيق الطلاب)',
+                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: primaryNavy),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            'هذا الرقم معتمد في تطبيق الطلاب لكافة الخدمات: إرسال الطلبات العامة، الدعم المباشر، التسجيل، وروابط التواصل.',
+                            style: TextStyle(color: Colors.grey, fontSize: 13),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const Divider(height: 28),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _collegePhoneController,
+                          keyboardType: TextInputType.phone,
+                          textDirection: TextDirection.ltr,
+                          decoration: InputDecoration(
+                            labelText: 'رقم الهاتف / الواتساب الدولي (مثال: 967776166321)',
+                            hintText: '967776166321',
+                            prefixIcon: const Icon(Icons.phone_android, color: primaryNavy),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF25D366),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        onPressed: _isSavingPhone ? null : _saveCollegePhone,
+                        icon: _isSavingPhone
+                            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                            : const Icon(Icons.check_circle_outline, size: 20),
+                        label: Text(
+                          _isSavingPhone ? 'جاري الحفظ والتحديث...' : 'حفظ وتحديث الرقم في تطبيق الطلاب',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 32),
+
+            // 3. قسم إدارة دليل الطالب الجامعي (PDF)
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(

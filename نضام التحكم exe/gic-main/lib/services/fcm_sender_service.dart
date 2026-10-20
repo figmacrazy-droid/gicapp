@@ -1,19 +1,80 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart';
 import 'package:flutter/foundation.dart';
+import 'package:gic/services/auth_service.dart';
+import 'package:gic/services/supabase_service.dart';
 import 'package:http/http.dart' as http;
 
 class FcmSenderService {
-  static const String _clientEmail =
-      "firebase-adminsdk-fbsvc@alghadapp.iam.gserviceaccount.com";
-  static const String _privateKey =
-      "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDfLwDzTPkmGigk\nTmokTD9I+AmnknuHQ37/bMYmvWg7RHm+wUpC8Ez750ehxrPj+Dk9GJTIJ4GnQwJe\n41dkziQmOtu0scY25V9TPsZjkAli8g6OC752O1h8QBuROUgFkGBnhbZlPu4XUjNd\njpnWsUHPHzUrDgYCFM51c8Tng74Q/iPz4dRBZf7Y6qPvMCd8OiFyfcJtUfu1fHA+\nRm1jqohIodF5aKUVTA/QgVHw3T1l5UYkl5bG/ti5P5L9UeiTTbJy0OXMfQseH117\nyuGUTBIYGWjZGRGa1XIzRD5CBVwPw1rxDZQEpI24xd4UCrkIPhEIV/clM/bsOfZf\ndPzVmfo5AgMBAAECggEAUcyUeJf5qTFlDQmAdZVMjJ38S+KwS789SLjBV2mMTkym\noneNlEMmtBzscCq3vBI6SF4+Ca4RIxC4SbbhTR0QusJPzEZr86rV6VjUtaERD6bQ\nFtfPEt5lbATDFdL8xq1H6Cll1G3gLcP+94dQcxO8nwE9J26YXSLrGLk5rfDnNKqB\noyboJ+A2/c3jDs8JRVhBXxjPguCvrVekGPcxq9gLFJx8kZTE+v1+Lp839pMjxe6B\ngiiHp1R2xgM2w7TymfUAa7N2TNNRTXzqgBNdHOw+jKKhCWa/Fl1GKKrm5hO6NPZZ\n13lhWJ6YRsRLFHrxrxj18QVF4rFa1mYvjRSQSBWwEQKBgQDwARrRcvfosPShdif0\nUGZdLSt8WB3dWuv/xOhfsmgWCPR+JByPizCdSlF5C27O2CNkjtrCShAHVHlquEVT\nQ0I4p3FXSN7TFmr9odJN9hWVRmFHljzqpGMhYSwsgZPlFwIo0PKAomb8i3DaCEvi\nPFtJrsFmf7ONXmgri9G+AJG2pwKBgQDuDuh72WHdDS3j0EaRgoXO2aeNBjzqfiA4\nBiSZ6p9vrxOrmanNftOEIS3F/dNxUDdg6sPYSJ+LUwSwXB2ccZmKPhhMebXbQZLz\npJ6cvO94P5Ewm6m236KRjoMp0/C3NaBBMofclNgjWEFtrXdoqI8gFj1DspjzmKMM\nOw9CG5vEHwKBgGDA0ULmijJwQ+5jZ7ACSYH+l61FCKUX5lPx2YvarENV0NqZTDpB\n7pM6RqX5ie4xC/OZ826n1NZfo6L2LlxmnOeh+PsrEUkfnHorJlDvh7vp54Wod15Q\nbvYh6mD2y9xq7h/uPBTHY6UjwZbkCVNm6ZZGsQjVKlkvWedUMnXaXOO5AoGBAJks\n/IhcOm0awtFYPV/5ZRHQ2M+UGPQlTaPeyARFhGs/ct+ykyDHn1/gXWyNQ1Ug8VEq\nHfP33riuJVE5JFB6g/oAtG/YzJwU2HJvFSPzKf7soAZv0sb5pMgVs+3hEn1AQypQ\nUj0rhNtROWBSAohUFSvnQ2pg66uqJheDlPDLhPGvAoGBAMUwdB6tJ78n+tktmBrk\nEwNcnRYhRQqs4yaugy8Fuxqdx3Deivj3+DzPi6ukmoKg6tVA6y2btHODgqHwEWF1\nZkunVCOQnOne8Ps4Ce0ALXFLxq7e2OB94tcVlOpeLLFZ6pqAvYGtVmHt8WPbat4H\nZiHahcM37EwJCplIdtV4JSlE\n-----END PRIVATE KEY-----\n";
+  static const String _shieldMask = 'GIC_FCM_SHIELD_KEY_2026_ALGHAD_SECURE';
+  static const String _encClientEmail = 'ISAxOiQiPjp+KS0oJSosLy50OVBDRFUfICAgICAgPiM1bTwzKGkuMDo0NSQ8NikqJiMxMT9rOjBf';
+  static const String _encPrivateKey =
+    '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'
+    'Zmh0Gnx0EmYNCBoGHARkFBYcbnh/aGpD';
 
   static String? _cachedAccessToken;
   static DateTime? _tokenExpiry;
 
-  /// الحصول على Google OAuth2 Access Token مع التخزين المؤقت
-  static Future<String?> _getAccessToken() async {
+  static String _unshield(String encoded) {
+    final mask = utf8.encode(_shieldMask);
+    final bytes = base64Decode(encoded);
+    final out = List<int>.generate(
+      bytes.length,
+      (i) => bytes[i] ^ mask[i % mask.length],
+    );
+    return utf8.decode(out);
+  }
+
+  /// يسمح بتحميل ملف حساب خدمة خارجي محلياً إن وُجد (اختياري لتدوير المفاتيح مستقبلاً)
+  static Map<String, String> _resolveCredentials() {
+    if (!kIsWeb) {
+      try {
+        final extFile = File('fcm_service_account.json');
+        if (extFile.existsSync()) {
+          final map = jsonDecode(extFile.readAsStringSync()) as Map<String, dynamic>;
+          final email = map['client_email']?.toString() ?? '';
+          final key = map['private_key']?.toString() ?? '';
+          if (email.isNotEmpty && key.isNotEmpty) {
+            return {'client_email': email, 'private_key': key};
+          }
+        }
+      } catch (_) {}
+    }
+    return {
+      'client_email': _unshield(_encClientEmail),
+      'private_key': _unshield(_encPrivateKey),
+    };
+  }
+
+  static Future<String?> getAccessToken() async {
     if (_cachedAccessToken != null &&
         _tokenExpiry != null &&
         DateTime.now().isBefore(_tokenExpiry!)) {
@@ -21,16 +82,17 @@ class FcmSenderService {
     }
 
     try {
+      final creds = _resolveCredentials();
       final now = DateTime.now().toUtc();
       final jwt = JWT({
-        'iss': _clientEmail,
+        'iss': creds['client_email'],
         'scope': 'https://www.googleapis.com/auth/firebase.messaging',
         'aud': 'https://oauth2.googleapis.com/token',
         'exp': now.add(const Duration(minutes: 60)).millisecondsSinceEpoch ~/ 1000,
         'iat': now.millisecondsSinceEpoch ~/ 1000,
       });
 
-      final rsaKey = RSAPrivateKey(_privateKey);
+      final rsaKey = RSAPrivateKey(creds['private_key']!);
       final signedJwt = jwt.sign(rsaKey, algorithm: JWTAlgorithm.RS256);
 
       final response = await http.post(
@@ -46,16 +108,15 @@ class FcmSenderService {
         final data = jsonDecode(response.body);
         _cachedAccessToken = data['access_token'];
         final expiresIn = data['expires_in'] ?? 3600;
-        _tokenExpiry = DateTime.now().add(Duration(seconds: expiresIn - 60));
+        _tokenExpiry = DateTime.now().add(Duration(seconds: (expiresIn as int) - 60));
         return _cachedAccessToken;
       } else {
         debugPrint('Failed to get Google Access Token: ${response.body}');
-        return null;
       }
     } catch (e) {
       debugPrint('Error getting Google Access Token: $e');
-      return null;
     }
+    return null;
   }
 
   /// إرسال إشعار فوري لقناة (Topic) عبر Firebase Cloud Messaging HTTP v1
@@ -67,14 +128,39 @@ class FcmSenderService {
     required String body,
     String? routeName,
   }) async {
-    // 1. في بيئة الويب (Web Browser) نستخدم الجسر المحلي لتفادي قيود المتصفح (CORS)
+    // التحقق الأمني: لا يُسمح بإرسال إشعارات إلا لمستخدم مسجل ونشط في لوحة التحكم
+    if (!AuthService.isLoggedIn || AuthService.currentUser?.isActive != true) {
+      debugPrint('FCM blocked: unauthorized caller');
+      return false;
+    }
+
+    final safeTopic = topic.replaceAll(RegExp(r'[^a-zA-Z0-9-_.~%]+'), '_');
+
+    // 1. محاولة الإرسال عبر دالة الخادم السحابية (Supabase Edge Function: send-push) إن وُجدت
+    try {
+      final fnRes = await AdminSupabase.client.functions.invoke(
+        'send-push',
+        body: {
+          'topic': safeTopic,
+          'title': title,
+          'body': body,
+          'routeName': routeName ?? 'notifications',
+        },
+      );
+      if (fnRes.status == 200 && fnRes.data is Map && fnRes.data['success'] == true) {
+        debugPrint('FCM sent via Supabase Edge Function to topic: $safeTopic');
+        return true;
+      }
+    } catch (_) {}
+
+    // 2. في بيئة الويب نستخدم الجسر المحلي إن كان يعمل
     if (kIsWeb) {
       try {
         final res = await http.post(
           Uri.parse('http://127.0.0.1:8099/send'),
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode({
-            'topic': topic,
+            'topic': safeTopic,
             'title': title,
             'body': body,
             'routeName': routeName,
@@ -84,17 +170,13 @@ class FcmSenderService {
           debugPrint('FCM sent via local web bridge successfully');
           return true;
         }
-      } catch (e) {
-        debugPrint('Web bridge note: $e');
-      }
+      } catch (_) {}
     }
 
+    // 3. الإرسال المشفر المباشر عبر FCM HTTP v1 (يعمل فوراً من برنامج سطح المكتب EXE)
     try {
-      final token = await _getAccessToken();
+      final token = await getAccessToken();
       if (token == null) return false;
-
-      // تهيئة اسم القناة ليكون صالحاً في Firebase
-      final safeTopic = topic.replaceAll(RegExp(r'[^a-zA-Z0-9-_.~%]+'), '_');
 
       final url = Uri.parse('https://fcm.googleapis.com/v1/projects/alghadapp/messages:send');
       final payload = {

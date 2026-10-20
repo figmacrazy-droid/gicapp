@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:gic/models/admin_user.dart';
 import 'package:gic/services/auth_service.dart';
 import 'package:gic/services/audit_log_service.dart';
+import 'package:gic/services/password_security.dart';
 import 'package:gic/services/permission_service.dart';
 import 'package:gic/services/supabase_service.dart';
 
@@ -584,7 +585,7 @@ class _EmployeeFormDialogState extends State<_EmployeeFormDialog> {
       };
 
       if (_passwordController.text.trim().isNotEmpty) {
-        payload['password'] = _passwordController.text.trim();
+        payload['password'] = PasswordSecurity.hashPassword(_passwordController.text.trim());
       } else if (widget.employee == null) {
         throw Exception('كلمة المرور مطلوبة للموظف الجديد');
       }

@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../theme/app_colors.dart';
-import '../models/app_models.dart';
 import '../services/auth_service.dart';
+import '../services/data_service.dart';
 import '../services/system_notification_service.dart';
 import 'home_screen.dart';
 
@@ -37,6 +38,65 @@ class _LoginFormScreenState extends State<LoginFormScreen>
     super.dispose();
   }
 
+  Future<void> _contactSupportWhatsApp(String academicId) async {
+    final phone = await DataService.getCollegeContactPhone();
+    final cleanPhone = phone.replaceAll(RegExp(r'[^0-9]'), '');
+    final msg = Uri.encodeComponent(
+      'السلام عليكم فريق الدعم الفني بكلية الغد الدولية،\nتم قفل حسابي الأكاديمي رقم ($academicId) بسبب تكرار محاولات الدخول، أرجو المساعدة في تفعيل الحساب.',
+    );
+    final url = Uri.parse('https://wa.me/$cleanPhone?text=$msg');
+    try {
+      await launchUrl(url, mode: LaunchMode.externalApplication);
+    } catch (_) {}
+  }
+
+  void _showPermanentLockDialog(String academicId) {
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (ctx) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Row(
+            children: [
+              Icon(Icons.lock_person, color: Colors.red, size: 26),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'تم قفل الحساب مؤقتاً للأمان',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF002060)),
+                ),
+              ),
+            ],
+          ),
+          content: const Text(
+            'تم تجاوز الحد المسموح به من المحاولات الخاطئة لحماية حسابك الأكاديمي.\nيرجى التواصل مع فريق الدعم الفني بالكلية لإعادة تفعيل الحساب.',
+            style: TextStyle(fontSize: 14, height: 1.5),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('إغلاق'),
+            ),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF25D366),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              onPressed: () {
+                Navigator.pop(ctx);
+                _contactSupportWhatsApp(academicId);
+              },
+              icon: const Icon(Icons.chat, color: Colors.white, size: 18),
+              label: const Text('تواصل مع فريق الدعم', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -61,121 +121,121 @@ class _LoginFormScreenState extends State<LoginFormScreen>
                     child: IntrinsicHeight(
                       child: Column(
                         children: [
-                                  // ============================
-                                  // الجزء العلوي الكحلي — العنوان أعلى اليمين
-                                  // ============================
-                                  Expanded(
-                                    flex: 40,
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 24,
-                                        vertical: 20,
-                                      ),
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.end,
-                                        mainAxisAlignment: MainAxisAlignment.start,
-                                        children: [
-                                          const SizedBox(
-                                            width: double.infinity,
-                                            child: Text(
-                                              'كلية الغد الدولية',
-                                              textAlign: TextAlign.right,
-                                              style: TextStyle(
-                                                fontSize: 36,
-                                                fontWeight: FontWeight.w900,
-                                                color: Colors.white,
-                                                height: 1.2,
-                                                letterSpacing: 0.2,
-                                              ),
-                                            ),
-                                          ),
-                                          const SizedBox(height: 6),
-                                          const SizedBox(
-                                            width: double.infinity,
-                                            child: Text(
-                                              'التأهيل الطبي والإداري الأفضل',
-                                              textAlign: TextAlign.right,
-                                              style: TextStyle(
-                                                fontSize: 17,
-                                                fontWeight: FontWeight.w600,
-                                                color: AppColors.gold,
-                                                height: 1.3,
-                                                letterSpacing: 0.0,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-
-                                  // ============================
-                                  // الجزء السفلي الأبيض
-                                  // ============================
-                                  Expanded(
-                                    flex: 60,
-                                    child: Container(
-                                      width: double.infinity,
-                                      decoration: const BoxDecoration(
+                          // ============================
+                          // الجزء العلوي الكحلي — العنوان أعلى اليمين
+                          // ============================
+                          Expanded(
+                            flex: 40,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                                vertical: 20,
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                mainAxisAlignment: MainAxisAlignment.start,
+                                children: [
+                                  const SizedBox(
+                                    width: double.infinity,
+                                    child: Text(
+                                      'كلية الغد الدولية',
+                                      textAlign: TextAlign.right,
+                                      style: TextStyle(
+                                        fontSize: 36,
+                                        fontWeight: FontWeight.w900,
                                         color: Colors.white,
-                                        borderRadius: BorderRadius.only(
-                                          topLeft: Radius.circular(55),
-                                          topRight: Radius.circular(55),
-                                        ),
-                                      ),
-                                      child: Padding(
-                                        padding: const EdgeInsets.fromLTRB(
-                                          28,
-                                          32,
-                                          28,
-                                          16,
-                                        ),
-                                        child: Column(
-                                          mainAxisAlignment:
-                                          MainAxisAlignment.spaceEvenly,
-                                          children: [
-                                            _buildField(
-                                              label: 'الرقم الأكاديمي للطالب',
-                                              hint: '00000000000',
-                                              icon: Icons.person_outline,
-                                              controller: _academicIdController,
-                                              keyboardType: TextInputType.number,
-                                            ),
-                                            _buildField(
-                                              label: 'كلمة المرور',
-                                              hint: '••••••••••',
-                                              icon: Icons.lock_outline,
-                                              controller: _passwordController,
-                                              obscureText: true,
-                                            ),
-                                            Center(
-                                              child: _buildGlassButton(),
-                                            ),
-                                            Row(
-                                              mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                              children: const [
-                                                Text(
-                                                  'بيانات آمنة، مستقبل مضمون',
-                                                  style: TextStyle(
-                                                    fontSize: 13,
-                                                    fontWeight: FontWeight.w600,
-                                                    color: Color(0xFF002060),
-                                                  ),
-                                                ),
-                                                SizedBox(width: 8),
-                                                Icon(
-                                                  Icons.screen_lock_landscape,
-                                                  size: 18,
-                                                  color: Color(0xFF002060),
-                                                ),
-                                              ],
-                                            ),
-                                          ],
-                                        ),
+                                        height: 1.2,
+                                        letterSpacing: 0.2,
                                       ),
                                     ),
                                   ),
+                                  const SizedBox(height: 6),
+                                  const SizedBox(
+                                    width: double.infinity,
+                                    child: Text(
+                                      'التأهيل الطبي والإداري الأفضل',
+                                      textAlign: TextAlign.right,
+                                      style: TextStyle(
+                                        fontSize: 17,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.gold,
+                                        height: 1.3,
+                                        letterSpacing: 0.0,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+
+                          // ============================
+                          // الجزء السفلي الأبيض
+                          // ============================
+                          Expanded(
+                            flex: 60,
+                            child: Container(
+                              width: double.infinity,
+                              decoration: const BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.only(
+                                  topLeft: Radius.circular(55),
+                                  topRight: Radius.circular(55),
+                                ),
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  28,
+                                  32,
+                                  28,
+                                  16,
+                                ),
+                                child: Column(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceEvenly,
+                                  children: [
+                                    _buildField(
+                                      label: 'الرقم الأكاديمي للطالب',
+                                      hint: '00000000000',
+                                      icon: Icons.person_outline,
+                                      controller: _academicIdController,
+                                      keyboardType: TextInputType.number,
+                                    ),
+                                    _buildField(
+                                      label: 'كلمة المرور',
+                                      hint: '••••••••••',
+                                      icon: Icons.lock_outline,
+                                      controller: _passwordController,
+                                      obscureText: true,
+                                    ),
+                                    Center(
+                                      child: _buildGlassButton(),
+                                    ),
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: const [
+                                        Text(
+                                          'بيانات آمنة، مستقبل مضمون',
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w600,
+                                            color: Color(0xFF002060),
+                                          ),
+                                        ),
+                                        SizedBox(width: 8),
+                                        Icon(
+                                          Icons.screen_lock_landscape,
+                                          size: 18,
+                                          color: Color(0xFF002060),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -193,7 +253,7 @@ class _LoginFormScreenState extends State<LoginFormScreen>
   // دالة تسجيل الدخول والتحقق
   // ============================
   void _handleLogin() async {
-    final academicId = _academicIdController.text.trim();
+    final academicId = AuthService.normalizeDigits(_academicIdController.text.trim());
     final password = _passwordController.text.trim();
 
     if (academicId.isEmpty || password.isEmpty) {
@@ -206,7 +266,40 @@ class _LoginFormScreenState extends State<LoginFormScreen>
       return;
     }
 
+    final idErr = AuthService.validateAcademicId(academicId);
+    if (idErr != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(idErr),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
+
+    // 1. فحص حالة الحظر التراكمي للمحاولات الخاطئة
+    final lockStatus = await AuthService.checkLockoutStatus(academicId);
+    if (lockStatus['isLocked'] == true) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        if (lockStatus['isPermanent'] == true) {
+          _showPermanentLockDialog(academicId);
+        } else {
+          final int secs = (lockStatus['remainingSeconds'] as int?) ?? 60;
+          final String timeTxt = secs > 90 ? '${(secs / 60).ceil()} دقيقة' : '$secs ثانية';
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('تم إيقاف المحاولات مؤقتاً لحماية الحساب. يرجى الانتظار $timeTxt قبل المحاولة مجدداً.'),
+              backgroundColor: Colors.red.shade800,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+      }
+      return;
+    }
 
     final student = await AuthService.verifyCredentials(
       academicId: academicId,
@@ -214,14 +307,31 @@ class _LoginFormScreenState extends State<LoginFormScreen>
     );
 
     if (student == null) {
+      final newLock = await AuthService.registerFailedAttempt(academicId);
       if (mounted) {
         setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('الرقم الأكاديمي أو كلمة المرور غير صحيحة، يرجى التأكد وإعادة المحاولة'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        if (newLock['isPermanent'] == true) {
+          _showPermanentLockDialog(academicId);
+        } else if (newLock['lockedUntil'] != null) {
+          final int attempts = (newLock['attempts'] as int?) ?? 3;
+          final String waitMsg = attempts >= 6 ? 'ساعة واحدة' : 'دقيقة واحدة';
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('تم استنفاد 3 محاولات خاطئة. تم حظر الدخول مؤقتاً لمدة $waitMsg.'),
+              backgroundColor: Colors.red.shade800,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        } else {
+          final int attempts = (newLock['attempts'] as int?) ?? 1;
+          final int rem = 3 - (attempts % 3);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('الرقم الأكاديمي أو كلمة المرور غير صحيحة (متبقي $rem محاولات)'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
       return;
     }
@@ -229,14 +339,7 @@ class _LoginFormScreenState extends State<LoginFormScreen>
     if (student.isPermanentlyBlocked) {
       if (mounted) {
         setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('عذراً، تم إيقاف حسابك الأكاديمي من قبل إدارة الكلية. يرجى مراجعة شؤون الطلاب.'),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-            duration: Duration(seconds: 4),
-          ),
-        );
+        _showPermanentLockDialog(academicId);
       }
       return;
     }

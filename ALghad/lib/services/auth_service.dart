@@ -2,17 +2,28 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/app_models.dart';
+import 'password_security.dart';
 
 class AuthService {
   static const String _sessionKey = 'current_student_session';
   static const String _lockoutKey = 'student_lockout_data';
+
+  /// تحويل الأرقام العربية إلى إنجليزية
+  static String normalizeDigits(String input) {
+    const arabic = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+    const english = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+    for (int i = 0; i < 10; i++) {
+      input = input.replaceAll(arabic[i], english[i]);
+    }
+    return input;
+  }
 
   // 1. القواعد الصارمة على الحقول
   static String? validateAcademicId(String? id) {
     if (id == null || id.trim().isEmpty) {
       return 'الرقم الأكاديمي إجباري';
     }
-    final trimmed = id.trim();
+    final trimmed = normalizeDigits(id.trim());
     if (trimmed.length != 10 || !RegExp(r'^\d{10}$').hasMatch(trimmed)) {
       return 'الرقم الأكاديمي يجب أن يتكون من 10 أرقام بالضبط';
     }
@@ -37,58 +48,101 @@ class AuthService {
     return null;
   }
 
-  // لا توجد بيانات وهمية - الاعتماد فقط على قاعدة البيانات الحقيقية
-  static final List<StudentProfileModel> _mockStudents = [];
-
-  // 2. فحص نظام الحظر التراكمي للمحاولات الخاطئة
+  // 2. فحص نظام الحظر التراكمي للمحاولات الخاطئة (الخادم + الجهاز معاً)
   static Future<Map<String, dynamic>> checkLockoutStatus(String academicId) async {
+    final cleanId = normalizeDigits(academicId.trim());
     final prefs = await SharedPreferences.getInstance();
-    final String? rawData = prefs.getString('${_lockoutKey}_$academicId');
-    if (rawData == null) {
-      return {'isLocked': false, 'attempts': 0, 'lockedUntil': null, 'isPermanent': false};
+    final String? rawData = prefs.getString('${_lockoutKey}_$cleanId');
+
+    int localAttempts = 0;
+    bool localPermanent = false;
+    DateTime? localLockedUntil;
+
+    if (rawData != null) {
+      try {
+        final Map<String, dynamic> data = jsonDecode(rawData);
+        localAttempts = data['attempts'] ?? 0;
+        localPermanent = data['isPermanent'] ?? false;
+        final String? lockedUntilStr = data['lockedUntil'];
+        if (lockedUntilStr != null) {
+          localLockedUntil = DateTime.tryParse(lockedUntilStr);
+        }
+      } catch (_) {}
     }
 
-    final Map<String, dynamic> data = jsonDecode(rawData);
-    final int attempts = data['attempts'] ?? 0;
-    final bool isPermanent = data['isPermanent'] ?? false;
-    final String? lockedUntilStr = data['lockedUntil'];
+    // فحص حالة الحظر على الخادم أيضاً لمنع التحايل بمسح بيانات التطبيق
+    int serverAttempts = 0;
+    bool serverBlocked = false;
+    DateTime? serverLockedUntil;
+    try {
+      final res = await Supabase.instance.client
+          .from('students')
+          .select('is_blocked, failed_attempts, locked_until')
+          .eq('academic_id', cleanId)
+          .maybeSingle();
+      if (res != null) {
+        serverBlocked = (res['is_blocked'] ?? false) == true;
+        serverAttempts = (res['failed_attempts'] as num?)?.toInt() ?? 0;
+        if (res['locked_until'] != null) {
+          serverLockedUntil = DateTime.tryParse(res['locked_until'].toString())?.toLocal();
+        }
+      }
+    } catch (_) {}
+
+    final int effectiveAttempts = serverAttempts > localAttempts ? serverAttempts : localAttempts;
+    final bool isPermanent = localPermanent || (serverBlocked && effectiveAttempts >= 9);
 
     if (isPermanent) {
-      return {'isLocked': true, 'attempts': attempts, 'lockedUntil': null, 'isPermanent': true};
+      return {
+        'isLocked': true,
+        'attempts': effectiveAttempts,
+        'lockedUntil': null,
+        'isPermanent': true,
+      };
     }
 
-    if (lockedUntilStr != null) {
-      final DateTime lockedUntil = DateTime.parse(lockedUntilStr);
-      if (DateTime.now().isBefore(lockedUntil)) {
-        return {
-          'isLocked': true,
-          'attempts': attempts,
-          'lockedUntil': lockedUntil,
-          'isPermanent': false,
-          'remainingSeconds': lockedUntil.difference(DateTime.now()).inSeconds,
-        };
+    DateTime? effectiveLock = localLockedUntil;
+    if (serverLockedUntil != null) {
+      if (effectiveLock == null || serverLockedUntil.isAfter(effectiveLock)) {
+        effectiveLock = serverLockedUntil;
       }
     }
 
-    return {'isLocked': false, 'attempts': attempts, 'lockedUntil': null, 'isPermanent': false};
+    if (effectiveLock != null && DateTime.now().isBefore(effectiveLock)) {
+      return {
+        'isLocked': true,
+        'attempts': effectiveAttempts,
+        'lockedUntil': effectiveLock,
+        'isPermanent': false,
+        'remainingSeconds': effectiveLock.difference(DateTime.now()).inSeconds,
+      };
+    }
+
+    return {
+      'isLocked': false,
+      'attempts': effectiveAttempts,
+      'lockedUntil': null,
+      'isPermanent': false,
+    };
   }
 
   static Future<Map<String, dynamic>> registerFailedAttempt(String academicId) async {
+    final cleanId = normalizeDigits(academicId.trim());
     final prefs = await SharedPreferences.getInstance();
-    final status = await checkLockoutStatus(academicId);
+    final status = await checkLockoutStatus(cleanId);
     int currentAttempts = (status['attempts'] as int) + 1;
 
     DateTime? lockedUntil;
     bool isPermanent = false;
 
     if (currentAttempts == 3) {
-      // 3 محاولات خروج ⬅️ حظر لمدة دقيقة واحدة
+      // 3 محاولات خاطئة ⬅️ حظر لمدة دقيقة واحدة
       lockedUntil = DateTime.now().add(const Duration(minutes: 1));
     } else if (currentAttempts == 6) {
-      // 3 محاولات أخرى ⬅️ حظر لمدة ساعة واحدة
+      // 3 محاولات أخرى (6 إجمالاً) ⬅️ حظر لمدة ساعة واحدة
       lockedUntil = DateTime.now().add(const Duration(hours: 1));
     } else if (currentAttempts >= 9) {
-      // 3 محاولات إضافية ⬅️ حظر دائم للحساب وتوجيه للدعم الفني
+      // 3 محاولات إضافية (9 إجمالاً) ⬅️ حظر الحساب وتوجيه للدعم الفني
       isPermanent = true;
     }
 
@@ -96,39 +150,140 @@ class AuthService {
       'attempts': currentAttempts,
       'lockedUntil': lockedUntil?.toIso8601String(),
       'isPermanent': isPermanent,
+      'remainingSeconds': lockedUntil != null
+          ? lockedUntil.difference(DateTime.now()).inSeconds
+          : 0,
     };
 
-    await prefs.setString('${_lockoutKey}_$academicId', jsonEncode(newLockoutData));
+    await prefs.setString('${_lockoutKey}_$cleanId', jsonEncode(newLockoutData));
+
+    // مزامنة الحظر والمحاولات الخاطئة على الخادم
+    try {
+      final Map<String, dynamic> serverUpdate = {
+        'failed_attempts': currentAttempts,
+        'locked_until': lockedUntil?.toUtc().toIso8601String(),
+      };
+      if (isPermanent) {
+        serverUpdate['is_blocked'] = true;
+      }
+      await Supabase.instance.client
+          .from('students')
+          .update(serverUpdate)
+          .eq('academic_id', cleanId);
+    } catch (_) {}
+
     return newLockoutData;
   }
 
   static Future<void> resetLockout(String academicId) async {
+    final cleanId = normalizeDigits(academicId.trim());
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('${_lockoutKey}_$academicId');
+    await prefs.remove('${_lockoutKey}_$cleanId');
+    try {
+      await Supabase.instance.client
+          .from('students')
+          .update({'failed_attempts': 0, 'locked_until': null})
+          .eq('academic_id', cleanId);
+    } catch (_) {}
   }
 
-  // 3. التحقق من مطابقة البيانات في قاعدة البيانات
+  // 3. التحقق من مطابقة البيانات في قاعدة البيانات (RPC آمن + تشفير Salted SHA-256)
   static Future<StudentProfileModel?> verifyCredentials({
     required String academicId,
     required String password,
     String? email,
   }) async {
-    final trimmedId = academicId.trim();
+    final trimmedId = normalizeDigits(academicId.trim());
     final trimmedPass = password.trim();
 
+    // 3.1 محاولة الدخول عبر الدالة الآمنة على الخادم (app_login) إن كانت مفعلة
+    try {
+      final rpcRes = await Supabase.instance.client.rpc(
+        'app_login',
+        params: {
+          'p_academic_id': trimmedId,
+          'p_password': trimmedPass,
+        },
+      );
+      if (rpcRes is Map) {
+        final status = rpcRes['status']?.toString();
+        if (status == 'ok' && rpcRes['profile'] is Map) {
+          final p = Map<String, dynamic>.from(rpcRes['profile'] as Map);
+          final token = rpcRes['token']?.toString() ?? PasswordSecurity.generateSessionToken();
+          await resetLockout(trimmedId);
+          return StudentProfileModel(
+            academicId: p['academic_id']?.toString() ?? trimmedId,
+            fullName: p['full_name']?.toString() ?? '',
+            password: '',
+            email: p['email']?.toString() ?? '',
+            specialty: p['specialty']?.toString() ?? '',
+            level: p['level']?.toString() ?? 'المستوى الأول',
+            batch: p['batch']?.toString() ?? '',
+            semester: p['semester']?.toString() ?? '',
+            group: p['group_name']?.toString() ?? '',
+            studyShift: p['study_shift']?.toString() ?? '',
+            isPermanentlyBlocked: (p['is_blocked'] ?? false) == true,
+            sessionToken: token,
+          );
+        } else if (status == 'blocked') {
+          return StudentProfileModel(
+            academicId: trimmedId,
+            fullName: '',
+            password: '',
+            email: '',
+            specialty: '',
+            level: '',
+            batch: '',
+            semester: '',
+            group: '',
+            studyShift: '',
+            isPermanentlyBlocked: true,
+          );
+        } else if (status == 'invalid' || status == 'locked') {
+          return null;
+        }
+      }
+    } catch (_) {
+      // في حال لم تكن دالة app_login منشأة بعد، ننتقل للتحقق المشفر المباشر
+    }
+
+    // 3.2 التحقق المشفر المباشر مع الترقية التلقائية لكلمات المرور
     try {
       final response = await Supabase.instance.client
           .from('students')
           .select()
           .eq('academic_id', trimmedId)
-          .eq('password', trimmedPass)
           .maybeSingle();
 
       if (response != null) {
+        final storedPassword = response['password']?.toString() ?? '';
+        final isMatch = PasswordSecurity.verifyPassword(trimmedPass, storedPassword);
+
+        if (!isMatch) {
+          return null;
+        }
+
+        // ترقية كلمة المرور تلقائياً إلى هاش مشفر إذا كانت نصية قديمة، وتصفير عداد الأخطاء
+        final Map<String, dynamic> secUpdates = {
+          'failed_attempts': 0,
+          'locked_until': null,
+        };
+        if (!PasswordSecurity.isHashed(storedPassword)) {
+          secUpdates['password'] = PasswordSecurity.hashPassword(trimmedPass);
+        }
+        try {
+          await Supabase.instance.client
+              .from('students')
+              .update(secUpdates)
+              .eq('academic_id', trimmedId);
+        } catch (_) {}
+
+        await resetLockout(trimmedId);
+
         return StudentProfileModel(
           academicId: response['academic_id']?.toString() ?? '',
           fullName: response['full_name'] ?? '',
-          password: response['password'] ?? '',
+          password: '',
           email: response['email'] ?? '',
           specialty: response['specialty'] ?? '',
           level: response['level'] ?? 'المستوى الأول',
@@ -137,43 +292,137 @@ class AuthService {
           group: response['group_name'] ?? '',
           studyShift: response['study_shift'] ?? '',
           isPermanentlyBlocked: response['is_blocked'] ?? false,
+          sessionToken: PasswordSecurity.generateSessionToken(),
         );
       }
     } catch (_) {}
 
-    for (var student in _mockStudents) {
-      if (student.academicId == trimmedId &&
-          student.password == trimmedPass) {
-        return student;
-      }
-    }
     return null;
   }
 
-  // 4. حفظ واسترجاع الجلسة للمستخدم (Session Persistence)
+  /// تغيير كلمة سر الطالب بأمان مع تشفير الكلمة الجديدة
+  static Future<String?> changeStudentPassword({
+    required String academicId,
+    required String oldPassword,
+    required String newPassword,
+  }) async {
+    final cleanId = normalizeDigits(academicId.trim());
+    final cleanOld = oldPassword.trim();
+    final cleanNew = newPassword.trim();
+
+    if (cleanNew.length < 6) {
+      return 'كلمة السر الجديدة يجب ألا تقل عن 6 أحرف أو أرقام';
+    }
+
+    // 1. محاولة التغيير عبر RPC الآمن إن كان مفعلاً
+    final session = await getSavedSession();
+    if (session?.sessionToken != null && session!.sessionToken!.isNotEmpty) {
+      try {
+        final rpcRes = await Supabase.instance.client.rpc(
+          'app_change_password',
+          params: {
+            'p_token': session.sessionToken,
+            'p_old': cleanOld,
+            'p_new': cleanNew,
+          },
+        );
+        if (rpcRes is Map) {
+          final st = rpcRes['status']?.toString();
+          if (st == 'ok') return null;
+          if (st == 'wrong_old') return 'كلمة السر الحالية غير صحيحة';
+          if (st == 'weak') return 'كلمة السر الجديدة ضعيفة جداً';
+        }
+      } catch (_) {}
+    }
+
+    // 2. التحقق المشفر المباشر وتحديث الهاش
+    try {
+      final studentRes = await Supabase.instance.client
+          .from('students')
+          .select('academic_id, password')
+          .eq('academic_id', cleanId)
+          .maybeSingle();
+
+      if (studentRes == null) {
+        return 'لم يتم العثور على حساب الطالب في قاعدة البيانات';
+      }
+
+      final dbPassword = (studentRes['password'] ?? '').toString();
+      if (!PasswordSecurity.verifyPassword(cleanOld, dbPassword)) {
+        return 'كلمة السر الحالية غير صحيحة';
+      }
+
+      final hashedNew = PasswordSecurity.hashPassword(cleanNew);
+      await Supabase.instance.client
+          .from('students')
+          .update({'password': hashedNew})
+          .eq('academic_id', cleanId);
+
+      return null; // نجاح بدون أخطاء
+    } catch (_) {
+      return 'حدث خطأ أثناء تحديث كلمة السر، يرجى المحاولة لاحقاً';
+    }
+  }
+
+  // 4. حفظ واسترجاع الجلسة للمستخدم (Session Persistence) بدون حفظ كلمة السر النصية
+  static StudentProfileModel? _cachedSession;
+
   static Future<void> saveStudentSession(StudentProfileModel student) async {
+    final safeStudent = student.copyWith(
+      password: '',
+      sessionToken: student.sessionToken ?? PasswordSecurity.generateSessionToken(),
+    );
+    _cachedSession = safeStudent;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_sessionKey, jsonEncode(student.toJson()));
+    await prefs.setString(_sessionKey, jsonEncode(safeStudent.toJson()));
   }
 
   static Future<StudentProfileModel?> getSavedSession() async {
+    if (_cachedSession != null) return _cachedSession;
     final prefs = await SharedPreferences.getInstance();
     final String? rawJson = prefs.getString(_sessionKey);
     if (rawJson != null) {
-      return StudentProfileModel.fromJson(jsonDecode(rawJson));
+      try {
+        _cachedSession = StudentProfileModel.fromJson(jsonDecode(rawJson));
+        return _cachedSession;
+      } catch (_) {
+        await prefs.remove(_sessionKey);
+      }
     }
     return null;
   }
 
   static Future<void> clearSession() async {
+    final token = _cachedSession?.sessionToken;
+    _cachedSession = null;
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_sessionKey);
+    if (token != null && token.isNotEmpty) {
+      try {
+        await Supabase.instance.client.rpc('app_logout', params: {'p_token': token});
+      } catch (_) {}
+    }
   }
 
   // 5. فحص ما إذا كان حساب الطالب موقوفاً / غير نشط في قاعدة البيانات
   static Future<bool> isStudentBlocked(String academicId) async {
-    final trimmedId = academicId.trim();
+    final trimmedId = normalizeDigits(academicId.trim());
     if (trimmedId.isEmpty) return false;
+
+    final session = await getSavedSession();
+    if (session?.sessionToken != null && session!.sessionToken!.isNotEmpty) {
+      try {
+        final rpcRes = await Supabase.instance.client.rpc(
+          'app_session_status',
+          params: {'p_token': session.sessionToken},
+        );
+        if (rpcRes is Map) {
+          if (rpcRes['status'] == 'blocked') return true;
+          if (rpcRes['status'] == 'ok') return false;
+        }
+      } catch (_) {}
+    }
+
     try {
       final res = await Supabase.instance.client
           .from('students')

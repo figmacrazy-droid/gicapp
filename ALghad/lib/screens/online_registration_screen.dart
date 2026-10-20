@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import '../models/app_models.dart';
 import '../services/pdf_service.dart';
+import '../services/data_service.dart';
 
 class OnlineRegistrationScreen extends StatefulWidget {
   const OnlineRegistrationScreen({super.key});
@@ -468,11 +469,14 @@ class _OnlineRegistrationScreenState extends State<OnlineRegistrationScreen> {
 
       setState(() => _isSubmitting = true);
       try {
+        final phone = await DataService.getCollegeContactPhone();
+        final cleanPhone = phone.replaceAll(RegExp(r'[^0-9]'), '');
+        final targetPhone = cleanPhone.isNotEmpty ? cleanPhone : '967776166321';
         final File pdfFile = await PdfService.generateRegistrationPdf(_form);
         await PdfService.sendPdfToWhatsApp(
           pdfFile: pdfFile,
           form: _form,
-          targetPhone: '967776166321',
+          targetPhone: targetPhone,
         );
 
         if (mounted) {
@@ -480,8 +484,8 @@ class _OnlineRegistrationScreenState extends State<OnlineRegistrationScreen> {
             context: context,
             builder: (ctx) => AlertDialog(
               title: const Text('تم تجهيز طلب التسجيل بنجاح!'),
-              content: const Text(
-                'تم إنشاء استمارة التسجيل المنسقة بصيغة PDF وتجهيز الإرسال إلى رقم الواتساب: 967776166321.',
+              content: Text(
+                'تم إنشاء استمارة التسجيل المنسقة بصيغة PDF وتجهيز الإرسال إلى رقم الواتساب: $targetPhone.',
               ),
               actions: [
                 TextButton(

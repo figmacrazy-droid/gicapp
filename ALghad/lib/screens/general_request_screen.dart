@@ -5,9 +5,11 @@ import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/app_models.dart';
 import '../services/auth_service.dart';
+import '../services/data_service.dart';
 import '../theme/app_colors.dart';
 
 class GeneralRequestScreen extends StatefulWidget {
@@ -19,7 +21,7 @@ class GeneralRequestScreen extends StatefulWidget {
 
 class _GeneralRequestScreenState extends State<GeneralRequestScreen> {
   static const textColor = Color(0xFF03102E);
-  static const String collegePhone = '967776166321';
+  String _collegePhone = '967776166321';
 
   final _subjectController = TextEditingController();
   final _detailsController = TextEditingController();
@@ -72,11 +74,13 @@ class _GeneralRequestScreenState extends State<GeneralRequestScreen> {
     final prefs = await SharedPreferences.getInstance();
     final key = _getTodayKey(student.academicId);
     final count = prefs.getInt(key) ?? 0;
+    final phone = await DataService.getCollegeContactPhone();
 
     if (mounted) {
       setState(() {
         _student = student;
         _dailyRequestsCount = count;
+        if (phone.isNotEmpty) _collegePhone = phone;
       });
     }
   }
@@ -313,24 +317,43 @@ class _GeneralRequestScreenState extends State<GeneralRequestScreen> {
         '$imageSection';
 
     try {
-      // 1. إذا كان التطبيق على هاتف (أندرويد أو iOS) ومعه صورة، نشارك الصورة والنص معاً للواتساب عبر shareXFiles
-      if (!kIsWeb && _capturedImage != null) {
-        await Share.shareXFiles(
-          [_capturedImage!],
-          text: messageText,
-        );
-      } else {
-        // 2. إذا كان ويب أو هاتف بدون صورة أو كرابط مباشر لمحادثة الواتساب الرسمية:
-        final encoded = Uri.encodeComponent(messageText);
-        final whatsappUrl = Uri.parse('whatsapp://send?phone=$collegePhone&text=$encoded');
-        final webUrl = Uri.parse('https://api.whatsapp.com/send?phone=$collegePhone&text=$encoded');
+      final cleanPhone = _collegePhone.replaceAll(RegExp(r'[^0-9]'), '');
+      final targetPhone = cleanPhone.isNotEmpty ? cleanPhone : '967776166321';
+      final encoded = Uri.encodeComponent(messageText);
 
-        if (await canLaunchUrl(whatsappUrl)) {
-          await launchUrl(whatsappUrl);
-        } else {
-          await launchUrl(webUrl, mode: LaunchMode.externalApplication);
-        }
+      final waMeUrl = Uri.parse('https://wa.me/$targetPhone?text=$encoded');
+      final whatsappUrl = Uri.parse('whatsapp://send?phone=$targetPhone&text=$encoded');
+      final apiWhatsAppUrl = Uri.parse('https://api.whatsapp.com/send?phone=$targetPhone&text=$encoded');
+
+      bool launched = false;
+      try {
+        launched = await launchUrl(waMeUrl, mode: LaunchMode.externalApplication);
+      } catch (_) {}
+
+      if (!launched) {
+        try {
+          if (await canLaunchUrl(whatsappUrl)) {
+            launched = await launchUrl(whatsappUrl, mode: LaunchMode.externalApplication);
+          }
+        } catch (_) {}
       }
+
+      if (!launched) {
+        try {
+          launched = await launchUrl(apiWhatsAppUrl, mode: LaunchMode.externalApplication);
+        } catch (_) {}
+      }
+
+      // حفظ نسخة من الطلب العام في جدول requests للمتابعة الأكاديمية
+      try {
+        await Supabase.instance.client.from('requests').insert({
+          'academic_id': _student?.academicId ?? 'غير مسجل',
+          'request_type': category,
+          'details': 'موضوع: $subject\nالتفاصيل: $details',
+          'status': 'قيد المعالجة',
+          'created_at': DateTime.now().toIso8601String(),
+        });
+      } catch (_) {}
 
       // زيادة عداد الطلبات اليومية وحفظه
       final prefs = await SharedPreferences.getInstance();

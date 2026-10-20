@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/auth_service.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -196,33 +195,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
         return;
       }
 
-      // 1. التحقق من مطابقة كلمة السر القديمة مع المسجل في Supabase
-      final studentRes = await Supabase.instance.client
-          .from('students')
-          .select('academic_id, password')
-          .eq('academic_id', session.academicId)
-          .maybeSingle();
+      final errorMsg = await AuthService.changeStudentPassword(
+        academicId: session.academicId,
+        oldPassword: oldP,
+        newPassword: newP,
+      );
 
-      if (studentRes == null) {
-        _showMsg('لم يتم العثور على حساب الطالب في قاعدة البيانات', isError: true);
+      if (errorMsg != null) {
+        _showMsg(errorMsg, isError: true);
         return;
       }
 
-      final dbPassword = (studentRes['password'] ?? '').toString();
-      if (dbPassword != oldP) {
-        _showMsg('كلمة السر الحالية غير صحيحة', isError: true);
-        return;
-      }
-
-      // 2. تحديث كلمة السر في جدول students في Supabase
-      await Supabase.instance.client
-          .from('students')
-          .update({'password': newP})
-          .eq('academic_id', session.academicId);
-
-      // 3. تحديث الجلسة المحفوظة في الهاتف
-      final updatedProfile = session.copyWith(password: newP);
-      await AuthService.saveStudentSession(updatedProfile);
+      await AuthService.saveStudentSession(session.copyWith(password: ''));
 
       _showMsg('تم تغيير وتحديث كلمة السر بنجاح!');
       _oldPassController.clear();
@@ -250,10 +234,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   InputDecoration _inputDecoration(String label) {
     return InputDecoration(
       labelText: label,
-      filled: true,
-      fillColor: const Color(0xFFF8F9FA),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
     );
   }
 }
