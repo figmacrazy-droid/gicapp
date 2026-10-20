@@ -1,4 +1,4 @@
-name: Build Android APK (Student App)
+name: Build Android APK & Google Play AAB (Student App)
 
 on:
   push:
@@ -11,7 +11,7 @@ on:
 
 jobs:
   build-apk:
-    name: Build Android APK (Student App)
+    name: Build Android APK & Google Play AAB
     runs-on: ubuntu-latest
 
     steps:
@@ -34,12 +34,22 @@ jobs:
         working-directory: ALghad
         run: flutter pub get
 
-      - name: Build Split APKs (Optimized & Compressed)
+      - name: Build Split APKs (Direct Install for Client)
         working-directory: ALghad
         run: flutter build apk --release --split-per-abi --obfuscate --split-debug-info=build/debug-info --no-tree-shake-icons --android-skip-build-dependency-validation
 
-      - name: Upload Student App APKs
+      - name: Build Google Play App Bundle (AAB)
+        working-directory: ALghad
+        run: flutter build appbundle --release --obfuscate --split-debug-info=build/debug-info --no-tree-shake-icons --android-skip-build-dependency-validation
+
+      - name: Upload Student App APKs (Direct Install)
         uses: actions/upload-artifact@v4
         with:
           name: ALghad-Student-App-APKs
           path: ALghad/build/app/outputs/flutter-apk/*.apk
+
+      - name: Upload Google Play Bundle (AAB)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ALghad-GooglePlay-AAB
+          path: ALghad/build/app/outputs/bundle/release/*.aab

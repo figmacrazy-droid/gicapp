@@ -1,4 +1,4 @@
-package com.example.alghad
+package com.alghad.gic
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
