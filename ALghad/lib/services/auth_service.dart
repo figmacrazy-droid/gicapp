@@ -211,15 +211,17 @@ class AuthService {
           final p = Map<String, dynamic>.from(rpcRes['profile'] as Map);
           final token = rpcRes['token']?.toString() ?? PasswordSecurity.generateSessionToken();
           await resetLockout(trimmedId);
+          final sem = p['semester']?.toString() ?? '';
+          final rawLvl = p['level']?.toString();
           return StudentProfileModel(
             academicId: p['academic_id']?.toString() ?? trimmedId,
             fullName: p['full_name']?.toString() ?? '',
             password: '',
             email: p['email']?.toString() ?? '',
             specialty: p['specialty']?.toString() ?? '',
-            level: p['level']?.toString() ?? 'المستوى الأول',
+            level: StudentProfileModel.resolveAcademicLevel(sem, rawLvl),
             batch: p['batch']?.toString() ?? '',
-            semester: p['semester']?.toString() ?? '',
+            semester: sem,
             group: p['group_name']?.toString() ?? '',
             studyShift: p['study_shift']?.toString() ?? '',
             isPermanentlyBlocked: (p['is_blocked'] ?? false) == true,
@@ -280,15 +282,17 @@ class AuthService {
 
         await resetLockout(trimmedId);
 
+        final sem = response['semester']?.toString() ?? '';
+        final rawLvl = response['level']?.toString();
         return StudentProfileModel(
           academicId: response['academic_id']?.toString() ?? '',
           fullName: response['full_name'] ?? '',
           password: '',
           email: response['email'] ?? '',
           specialty: response['specialty'] ?? '',
-          level: response['level'] ?? 'المستوى الأول',
+          level: StudentProfileModel.resolveAcademicLevel(sem, rawLvl),
           batch: response['batch'] ?? '',
-          semester: response['semester'] ?? '',
+          semester: sem,
           group: response['group_name'] ?? '',
           studyShift: response['study_shift'] ?? '',
           isPermanentlyBlocked: response['is_blocked'] ?? false,
@@ -390,6 +394,42 @@ class AuthService {
       }
     }
     return null;
+  }
+
+  /// مزامنة بيانات موقع الطالب الحالي (الفصل، المستوى، التخصص، الدفعة) مباشرة من قاعدة البيانات حسب الرقم الأكاديمي
+  static Future<StudentProfileModel?> refreshSessionFromServer() async {
+    final current = await getSavedSession();
+    if (current == null || current.academicId.trim().isEmpty) return current;
+
+    try {
+      final res = await Supabase.instance.client
+          .from('students')
+          .select()
+          .eq('academic_id', current.academicId.trim())
+          .maybeSingle();
+
+      if (res != null) {
+        final sem = res['semester']?.toString() ?? current.semester;
+        final rawLvl = res['level']?.toString();
+        final resolvedLevel = StudentProfileModel.resolveAcademicLevel(sem, rawLvl);
+
+        final updated = current.copyWith(
+          fullName: res['full_name']?.toString() ?? current.fullName,
+          email: res['email']?.toString() ?? current.email,
+          specialty: res['specialty']?.toString() ?? current.specialty,
+          batch: res['batch']?.toString() ?? current.batch,
+          semester: sem,
+          level: resolvedLevel,
+          group: res['group_name']?.toString() ?? current.group,
+          studyShift: res['study_shift']?.toString() ?? current.studyShift,
+          isPermanentlyBlocked: (res['is_blocked'] ?? false) == true,
+        );
+        await saveStudentSession(updated);
+        return updated;
+      }
+    } catch (_) {}
+
+    return current;
   }
 
   static Future<void> clearSession() async {

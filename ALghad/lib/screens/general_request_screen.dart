@@ -56,7 +56,7 @@ class _GeneralRequestScreenState extends State<GeneralRequestScreen> {
   }
 
   Future<void> _loadStudentAndQuota() async {
-    final session = await AuthService.getSavedSession();
+    final session = await AuthService.refreshSessionFromServer() ?? await AuthService.getSavedSession();
     final student = session ??
         const StudentProfileModel(
           academicId: '',

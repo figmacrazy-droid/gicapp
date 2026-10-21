@@ -264,7 +264,7 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
 
         final titleClean = title.trim();
         final isBatch = titleClean.contains('دفع') || nodeType == 'batch_node' || nodeType == 'group';
-        final isSemester = (titleClean.contains('فصل') || titleClean.contains('الفصل')) && !isBatch;
+        final isSemester = (titleClean.contains('فصل') || titleClean.contains('الفصل') || titleClean.contains('خريج')) && !isBatch;
         final isFolder = isBatch || (!isSemester && nodeType != 'group_shift') || (childrenMap[id]?.isNotEmpty ?? false);
 
         String? addLabel;
@@ -337,7 +337,7 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
         if (clean.contains('دفع')) {
           context['batch'] = clean;
           context['group_name'] = clean;
-        } else if (clean.contains('فصل') || clean.contains('الفصل')) {
+        } else if (clean.contains('فصل') || clean.contains('الفصل') || clean.contains('خريج') || node.nodeType == 'group_shift' || node.nodeType == 'semester_node') {
           context['semester'] = clean;
           final match = RegExp(r'(\d{4}/\d{4}|\d{4}-\d{4})').firstMatch(clean);
           if (match != null) {
@@ -348,6 +348,40 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
     }
 
     return context;
+  }
+
+  /// حساب المستوى الدراسي تلقائياً بناءً على الفصل الدراسي الحالي للطالب
+  /// - الفصل الأول أو الثاني -> المستوى الأول
+  /// - الفصل الثالث أو الرابع -> المستوى الثاني
+  /// - الفصل الخامس أو السادس -> المستوى الثالث
+  /// - الفصل السابع أو الثامن -> المستوى الرابع
+  /// - فصل الخريجين -> خريج
+  String _resolveLevelFromSemester(String? semester) {
+    final rawSem = (semester ?? '').trim();
+    if (rawSem.contains('خريج')) return 'خريج';
+    if (rawSem.contains('سابع') || rawSem.contains('السابع') || rawSem.contains('ثامن') || rawSem.contains('الثامن')) {
+      return 'المستوى الرابع';
+    }
+    if (rawSem.contains('خامس') || rawSem.contains('الخامس') || rawSem.contains('سادس') || rawSem.contains('السادس')) {
+      return 'المستوى الثالث';
+    }
+    if (rawSem.contains('ثالث') || rawSem.contains('الثالث') || rawSem.contains('رابع') || rawSem.contains('الرابع')) {
+      return 'المستوى الثاني';
+    }
+    if (rawSem.contains('أول') || rawSem.contains('اول') || rawSem.contains('الأول') || rawSem.contains('الاول') ||
+        rawSem.contains('ثاني') || rawSem.contains('الثاني')) {
+      return 'المستوى الأول';
+    }
+
+    final cleanedNumbers = rawSem
+        .replaceAll(RegExp(r'\d{4}\s*[/\-]\s*\d{4}'), '')
+        .replaceAll(RegExp(r'\b20\d{2}\b'), '')
+        .replaceAll(RegExp(r'\(\s*\d+\s*\)'), '');
+
+    if (RegExp(r'(?:^|\D)[78](?:\D|$)').hasMatch(cleanedNumbers)) return 'المستوى الرابع';
+    if (RegExp(r'(?:^|\D)[56](?:\D|$)').hasMatch(cleanedNumbers)) return 'المستوى الثالث';
+    if (RegExp(r'(?:^|\D)[34](?:\D|$)').hasMatch(cleanedNumbers)) return 'المستوى الثاني';
+    return 'المستوى الأول';
   }
 
   // --- تحميل طلاب الفصل الدراسي / الدفعة المحددة ---
@@ -789,7 +823,7 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
                   'semester': ctx['semester']!,
                   'group_name': ctx['group_name']!,
                   'study_shift': ctx['study_shift']!,
-                  'level': 'المستوى الأول',
+                  'level': _resolveLevelFromSemester(ctx['semester']),
                   'is_blocked': false,
                   'failed_attempts': 0,
                 });
@@ -855,7 +889,7 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
               'semester': ctx['semester']!,
               'group_name': ctx['group_name']!,
               'study_shift': ctx['study_shift']!,
-              'level': 'المستوى الأول',
+              'level': _resolveLevelFromSemester(ctx['semester']),
               'is_blocked': false,
               'failed_attempts': 0,
             });
@@ -1090,16 +1124,18 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
   }) async {
     setState(() => isLoadingStudents = true);
     try {
-      // تحديث حقل الفصل الدراسي لجميع طلاب هذا الفصل
+      final newLevel = _resolveLevelFromSemester(toSemester);
+      // تحديث حقل الفصل الدراسي والمستوى المقابل له لجميع طلاب هذا الفصل
       await supabase
           .from('students')
           .update({
             'semester': toSemester,
+            'level': newLevel,
           })
           .eq('specialty', specialty)
           .eq('semester', fromSemester);
 
-      _showSnackbar('تمت ترقية الطلاب بنجاح من ($fromSemester) إلى ($toSemester)');
+      _showSnackbar('تمت ترقية الطلاب بنجاح من ($fromSemester) إلى ($toSemester - $newLevel)');
 
       // إعادة تحميل القائمة
       if (selectedNodeId != null) {
@@ -1109,6 +1145,109 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
       _showSnackbar('فشلت عملية الترقية: $e', isError: true);
       setState(() => isLoadingStudents = false);
     }
+  }
+
+  // 9.2 ترقية طالب مفرد إلى فصل دراسي مختار مع تحديث مستواه تلقائياً
+  void _showPromoteSingleStudentDialog(Map<String, dynamic> student, TreeNodeData currentSemesterNode) {
+    if (!_canTree('tree_students', PermissionAction.update)) {
+      _showNoPermissionSnack('⚠️ عذراً، حسابك لا يملك صلاحية ترقية الطالب.');
+      return;
+    }
+    final academicId = (student['academic_id'] ?? '').toString().trim();
+    final fullName = (student['full_name'] ?? '').toString().trim();
+    if (academicId.isEmpty) return;
+
+    TreeNodeData? batchParent;
+    if (currentSemesterNode.parentId != null) {
+      batchParent = _findNodeById(treeData, currentSemesterNode.parentId!);
+    }
+
+    final targetSemesters = batchParent?.children.where((c) => c.id != currentSemesterNode.id).toList() ?? [];
+    if (targetSemesters.isEmpty) {
+      _showSnackbar('لا يوجد فصول دراسية أخرى داخل هذه الدفعة للترقية إليها. يرجى إنشاء الفصل التالي أولاً.', isError: true);
+      return;
+    }
+
+    TreeNodeData selectedTarget = targetSemesters.first;
+
+    showDialog(
+      context: context,
+      builder: (ctxDialog) => StatefulBuilder(
+        builder: (context, setModalState) => AlertDialog(
+          title: Row(
+            children: const [
+              Icon(Icons.upgrade, color: Colors.blueAccent),
+              SizedBox(width: 8),
+              Text('ترقية الطالب إلى فصل دراسي', style: TextStyle(fontWeight: FontWeight.bold, color: primaryNavy)),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'ترقية الطالب "$fullName" ($academicId) من "${currentSemesterNode.title}" إلى الفصل المختار:',
+                style: const TextStyle(fontSize: 14, height: 1.4),
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<TreeNodeData>(
+                value: selectedTarget,
+                decoration: const InputDecoration(
+                  labelText: 'الفصل الدراسي الجديد',
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                ),
+                items: targetSemesters.map((s) {
+                  return DropdownMenuItem<TreeNodeData>(
+                    value: s,
+                    child: Text('${s.title} (${_resolveLevelFromSemester(s.title)})', style: const TextStyle(fontSize: 13)),
+                  );
+                }).toList(),
+                onChanged: (val) {
+                  if (val != null) setModalState(() => selectedTarget = val);
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctxDialog),
+              child: const Text('إلغاء'),
+            ),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue.shade800,
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+              ),
+              onPressed: () async {
+                Navigator.pop(ctxDialog);
+                setState(() => isLoadingStudents = true);
+                try {
+                  final toSem = selectedTarget.title.replaceFirst(RegExp(r'^[^:]+:\s*'), '').trim();
+                  final newLevel = _resolveLevelFromSemester(toSem);
+                  await supabase
+                      .from('students')
+                      .update({
+                        'semester': toSem,
+                        'level': newLevel,
+                      })
+                      .eq('academic_id', academicId);
+                  _showSnackbar('تمت ترقية الطالب ($fullName) إلى ($toSem - $newLevel) بنجاح');
+                  if (selectedNodeId != null) {
+                    await _loadStudentsForGroup(selectedNodeId!);
+                  }
+                } catch (e) {
+                  _showSnackbar('فشلت عملية ترقية الطالب: $e', isError: true);
+                  setState(() => isLoadingStudents = false);
+                }
+              },
+              icon: const Icon(Icons.check, color: Colors.white, size: 18),
+              label: const Text('تأكيد الترقية', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   // 10. ترقية الكل: ترقية جميع فصول الدفعة خطوة للأمام
@@ -1178,9 +1317,13 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
                 for (int i = allSemesters.length - 2; i >= 0; i--) {
                   final fromSem = allSemesters[i].title;
                   final toSem = allSemesters[i + 1].title;
+                  final newLevel = _resolveLevelFromSemester(toSem);
                   await supabase
                       .from('students')
-                      .update({'semester': toSem})
+                      .update({
+                        'semester': toSem,
+                        'level': newLevel,
+                      })
                       .eq('specialty', ctx['specialty']!)
                       .eq('semester', fromSem);
                 }
@@ -1409,11 +1552,13 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
                 Navigator.pop(ctx);
                 setState(() => isLoadingStudents = true);
                 try {
+                  final newLevel = _resolveLevelFromSemester(selectedSemester);
                   for (final id in studentIds) {
                     await supabase.from('students').update({
                       'specialty': selectedSpec,
                       'batch': selectedBatch,
                       'semester': selectedSemester,
+                      'level': newLevel,
                     }).eq('academic_id', id.trim());
                   }
                   _showSnackbar('تم نقل الطلاب إلى ($selectedSpec - $selectedBatch - $selectedSemester) بنجاح');
@@ -2513,7 +2658,7 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
                                               _showStudentGradesDialog(st);
                                               break;
                                             case 'promote':
-                                              _showPromoteSemesterDialog(selectedNode);
+                                              _showPromoteSingleStudentDialog(st, selectedNode);
                                               break;
                                           }
                                         });

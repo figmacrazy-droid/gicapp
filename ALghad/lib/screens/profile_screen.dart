@@ -44,6 +44,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _currentStudent = student;
       });
     }
+    // مزامنة فورية مع قاعدة البيانات حسب الرقم الأكاديمي لعكس أي ترقية أو نقل للفصل فوراً
+    final freshStudent = await AuthService.refreshSessionFromServer();
+    if (mounted && freshStudent != null) {
+      setState(() {
+        _currentStudent = freshStudent;
+      });
+    }
   }
 
   void _showLogoutConfirmationDialog() {
@@ -228,43 +235,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   String _resolveLevel(String? semester, String? level) {
-    final sem = (semester ?? '').trim().toLowerCase();
-    final lvl = (level ?? '').trim().toLowerCase();
-
-    // 1. خريج إذا كان في فصل الخريجين أو مسجل كخريج
-    if (sem.contains('خريج') || lvl.contains('خريج') || sem.contains('خريجين') || lvl.contains('خريجين')) {
-      return 'خريج';
-    }
-
-    // 2. الفصل الأول أو الثاني -> المستوى الأول
-    if (sem.contains('أول') || sem.contains('اول') || sem.contains('الأول') || sem.contains('الاول') ||
-        sem.contains('ثاني') || sem.contains('الثاني') || sem.contains('1') || sem.contains('2') || sem == 'ف1' || sem == 'ف2') {
-      return 'المستوى الأول';
-    }
-
-    // 3. الفصل الثالث أو الرابع -> المستوى الثاني
-    if (sem.contains('ثالث') || sem.contains('الثالث') || sem.contains('رابع') || sem.contains('الرابع') ||
-        sem.contains('3') || sem.contains('4') || sem == 'ف3' || sem == 'ف4') {
-      return 'المستوى الثاني';
-    }
-
-    // 4. الفصل الخامس أو السادس -> المستوى الثالث
-    if (sem.contains('خامس') || sem.contains('الخامس') || sem.contains('سادس') || sem.contains('السادس') ||
-        sem.contains('5') || sem.contains('6') || sem == 'ف5' || sem == 'ف6') {
-      return 'المستوى الثالث';
-    }
-
-    // 5. الفصل السابع أو الثامن -> المستوى الرابع
-    if (sem.contains('سابع') || sem.contains('السابع') || sem.contains('ثامن') || sem.contains('الثامن') ||
-        sem.contains('7') || sem.contains('8') || sem == 'ف7' || sem == 'ف8') {
-      return 'المستوى الرابع';
-    }
-
-    if (level != null && level.trim().isNotEmpty) {
-      return level.trim();
-    }
-
-    return 'المستوى الأول';
+    return StudentProfileModel.resolveAcademicLevel(semester, level);
   }
 
   Widget _buildProfileCard() {

@@ -378,16 +378,74 @@ class StudentProfileModel {
     this.sessionToken,
   });
 
+  /// حساب المستوى الدراسي تلقائياً بناءً على الفصل الحالي للطالب في قاعدة البيانات
+  static String resolveAcademicLevel(String? semester, [String? fallbackLevel]) {
+    final rawSem = (semester ?? '').trim();
+    final rawLvl = (fallbackLevel ?? '').trim();
+
+    // 1. فصل الخريجين -> خريج
+    if (rawSem.contains('خريج') || rawLvl.contains('خريج')) {
+      return 'خريج';
+    }
+
+    // 2. فحص الكلمات العربية الصريحة للفصل الدراسي أولاً (لتجنب التداخل مع سنوات مثل 2021/2020)
+    if (rawSem.contains('سابع') || rawSem.contains('السابع') || rawSem.contains('ثامن') || rawSem.contains('الثامن')) {
+      return 'المستوى الرابع';
+    }
+    if (rawSem.contains('خامس') || rawSem.contains('الخامس') || rawSem.contains('سادس') || rawSem.contains('السادس')) {
+      return 'المستوى الثالث';
+    }
+    if (rawSem.contains('ثالث') || rawSem.contains('الثالث') || rawSem.contains('رابع') || rawSem.contains('الرابع')) {
+      return 'المستوى الثاني';
+    }
+    if (rawSem.contains('أول') || rawSem.contains('اول') || rawSem.contains('الأول') || rawSem.contains('الاول') ||
+        rawSem.contains('ثاني') || rawSem.contains('الثاني')) {
+      return 'المستوى الأول';
+    }
+
+    // 3. في حال كان اسم الفصل مكتوباً بالأرقام (مثل: "فصل 3" أو "ف4")، نحذف السنوات الدراسية والأقواس أولاً
+    final cleanedNumbers = rawSem
+        .replaceAll(RegExp(r'\d{4}\s*[/\-]\s*\d{4}'), '')
+        .replaceAll(RegExp(r'\b20\d{2}\b'), '')
+        .replaceAll(RegExp(r'\(\s*\d+\s*\)'), '');
+
+    if (RegExp(r'(?:^|\D)[78](?:\D|$)').hasMatch(cleanedNumbers)) {
+      return 'المستوى الرابع';
+    }
+    if (RegExp(r'(?:^|\D)[56](?:\D|$)').hasMatch(cleanedNumbers)) {
+      return 'المستوى الثالث';
+    }
+    if (RegExp(r'(?:^|\D)[34](?:\D|$)').hasMatch(cleanedNumbers)) {
+      return 'المستوى الثاني';
+    }
+    if (RegExp(r'(?:^|\D)[12](?:\D|$)').hasMatch(cleanedNumbers)) {
+      return 'المستوى الأول';
+    }
+
+    // 4. الرجوع إلى المستوى المحفوظ إن وُجد
+    if (rawLvl.contains('رابع') || rawLvl.contains('الرابع')) return 'المستوى الرابع';
+    if (rawLvl.contains('ثالث') || rawLvl.contains('الثالث')) return 'المستوى الثالث';
+    if (rawLvl.contains('ثاني') || rawLvl.contains('الثاني')) return 'المستوى الثاني';
+    if (rawLvl.contains('أول') || rawLvl.contains('اول') || rawLvl.contains('الأول') || rawLvl.contains('الاول')) {
+      return 'المستوى الأول';
+    }
+    if (rawLvl.isNotEmpty) return rawLvl;
+
+    return 'المستوى الأول';
+  }
+
   factory StudentProfileModel.fromJson(Map<String, dynamic> json) {
+    final sem = json['semester']?.toString() ?? 'الفصل الأول';
+    final rawLvl = json['level']?.toString();
     return StudentProfileModel(
       academicId: json['academic_id']?.toString() ?? '',
       fullName: json['full_name'] ?? '',
       password: '',
       email: json['email'] ?? '',
       specialty: json['specialty'] ?? '',
-      level: json['level'] ?? 'المستوى الثاني',
+      level: resolveAcademicLevel(sem, rawLvl),
       batch: json['batch'] ?? 'الدفعة الخامسة',
-      semester: json['semester'] ?? 'الفصل الأول',
+      semester: sem,
       group: json['group'] ?? json['group_name'] ?? 'المجموعة الأولى',
       studyShift: json['study_shift'] ?? 'الفترة الصباحية',
       isPermanentlyBlocked: json['is_permanently_blocked'] ?? json['is_blocked'] ?? false,
