@@ -66,6 +66,10 @@ class _AuditLogsViewState extends State<AuditLogsView> {
         return Colors.purple.shade700;
       case 'IMPORT':
         return Colors.teal.shade700;
+      case 'EXPORT':
+        return Colors.indigo.shade700;
+      case 'NOTIFY':
+        return Colors.deepPurple.shade700;
       default:
         return primaryNavy;
     }
@@ -87,19 +91,25 @@ class _AuditLogsViewState extends State<AuditLogsView> {
         return 'تغيير حالة 🔄';
       case 'IMPORT':
         return 'استيراد إكسل 📥';
+      case 'EXPORT':
+        return 'تصدير إكسل 📤';
+      case 'NOTIFY':
+        return 'إرسال إشعار 🔔';
       default:
         return actionType;
     }
   }
 
   String _formatDateTime(DateTime dt) {
-    final y = dt.year;
-    final m = dt.month.toString().padLeft(2, '0');
-    final d = dt.day.toString().padLeft(2, '0');
-    final hour = dt.hour > 12 ? dt.hour - 12 : (dt.hour == 0 ? 12 : dt.hour);
-    final minute = dt.minute.toString().padLeft(2, '0');
-    final period = dt.hour >= 12 ? 'م' : 'ص';
-    return '$y/$m/$d - $hour:$minute $period';
+    final local = dt.toLocal();
+    final y = local.year;
+    final m = local.month.toString().padLeft(2, '0');
+    final d = local.day.toString().padLeft(2, '0');
+    final hour = local.hour > 12 ? local.hour - 12 : (local.hour == 0 ? 12 : local.hour);
+    final minute = local.minute.toString().padLeft(2, '0');
+    final second = local.second.toString().padLeft(2, '0');
+    final period = local.hour >= 12 ? 'م' : 'ص';
+    return '$y/$m/$d - $hour:$minute:$second $period';
   }
 
   void _showDetailsDialog(AuditLogItem log) {
@@ -299,11 +309,14 @@ class _AuditLogsViewState extends State<AuditLogsView> {
                       items: const [
                         DropdownMenuItem(value: 'الكل', child: Text('كافة العمليات')),
                         DropdownMenuItem(value: 'LOGIN', child: Text('تسجيل دخول')),
+                        DropdownMenuItem(value: 'LOGOUT', child: Text('تسجيل خروج')),
                         DropdownMenuItem(value: 'CREATE', child: Text('إضافة جديد')),
-                        DropdownMenuItem(value: 'UPDATE', child: Text('تعديل')),
-                        DropdownMenuItem(value: 'DELETE', child: Text('حذف')),
-                        DropdownMenuItem(value: 'STATUS_CHANGE', child: Text('تغيير حالة')),
+                        DropdownMenuItem(value: 'UPDATE', child: Text('تعديل بيانات')),
+                        DropdownMenuItem(value: 'DELETE', child: Text('حذف سجل')),
+                        DropdownMenuItem(value: 'STATUS_CHANGE', child: Text('تغيير حالة / ترقية')),
+                        DropdownMenuItem(value: 'NOTIFY', child: Text('إرسال إشعار')),
                         DropdownMenuItem(value: 'IMPORT', child: Text('استيراد إكسل')),
+                        DropdownMenuItem(value: 'EXPORT', child: Text('تصدير إكسل')),
                       ],
                       onChanged: (val) {
                         if (val != null) {
@@ -329,6 +342,8 @@ class _AuditLogsViewState extends State<AuditLogsView> {
                         DropdownMenuItem(value: 'الخدمات والطلبات', child: Text('الخدمات والطلبات')),
                         DropdownMenuItem(value: 'الهيكل الأكاديمي والشجرة', child: Text('الهيكل والشجرة الأكاديمية')),
                         DropdownMenuItem(value: 'الإشعارات والتنبيهات', child: Text('الإشعارات والتنبيهات')),
+                        DropdownMenuItem(value: 'الحسابات والتواصل', child: Text('الحسابات ورقم التواصل')),
+                        DropdownMenuItem(value: 'الإعلانات والواجهة', child: Text('الإعلانات والتقويم')),
                         DropdownMenuItem(value: 'الموظفين والصلاحيات', child: Text('الموظفين والصلاحيات')),
                         DropdownMenuItem(value: 'النظام', child: Text('النظام وتسجيل الدخول')),
                       ],

@@ -40,6 +40,10 @@ class _ServicesViewState extends State<ServicesView> {
   final TextEditingController _instructionUrlController = TextEditingController();
   bool _isSavingInstruction = false;
 
+  // --- وحدة التحكم لرقم هاتف / واتساب الكلية في التسجيل أونلاين وتطبيق الطلاب ---
+  final TextEditingController _onlineRegPhoneController = TextEditingController(text: '967776166321');
+  bool _isSavingOnlineRegPhone = false;
+
   // --- وحدات التحكم للجداول (Schedules) ---
   final TextEditingController _scheduleTitleController = TextEditingController();
   final TextEditingController _scheduleUrlController = TextEditingController();
@@ -203,9 +207,104 @@ class _ServicesViewState extends State<ServicesView> {
   void initState() {
     super.initState();
     _loadAcademicTreeOptions();
+    _loadOnlineRegPhone();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       widget.onServiceTap(currentPath);
     });
+  }
+
+  Future<void> _loadOnlineRegPhone() async {
+    try {
+      final res = await AdminSupabase.client
+          .from('system_instructions')
+          .select('note, steps')
+          .eq('service_key', 'college_whatsapp_phone')
+          .maybeSingle();
+      if (res != null && mounted) {
+        String phone = (res['note'] ?? '').toString().replaceAll(RegExp(r'[^0-9]'), '');
+        if (phone.length < 7 && res['steps'] is List && (res['steps'] as List).isNotEmpty) {
+          phone = (res['steps'] as List).first.toString().replaceAll(RegExp(r'[^0-9]'), '');
+        }
+        if (phone.length >= 7) {
+          setState(() => _onlineRegPhoneController.text = phone);
+        }
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _saveOnlineRegPhone() async {
+    if (!_canPerformAction(openServiceTitle ?? 'القبول والتسجيل', PermissionAction.update) &&
+        !_canPerformAction(openServiceTitle ?? 'القبول والتسجيل', PermissionAction.create)) {
+      _showNotification('⚠️ عذراً، حسابك يملك صلاحية قراءة فقط ولا يحق لك تعديل رقم التواصل.', isError: true);
+      return;
+    }
+
+    final cleanPhone = _normalizeDigits(_onlineRegPhoneController.text).replaceAll(RegExp(r'[^0-9]'), '');
+    if (cleanPhone.length < 7) {
+      _showNotification('يرجى إدخال رقم هاتف صحيح مع مفتاح الدولة (مثال: 967776166321)', isError: true);
+      return;
+    }
+
+    setState(() => _isSavingOnlineRegPhone = true);
+    try {
+      // 1. حفظ الرقم المعتمد في system_instructions ليقرأه تطبيق الطلاب فوراً في كل الشاشات
+      await AdminSupabase.client.from('system_instructions').upsert({
+        'service_key': 'college_whatsapp_phone',
+        'title': 'رقم واتساب وهاتف الكلية المعتمد للتواصل والطلبات',
+        'subtitle': cleanPhone,
+        'steps': [cleanPhone],
+        'note': cleanPhone,
+        'external_url': 'https://wa.me/$cleanPhone',
+        'updated_at': DateTime.now().toIso8601String(),
+      }, onConflict: 'service_key');
+
+      // 2. تحديث رقم الهاتف في خدمة المساعدة والدعم تلقائياً
+      for (final key in ['المساعدة والدعم', 'help_support']) {
+        try {
+          await AdminSupabase.client.from('system_instructions').update({
+            'note': 'أرقام التواصل المباشر (اتصال / واتساب): $cleanPhone',
+            'external_url': 'https://wa.me/$cleanPhone',
+            'updated_at': DateTime.now().toIso8601String(),
+          }).eq('service_key', key);
+        } catch (_) {}
+      }
+
+      // 3. تحديث روابط الواتساب والاتصال في social_media_links
+      try {
+        final links = await AdminSupabase.client.from('social_media_links').select();
+        for (final row in (links as List)) {
+          final platform = (row['platform'] ?? '').toString().toLowerCase();
+          final title = (row['title_ar'] ?? '').toString();
+          if (platform.contains('whatsapp') || title.contains('واتساب')) {
+            await AdminSupabase.client
+                .from('social_media_links')
+                .update({'url': 'https://wa.me/$cleanPhone'})
+                .eq('id', row['id']);
+          } else if (platform.contains('phone') || platform.contains('call') || title.contains('اتصال')) {
+            await AdminSupabase.client
+                .from('social_media_links')
+                .update({'url': 'tel:+$cleanPhone'})
+                .eq('id', row['id']);
+          }
+        }
+      } catch (_) {}
+
+      await AuditLogService.log(
+        actionType: 'UPDATE',
+        module: 'الخدمات والطلبات',
+        targetId: cleanPhone,
+        description: 'تغيير رقم واتساب وهاتف الكلية في التسجيل أونلاين وتطبيق الطلاب إلى ($cleanPhone)',
+      );
+
+      if (mounted) {
+        setState(() => _onlineRegPhoneController.text = cleanPhone);
+      }
+      _showNotification('تم تحديث رقم الكلية ($cleanPhone) وتعميمه فوراً في جميع واجهات تطبيق الطلاب!');
+    } catch (e) {
+      _showNotification('فشل حفظ الرقم: $e', isError: true);
+    } finally {
+      if (mounted) setState(() => _isSavingOnlineRegPhone = false);
+    }
   }
 
   String? _getCategoryKey(String? categoryTitle) {
@@ -384,6 +483,13 @@ class _ServicesViewState extends State<ServicesView> {
         'external_url': _instructionUrlController.text.trim().isEmpty ? null : _instructionUrlController.text.trim(),
         'updated_at': DateTime.now().toIso8601String(),
       }, onConflict: 'service_key');
+
+      await AuditLogService.log(
+        actionType: 'UPDATE',
+        module: 'الخدمات والطلبات',
+        targetId: selectedSubService,
+        description: 'تحديث وحفظ محتوى وتعليمات خدمة ($selectedSubService) تحت قسم ($openServiceTitle)',
+      );
 
       _showNotification('تم حفظ ونشر خدمة ($selectedSubService) بنجاح في التطبيق!');
     } catch (e) {
@@ -817,6 +923,13 @@ class _ServicesViewState extends State<ServicesView> {
         'display_order': _staffList.length + 1,
       });
 
+      await AuditLogService.log(
+        actionType: 'CREATE',
+        module: 'الخدمات والطلبات',
+        targetId: name,
+        description: 'إضافة عضو كادر أكاديمي وتدريسي: ($name) - التخصص: ($spec)',
+      );
+
       _staffNameController.clear();
       _staffSpecialtyController.clear();
       _staffExpController.clear();
@@ -836,7 +949,15 @@ class _ServicesViewState extends State<ServicesView> {
     }
 
     try {
+      final existing = _staffList.where((s) => s['id'] == id).toList();
+      final staffName = existing.isNotEmpty ? (existing.first['name'] ?? id.toString()) : id.toString();
       await AdminSupabase.client.from('academic_staff').delete().eq('id', id);
+      await AuditLogService.log(
+        actionType: 'DELETE',
+        module: 'الخدمات والطلبات',
+        targetId: '$id',
+        description: 'حذف عضو الكادر الأكاديمي والتدريسي: ($staffName)',
+      );
       _showNotification('تم حذف عضو الكادر بنجاح');
       _loadStaffData();
     } catch (e) {
@@ -886,6 +1007,13 @@ class _ServicesViewState extends State<ServicesView> {
         'display_order': _specList.length + 1,
       });
 
+      await AuditLogService.log(
+        actionType: 'CREATE',
+        module: 'الخدمات والطلبات',
+        targetId: title,
+        description: 'إضافة تخصص أكاديمي جديد في قسم الخدمات: ($title)',
+      );
+
       _specTitleController.clear();
       _showNotification('تمت إضافة التخصص الأكاديمي بنجاح');
       _loadSpecialtiesData();
@@ -901,7 +1029,15 @@ class _ServicesViewState extends State<ServicesView> {
     }
 
     try {
+      final existing = _specList.where((s) => s['id'] == id).toList();
+      final specName = existing.isNotEmpty ? (existing.first['title'] ?? id.toString()) : id.toString();
       await AdminSupabase.client.from('specialties').delete().eq('id', id);
+      await AuditLogService.log(
+        actionType: 'DELETE',
+        module: 'الخدمات والطلبات',
+        targetId: '$id',
+        description: 'حذف التخصص الأكاديمي من قسم الخدمات: ($specName)',
+      );
       _showNotification('تم حذف التخصص بنجاح');
       _loadSpecialtiesData();
     } catch (e) {
@@ -1127,9 +1263,10 @@ class _ServicesViewState extends State<ServicesView> {
 
       // 4. تسجيل في سجل العمليات والرقابة (Audit Log)
       await AuditLogService.log(
-        actionType: 'SEND_NOTIFICATION',
-        module: 'المالية',
-        description: 'إرسال إشعار مالي: $title لعدد ${targetStudents.length} طالب بمبلغ $amount ر.ي',
+        actionType: 'NOTIFY',
+        module: 'الخدمات والطلبات',
+        targetId: _finTargetMode == 'single' ? (targetStudents.first['academic_id']?.toString() ?? '') : _finTargetMode,
+        description: 'إرسال إشعار مالي وكشف حساب: ($title) لعدد (${targetStudents.length}) طالب بمبلغ ($amount ر.ي)',
       );
 
       _finTitleController.clear();
@@ -1252,6 +1389,13 @@ class _ServicesViewState extends State<ServicesView> {
         );
       } catch (_) {}
 
+      await AuditLogService.log(
+        actionType: _editingSeatingAcademicId != null ? 'UPDATE' : 'CREATE',
+        module: 'الخدمات والطلبات',
+        targetId: acadId,
+        description: '${_editingSeatingAcademicId != null ? "تعديل" : "اعتماد"} رقم الجلوس ($seatNo) للطالب ($acadId) في القاعة ($hall) للفصل ($term)',
+      );
+
       _showNotification('تم اعتماد وحفظ رقم الجلوس للطالب ($acadId) بنجاح!');
       _resetSeatingForm();
       _loadSeatingData();
@@ -1313,6 +1457,12 @@ class _ServicesViewState extends State<ServicesView> {
 
     try {
       await AdminSupabase.client.from('seating_numbers').delete().eq('academic_id', academicId);
+      await AuditLogService.log(
+        actionType: 'DELETE',
+        module: 'الخدمات والطلبات',
+        targetId: academicId,
+        description: 'حذف رقم الجلوس الامتحاني للطالب ($academicId)',
+      );
       _showNotification('تم حذف رقم الجلوس للطالب ($academicId) بنجاح');
       if (_editingSeatingAcademicId == academicId) {
         _resetSeatingForm();
@@ -1397,6 +1547,12 @@ class _ServicesViewState extends State<ServicesView> {
               routeName: 'control',
             );
           } catch (_) {}
+          await AuditLogService.log(
+            actionType: 'IMPORT',
+            module: 'الخدمات والطلبات',
+            targetId: 'أرقام الجلوس',
+            description: 'استيراد واعتماد ملف إكسل أرقام الجلوس لعدد ($count) طالب وبث الإشعارات',
+          );
         }
         _showNotification('تم استيراد ($count) رقم جلوس بنجاح وتحديث بيانات الطلاب!');
         _loadSeatingData();
@@ -1531,6 +1687,14 @@ class _ServicesViewState extends State<ServicesView> {
             count++;
           }
         }
+        if (count > 0) {
+          await AuditLogService.log(
+            actionType: 'IMPORT',
+            module: 'الخدمات والطلبات',
+            targetId: 'أوائل الطلاب',
+            description: 'استيراد قائمة أوائل الطلاب من ملف إكسل لعدد ($count) طالب',
+          );
+        }
         _showNotification('تم استيراد قائمة ($count) من أوائل الطلاب بنجاح!');
       }
     } catch (e) {
@@ -1546,7 +1710,9 @@ class _ServicesViewState extends State<ServicesView> {
     widget.onServiceTap(currentPath);
 
     // تحميل البيانات المربوطة فوراً
-    if (subTitle.contains('الجداول') || subTitle.contains('جداول الامتحانات')) {
+    if (subTitle == 'التسجيل أونلاين') {
+      _loadOnlineRegPhone();
+    } else if (subTitle.contains('الجداول') || subTitle.contains('جداول الامتحانات')) {
       _loadAcademicTreeOptions();
       _loadSchedulesData();
     } else if (subTitle == 'الكادر الأكاديمي والتدريس') {
@@ -1694,7 +1860,7 @@ class _ServicesViewState extends State<ServicesView> {
     Widget content;
 
     if (selectedSubService == 'التسجيل أونلاين') {
-      content = _buildMessageOnly('هذه الخدمة مرتبطة بنموذج استمارة الطالب وترسل بياناتها مباشرة إلى رقم الواتساب المخصص للكلية (967776166321).');
+      content = _buildOnlineRegistrationPhoneEditor();
     } else if (selectedSubService!.contains('الجداول الدراسية') || selectedSubService!.contains('جداول الامتحانات')) {
       content = _buildPdfUploadEditor();
     } else if (selectedSubService == 'أرقام الجلوس') {
@@ -2576,6 +2742,12 @@ class _ServicesViewState extends State<ServicesView> {
       if (fileBytes != null) {
         final fileName = 'كشف_النتائج_الأكاديمية_${DateTime.now().year}.xlsx';
         await saveAndDownloadFile(fileBytes, fileName);
+        await AuditLogService.log(
+          actionType: 'EXPORT',
+          module: 'الخدمات والطلبات',
+          targetId: fileName,
+          description: 'تصدير كشف النتائج الأكاديمية إلى ملف إكسل ($fileName) بعدد (${_resultsList.length}) طالب',
+        );
         _showNotification('تم تصدير كشف النتائج بنجاح: $fileName');
       }
     } catch (e) {
@@ -3107,6 +3279,13 @@ class _ServicesViewState extends State<ServicesView> {
         );
       } catch (_) {}
 
+      await AuditLogService.log(
+        actionType: 'IMPORT',
+        module: 'الخدمات والطلبات',
+        targetId: detectedTermName,
+        description: 'اعتماد واستيراد كشف النتائج الأكاديمية للفصل ($detectedTermName) لعدد ($savedCount) طالب (بينها $withheldCount محجوبة) وبث الإشعارات',
+      );
+
       _showNotification('تم اعتماد وحفظ ($savedCount) نتيجة بنجاح (بينها $withheldCount محجوبة) وبث الإشعارات لجميع الطلاب!');
       await _loadResultsControlData();
     } catch (e) {
@@ -3183,6 +3362,13 @@ class _ServicesViewState extends State<ServicesView> {
             routeName: 'results',
           );
         } catch (_) {}
+
+        await AuditLogService.log(
+          actionType: 'STATUS_CHANGE',
+          module: 'الخدمات والطلبات',
+          targetId: acadId,
+          description: 'فك الحجب عن النتيجة الأكاديمية للطالب: $studentName ($acadId)',
+        );
 
         _showNotification('تم فك الحجب عن نتيجة الطالب ($studentName) وإرسال إشعار فوري بنجاح!');
         await _loadResultsControlData();
@@ -3264,6 +3450,13 @@ class _ServicesViewState extends State<ServicesView> {
             routeName: 'results',
           );
         } catch (_) {}
+
+        await AuditLogService.log(
+          actionType: 'STATUS_CHANGE',
+          module: 'الخدمات والطلبات',
+          targetId: acadId,
+          description: 'حجب النتيجة الأكاديمية عن الطالب: $studentName ($acadId) - السبب: ($customMsg)',
+        );
 
         _showNotification('تم حجب نتيجة الطالب ($studentName) وإرسال التنبيه المخصص بنجاح!');
         await _loadResultsControlData();
@@ -3364,6 +3557,13 @@ class _ServicesViewState extends State<ServicesView> {
           }
         }
       }
+
+      await AuditLogService.log(
+        actionType: 'NOTIFY',
+        module: 'الخدمات والطلبات',
+        targetId: 'نشر النتائج الأكاديمية',
+        description: 'نشر النتائج الأكاديمية وبث الإشعارات السحابية لجميع الطلاب (${_resultsList.length} طالب)',
+      );
 
       _showNotification('تم نشر النتائج وبث الإشعارات السحابية بنجاح إلى جميع الطلاب (${_resultsList.length} طالب)!');
     } catch (e) {
@@ -3521,6 +3721,13 @@ class _ServicesViewState extends State<ServicesView> {
         routeName: 'results',
       );
 
+      await AuditLogService.log(
+        actionType: 'UPDATE',
+        module: 'الخدمات والطلبات',
+        targetId: acadId,
+        description: 'تعديل النتيجة الأكاديمية للطالب: $studentName ($acadId) - المعدل الجديد: $newGpa% ($selectedGrade)',
+      );
+
       _showNotification('تم تعديل نتيجة الطالب ($studentName) وإرسال إشعار فوري بنجاح!');
       await _loadResultsControlData();
     } catch (e) {
@@ -3563,6 +3770,12 @@ class _ServicesViewState extends State<ServicesView> {
 
     try {
       await AdminSupabase.client.from('student_results').delete().eq('academic_id', academicId);
+      await AuditLogService.log(
+        actionType: 'DELETE',
+        module: 'الخدمات والطلبات',
+        targetId: academicId,
+        description: 'حذف النتيجة الأكاديمية للطالب: $studentName ($academicId) نهائياً',
+      );
       _showNotification('تم حذف نتيجة الطالب ($studentName) بنجاح');
       await _loadResultsControlData();
     } catch (e) {
@@ -4778,6 +4991,88 @@ class _ServicesViewState extends State<ServicesView> {
               ),
             ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildOnlineRegistrationPhoneEditor() {
+    final bool readOnly = _isReadOnly(openServiceTitle);
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(32.0),
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 680),
+          padding: const EdgeInsets.all(28),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: Colors.teal.shade200, width: 1.5),
+            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 12)],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.teal.shade50,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.phone_in_talk_rounded, size: 42, color: Colors.teal.shade700),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'إدارة رقم الواتساب والهاتف المعتمد للتسجيل أونلاين وتطبيق الطلاب',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 18, color: primaryNavy, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'هذه الخدمة مرتبطة بنموذج استمارة الطالب وجميع طلبات شؤون الطلاب والخريجين والاتصال المباشر والمساعدة والدعم، وترسل بياناتها مباشرة إلى الرقم المعتمد أدناه (${_onlineRegPhoneController.text}). يمكنك استبدال الرقم بأي رقم آخر وسيتغير فوراً في تطبيق الطلاب.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 14, color: Colors.black87, height: 1.5),
+              ),
+              const SizedBox(height: 22),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _onlineRegPhoneController,
+                      enabled: !readOnly,
+                      textDirection: TextDirection.ltr,
+                      keyboardType: TextInputType.phone,
+                      style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, letterSpacing: 1.2),
+                      decoration: InputDecoration(
+                        labelText: 'رقم واتساب / هاتف الكلية (مع مفتاح الدولة بدون +)',
+                        hintText: '967776166321',
+                        prefixIcon: const Icon(Icons.phone_android_rounded, color: Colors.green),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                        filled: true,
+                        fillColor: Colors.grey.shade50,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  ElevatedButton.icon(
+                    onPressed: (_isSavingOnlineRegPhone || readOnly) ? null : _saveOnlineRegPhone,
+                    icon: _isSavingOnlineRegPhone
+                        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : const Icon(Icons.save_rounded, color: Colors.white),
+                    label: Text(
+                      _isSavingOnlineRegPhone ? 'جاري التحديث...' : 'حفظ وتحديث الرقم فوراً',
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.teal.shade700,
+                      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 18),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -317,7 +317,8 @@ class _GeneralRequestScreenState extends State<GeneralRequestScreen> {
         '$imageSection';
 
     try {
-      final cleanPhone = _collegePhone.replaceAll(RegExp(r'[^0-9]'), '');
+      final freshPhone = await DataService.getCollegeContactPhone();
+      final cleanPhone = freshPhone.replaceAll(RegExp(r'[^0-9]'), '');
       final targetPhone = cleanPhone.isNotEmpty ? cleanPhone : '967776166321';
       final encoded = Uri.encodeComponent(messageText);
 

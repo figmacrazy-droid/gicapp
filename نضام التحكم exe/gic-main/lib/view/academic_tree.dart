@@ -9,6 +9,7 @@ import 'package:gic/services/fcm_sender_service.dart';
 import 'package:gic/services/auth_service.dart';
 import 'package:gic/services/password_security.dart';
 import 'package:gic/services/permission_service.dart';
+import 'package:gic/services/audit_log_service.dart';
 import 'package:gic/utils/file_exporter.dart';
 import 'package:gic/widgets/desktop_scroll_view.dart';
 
@@ -503,6 +504,12 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
                   'node_type': 'year',
                   'parent_id': null,
                 });
+                AuditLogService.log(
+                  actionType: 'CREATE',
+                  module: 'الهيكل الأكاديمي والشجرة',
+                  targetService: 'هيكل الشجرة الأكاديمية',
+                  description: 'قام الموظف بإضافة كلية / مؤسسة جديدة ($val) في الشجرة الأكاديمية',
+                );
                 _showSnackbar('تمت إضافة الكلية بنجاح');
                 await _loadTreeFromSupabase();
               } catch (e) {
@@ -621,6 +628,12 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
                     'node_type': childType,
                     'parent_id': parent.id,
                   });
+                  AuditLogService.log(
+                    actionType: 'CREATE',
+                    module: 'الهيكل الأكاديمي والشجرة',
+                    targetService: 'هيكل الشجرة الأكاديمية',
+                    description: 'قام الموظف بإضافة عنصر ($input) تحت (${parent.title}) في الشجرة الأكاديمية',
+                  );
                   _showSnackbar('تمت إضافة ($input) بنجاح');
                   await _loadTreeFromSupabase();
                 } catch (e) {
@@ -667,6 +680,12 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
                     .from('academic_tree')
                     .update({'title': newTitle})
                     .eq('id', node.id);
+                AuditLogService.log(
+                  actionType: 'UPDATE',
+                  module: 'الهيكل الأكاديمي والشجرة',
+                  targetService: 'هيكل الشجرة الأكاديمية',
+                  description: 'قام الموظف بتعديل اسم العنصر من (${node.title}) إلى ($newTitle)',
+                );
                 _showSnackbar('تم تعديل الاسم بنجاح');
                 await _loadTreeFromSupabase();
               } catch (e) {
@@ -699,6 +718,12 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
               Navigator.pop(ctx);
               try {
                 await supabase.from('academic_tree').delete().eq('id', node.id);
+                AuditLogService.log(
+                  actionType: 'DELETE',
+                  module: 'الهيكل الأكاديمي والشجرة',
+                  targetService: 'هيكل الشجرة الأكاديمية',
+                  description: 'قام الموظف بحذف العنصر (${node.title}) من الشجرة الأكاديمية',
+                );
                 setState(() => selectedNodeId = null);
                 _showSnackbar('تم حذف العنصر بنجاح');
                 await _loadTreeFromSupabase();
@@ -828,6 +853,15 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
                   'failed_attempts': 0,
                 });
 
+                AuditLogService.log(
+                  actionType: 'CREATE',
+                  module: 'الهيكل الأكاديمي والشجرة',
+                  targetService: 'إدارة طلاب الشجرة',
+                  targetId: academicId,
+                  targetName: fullName,
+                  description: 'قام الموظف بإضافة الطالب ($fullName - $academicId) يدوياً في (${ctx['specialty']} - ${ctx['semester']})',
+                );
+
                 _showSnackbar('تمت إضافة الطالب ($fullName) بنجاح');
                 await _loadStudentsForGroup(groupNode.id);
               } catch (e) {
@@ -905,6 +939,13 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
       // إرسال الطلاب إلى Supabase
       await supabase.from('students').upsert(studentsToInsert);
 
+      AuditLogService.log(
+        actionType: 'IMPORT',
+        module: 'الهيكل الأكاديمي والشجرة',
+        targetService: 'استيراد طلاب Excel',
+        description: 'قام الموظف باستيراد (${studentsToInsert.length}) طالب من ملف Excel إلى (${ctx['specialty']} - ${ctx['semester']})',
+      );
+
       _showSnackbar('تم بنجاح استيراد ${studentsToInsert.length} طالب إلى ${ctx['group_name']}');
       await _loadStudentsForGroup(groupNode.id);
     } catch (e) {
@@ -978,6 +1019,15 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
                   'email': emailController.text.trim(),
                 }).eq('academic_id', oldAcademicId);
 
+                AuditLogService.log(
+                  actionType: 'UPDATE',
+                  module: 'الهيكل الأكاديمي والشجرة',
+                  targetService: 'إدارة طلاب الشجرة',
+                  targetId: newId,
+                  targetName: nameController.text.trim(),
+                  description: 'قام الموظف بتعديل بيانات الطالب (${nameController.text.trim()} - $newId)',
+                );
+
                 _showSnackbar('تم تعديل بيانات الطالب بنجاح');
                 await _loadStudentsForGroup(groupNode.id);
               } catch (e) {
@@ -1011,6 +1061,17 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
           .from('students')
           .update({'is_blocked': newBlocked})
           .eq('academic_id', acadId);
+
+      AuditLogService.log(
+        actionType: 'STATUS_CHANGE',
+        module: 'الهيكل الأكاديمي والشجرة',
+        targetService: 'حالة حساب الطالب',
+        targetId: acadId,
+        targetName: student['full_name']?.toString(),
+        description: newBlocked
+            ? 'قام الموظف بإيقاف حساب الطالب (${student['full_name']} - $acadId)'
+            : 'قام الموظف بتنشيط حساب الطالب (${student['full_name']} - $acadId)',
+      );
 
       _showSnackbar(newBlocked ? 'تم إيقاف حساب الطالب ($acadId) بنجاح' : 'تم تنشيط حساب الطالب ($acadId) بنجاح');
       await _loadStudentsForGroup(groupNode.id);
@@ -1135,6 +1196,13 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
           .eq('specialty', specialty)
           .eq('semester', fromSemester);
 
+      AuditLogService.log(
+        actionType: 'UPDATE',
+        module: 'الهيكل الأكاديمي والشجرة',
+        targetService: 'ترقية طلاب الفصل',
+        description: 'قام الموظف بترقية طلاب فصل ($fromSemester) إلى ($toSemester - $newLevel) في تخصص ($specialty)',
+      );
+
       _showSnackbar('تمت ترقية الطلاب بنجاح من ($fromSemester) إلى ($toSemester - $newLevel)');
 
       // إعادة تحميل القائمة
@@ -1232,6 +1300,14 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
                         'level': newLevel,
                       })
                       .eq('academic_id', academicId);
+                  AuditLogService.log(
+                    actionType: 'UPDATE',
+                    module: 'الهيكل الأكاديمي والشجرة',
+                    targetService: 'ترقية طالب',
+                    targetId: academicId,
+                    targetName: fullName,
+                    description: 'قام الموظف بترقية الطالب ($fullName - $academicId) إلى الفصل ($toSem - $newLevel)',
+                  );
                   _showSnackbar('تمت ترقية الطالب ($fullName) إلى ($toSem - $newLevel) بنجاح');
                   if (selectedNodeId != null) {
                     await _loadStudentsForGroup(selectedNodeId!);
@@ -1327,6 +1403,12 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
                       .eq('specialty', ctx['specialty']!)
                       .eq('semester', fromSem);
                 }
+                AuditLogService.log(
+                  actionType: 'UPDATE',
+                  module: 'الهيكل الأكاديمي والشجرة',
+                  targetService: 'ترقية كل الفصول',
+                  description: 'قام الموظف بترقية جميع فصول الدفعة (${batchParent!.title}) في تخصص (${ctx['specialty']})',
+                );
                 _showSnackbar('تمت ترقية جميع فصول الدفعة بنجاح');
                 if (selectedNodeId != null) {
                   await _loadStudentsForGroup(selectedNodeId!);
@@ -1409,6 +1491,15 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
                     routeName: 'notifications',
                   );
                 }
+
+                AuditLogService.log(
+                  actionType: 'NOTIFY',
+                  module: 'الهيكل الأكاديمي والشجرة',
+                  targetService: 'إشعار أكاديمي',
+                  targetId: studentIds.length == 1 ? studentIds.first : null,
+                  targetName: studentName,
+                  description: 'قام الموظف بإرسال إشعار بعنوان (${title.isEmpty ? "إشعار من الكلية" : title}) إلى ($studentName - ${studentIds.length} طالب)',
+                );
 
                 _showSnackbar('تم إرسال الإشعار بنجاح إلى ${studentIds.length} طالب');
               } catch (e) {
@@ -1561,6 +1652,13 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
                       'level': newLevel,
                     }).eq('academic_id', id.trim());
                   }
+                  AuditLogService.log(
+                    actionType: 'UPDATE',
+                    module: 'الهيكل الأكاديمي والشجرة',
+                    targetService: 'نقل طلاب بين التخصصات',
+                    targetId: studentIds.length == 1 ? studentIds.first : null,
+                    description: 'قام الموظف بنقل (${studentIds.length}) طالب إلى التخصص ($selectedSpec - $selectedBatch - $selectedSemester - $newLevel)',
+                  );
                   _showSnackbar('تم نقل الطلاب إلى ($selectedSpec - $selectedBatch - $selectedSemester) بنجاح');
                   await _loadStudentsForGroup(groupNode.id);
                   setState(() => selectedStudentIds.clear());
@@ -1681,6 +1779,14 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
                     'total_marks': double.tryParse(totalMarksController.text.trim()) ?? 0.0,
                     'grade': gradeController.text.trim(),
                   });
+                  AuditLogService.log(
+                    actionType: 'UPDATE',
+                    module: 'الهيكل الأكاديمي والشجرة',
+                    targetService: 'درجات الطالب',
+                    targetId: academicId,
+                    targetName: student['full_name']?.toString(),
+                    description: 'قام الموظف بتحديث درجات الطالب (${student['full_name']} - $academicId) بمعدل (${gpaController.text.trim()}%)',
+                  );
                   _showSnackbar('تم حفظ درجات الطالب بنجاح');
                 } catch (e) {
                   _showSnackbar('فشل حفظ الدرجات: $e', isError: true);
@@ -1726,6 +1832,17 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
       try {
         await supabase.from('students').update({'is_result_hidden': newHidden}).eq('academic_id', academicId);
       } catch (_) {}
+
+      AuditLogService.log(
+        actionType: 'STATUS_CHANGE',
+        module: 'الهيكل الأكاديمي والشجرة',
+        targetService: 'حجب / إظهار النتيجة',
+        targetId: academicId,
+        targetName: student['full_name']?.toString(),
+        description: newHidden
+            ? 'قام الموظف بحجب النتيجة عن الطالب (${student['full_name']} - $academicId)'
+            : 'قام الموظف برفع الحجب عن نتيجة الطالب (${student['full_name']} - $academicId)',
+      );
 
       _showSnackbar(newHidden ? 'تم حجب النتيجة عن الطالب ($academicId)' : 'تم رفع الحجب عن نتيجة الطالب ($academicId)');
       if (selectedNodeId != null) await _loadStudentsForGroup(selectedNodeId!);
@@ -1874,6 +1991,12 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
       }
 
       await supabase.from('student_results').upsert(gradesToUpsert);
+      AuditLogService.log(
+        actionType: 'IMPORT',
+        module: 'الهيكل الأكاديمي والشجرة',
+        targetService: 'رفع درجات الطلاب Excel',
+        description: 'قام الموظف برفع درجات (${gradesToUpsert.length}) طالب من ملف Excel للفصل (${semesterNode.title})',
+      );
       _showSnackbar('تم رفع درجات ${gradesToUpsert.length} طالب بنجاح للفصل (${semesterNode.title})');
     } catch (e) {
       debugPrint('Error uploading grades: $e');
@@ -2001,6 +2124,12 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
         final fileName = 'طلاب_${safeSemName}.xlsx';
 
         await saveAndDownloadFile(fileBytes, fileName);
+        AuditLogService.log(
+          actionType: 'EXPORT',
+          module: 'الهيكل الأكاديمي والشجرة',
+          targetService: 'تصدير كشف الطلاب Excel',
+          description: 'قام الموظف بتصدير كشف طلاب الفصل (${semesterNode.title}) وعددهم (${studentsList.length} طالب) إلى ملف ($fileName)',
+        );
         _showSnackbar('تم تصدير ملف الإكسل بنجاح: $fileName');
       }
     } catch (e) {
@@ -2256,6 +2385,12 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
                       );
 
                       _genBodyCtrl.clear();
+                      AuditLogService.log(
+                        actionType: 'NOTIFY',
+                        module: 'الهيكل الأكاديمي والشجرة',
+                        targetService: 'إشعار عام للقسم/الدفعة',
+                        description: 'قام الموظف بإرسال إشعار عام لطلاب (${selectedNode.title}) بعنوان ($title)',
+                      );
                       _showSnackbar('تم إرسال ونشر الإشعار العام لجميع الطلاب بنجاح');
                     } catch (e) {
                       _showSnackbar('فشل الإرسال: $e', isError: true);
@@ -2434,6 +2569,12 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
                       for (final id in selectedStudentIds) {
                         await supabase.from('students').update({'is_blocked': true}).eq('academic_id', id.trim());
                       }
+                      AuditLogService.log(
+                        actionType: 'STATUS_CHANGE',
+                        module: 'الهيكل الأكاديمي والشجرة',
+                        targetService: 'حالة حساب الطالب',
+                        description: 'قام الموظف بإيقاف حسابات (${selectedStudentIds.length}) طالب محدد في (${selectedNode.title})',
+                      );
                       _showSnackbar('تم إيقاف حسابات الطلاب المحددين بنجاح');
                       await _loadStudentsForGroup(selectedNode.id);
                     } catch (e) {
@@ -2456,6 +2597,12 @@ class _AcademicTreeViewState extends State<AcademicTreeView> {
                       for (final id in selectedStudentIds) {
                         await supabase.from('students').update({'is_blocked': false}).eq('academic_id', id.trim());
                       }
+                      AuditLogService.log(
+                        actionType: 'STATUS_CHANGE',
+                        module: 'الهيكل الأكاديمي والشجرة',
+                        targetService: 'حالة حساب الطالب',
+                        description: 'قام الموظف بتنشيط حسابات (${selectedStudentIds.length}) طالب محدد في (${selectedNode.title})',
+                      );
                       _showSnackbar('تم تنشيط حسابات الطلاب المحددين بنجاح');
                       await _loadStudentsForGroup(selectedNode.id);
                     } catch (e) {

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:gic/services/permission_service.dart';
 import 'package:gic/services/supabase_service.dart';
+import 'package:gic/services/audit_log_service.dart';
 
 class AccountsManagementView extends StatefulWidget {
   final Function(String path)? onPathChanged;
@@ -67,7 +68,7 @@ class _AccountsManagementViewState extends State<AccountsManagementView> {
           .eq('service_key', 'college_whatsapp_phone')
           .maybeSingle();
       if (phoneRes != null) {
-        String num = (phoneRes['note'] ?? phoneRes['steps'] ?? '').toString().trim();
+        String num = (phoneRes['note'] ?? phoneRes['steps'] ?? '').toString().replaceAll(RegExp(r'[^0-9]'), '');
         if (num.isEmpty && phoneRes['external_url'] != null) {
           num = phoneRes['external_url'].toString().replaceAll(RegExp(r'[^0-9]'), '');
         }
@@ -265,6 +266,12 @@ class _AccountsManagementViewState extends State<AccountsManagementView> {
                     'icon_name': icon,
                     'display_order': socialLinks.length + 1,
                   });
+                  AuditLogService.log(
+                    actionType: 'CREATE',
+                    module: 'الحسابات والتواصل',
+                    targetService: 'حسابات التواصل الاجتماعي',
+                    description: 'قام الموظف بإضافة حساب تواصل جديد لمنصة ($name) بالرابط ($url)',
+                  );
                   _showSnackbar('تمت إضافة حساب التواصل بنجاح');
                 } else {
                   await supabase.from('social_media_links').update({
@@ -272,6 +279,12 @@ class _AccountsManagementViewState extends State<AccountsManagementView> {
                     'url': url,
                     'icon_name': icon,
                   }).eq('id', item['id']);
+                  AuditLogService.log(
+                    actionType: 'UPDATE',
+                    module: 'الحسابات والتواصل',
+                    targetService: 'حسابات التواصل الاجتماعي',
+                    description: 'قام الموظف بتعديل حساب تواصل لمنصة ($name) إلى الرابط ($url)',
+                  );
                   _showSnackbar('تم تعديل حساب التواصل بنجاح');
                 }
                 _loadAllData();
@@ -293,7 +306,15 @@ class _AccountsManagementViewState extends State<AccountsManagementView> {
       return;
     }
     try {
+      final targetItem = socialLinks.firstWhere((e) => e['id'] == id, orElse: () => {});
+      final platformName = targetItem['platform_name'] ?? id.toString();
       await supabase.from('social_media_links').delete().eq('id', id);
+      AuditLogService.log(
+        actionType: 'DELETE',
+        module: 'الحسابات والتواصل',
+        targetService: 'حسابات التواصل الاجتماعي',
+        description: 'قام الموظف بحذف رابط حساب التواصل لمنصة ($platformName)',
+      );
       _showSnackbar('تم حذف الرابط بنجاح');
       _loadAllData();
     } catch (e) {
@@ -327,6 +348,12 @@ class _AccountsManagementViewState extends State<AccountsManagementView> {
           'file_url': url,
         });
       }
+      AuditLogService.log(
+        actionType: currentGuide == null ? 'CREATE' : 'UPDATE',
+        module: 'الحسابات والتواصل',
+        targetService: 'دليل الطالب الجامعي',
+        description: 'قام الموظف بحفظ ونشر دليل الطالب الجامعي بعنوان ($title)',
+      );
       _showSnackbar('تم حفظ ونشر دليل الطالب الجامعي بنجاح في التطبيق!');
       _loadAllData();
     } catch (e) {
@@ -354,20 +381,22 @@ class _AccountsManagementViewState extends State<AccountsManagementView> {
         'service_key': 'college_whatsapp_phone',
         'title': 'رقم الواتساب والتواصل الموحد',
         'subtitle': 'خدمة الدعم المباشر واستقبال الطلبات العامة والتسجيل',
-        'steps': cleanPhone,
+        'steps': [cleanPhone],
         'note': cleanPhone,
         'external_url': 'https://wa.me/$cleanPhone',
         'updated_at': DateTime.now().toIso8601String(),
       }, onConflict: 'service_key');
 
-      // 2. تحديث خدمة المساعدة والدعم
-      try {
-        await supabase.from('system_instructions').update({
-          'note': 'رقم الواتساب الخاص بالدعم المباشر: $cleanPhone',
-          'external_url': 'https://wa.me/$cleanPhone',
-          'updated_at': DateTime.now().toIso8601String(),
-        }).eq('service_key', 'المساعدة والدعم');
-      } catch (_) {}
+      // 2. تحديث خدمة المساعدة والدعم (عربي وإنجليزي)
+      for (final key in ['المساعدة والدعم', 'help_support']) {
+        try {
+          await supabase.from('system_instructions').update({
+            'note': 'رقم الواتساب الخاص بالدعم المباشر: $cleanPhone',
+            'external_url': 'https://wa.me/$cleanPhone',
+            'updated_at': DateTime.now().toIso8601String(),
+          }).eq('service_key', key);
+        } catch (_) {}
+      }
 
       // 3. تحديث أي رابط واتساب في جدول social_media_links
       try {
@@ -383,6 +412,13 @@ class _AccountsManagementViewState extends State<AccountsManagementView> {
           }
         }
       } catch (_) {}
+
+      AuditLogService.log(
+        actionType: 'UPDATE',
+        module: 'الحسابات والتواصل',
+        targetService: 'رقم الواتساب والتواصل الموحد',
+        description: 'قام الموظف بتغيير رقم الهاتف/الواتساب الموحد في تطبيق الطلاب إلى ($cleanPhone)',
+      );
 
       _showSnackbar('تم حفظ وتحديث رقم التواصل ($cleanPhone) بنجاح في تطبيق الطلاب!');
       _loadAllData();

@@ -455,21 +455,23 @@ class DataService {
     return defaultList;
   }
 
-  // رقم التواصل والواتساب الموحد للكلية
+  // رقم التواصل والواتساب الموحد للكلية (يُجلب مباشرة ولحظياً من السحابة ليتغير فوراً عند تعديله من لوحة التحكم)
   static String? _cachedCollegePhone;
 
-  static Future<String> getCollegeContactPhone() async {
-    if (_cachedCollegePhone != null && _cachedCollegePhone!.isNotEmpty) {
-      return _cachedCollegePhone!;
+  static String _extractCleanPhone(dynamic raw) {
+    if (raw == null) return '';
+    if (raw is List && raw.isNotEmpty) {
+      return _extractCleanPhone(raw.first);
     }
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final saved = prefs.getString('college_contact_phone');
-      if (saved != null && saved.trim().isNotEmpty) {
-        _cachedCollegePhone = saved.trim();
-      }
-    } catch (_) {}
+    final str = raw.toString().trim();
+    // البحث عن رقم هاتف دولي أو محلي صالح (8 إلى 15 رقماً)
+    final match = RegExp(r'(?:967\d{8,9}|\d{8,15})').firstMatch(str.replaceAll(RegExp(r'[\s\-\+]'), ''));
+    if (match != null) return match.group(0)!;
+    return str.replaceAll(RegExp(r'[^0-9]'), '');
+  }
 
+  static Future<String> getCollegeContactPhone() async {
+    // 1. الجلب اللحظي من قاعدة البيانات أولاً لضمان انعكاس أي تعديل من مدير النظام فوراً
     try {
       final client = _supabase;
       if (client != null) {
@@ -479,11 +481,10 @@ class DataService {
             .eq('service_key', 'college_whatsapp_phone')
             .maybeSingle();
         if (res != null) {
-          String val = (res['note'] ?? res['steps'] ?? '').toString().trim();
-          if (val.isEmpty && res['external_url'] != null) {
-            val = res['external_url'].toString().replaceAll(RegExp(r'[^0-9]'), '');
-          }
-          if (val.isNotEmpty) {
+          String val = _extractCleanPhone(res['note']);
+          if (val.isEmpty) val = _extractCleanPhone(res['external_url']);
+          if (val.isEmpty) val = _extractCleanPhone(res['steps']);
+          if (val.length >= 8) {
             _cachedCollegePhone = val;
             _savePhoneToPrefs(val);
             return val;
@@ -493,18 +494,12 @@ class DataService {
         final helpRes = await client
             .from('system_instructions')
             .select('note, external_url')
-            .eq('service_key', 'المساعدة والدعم')
-            .maybeSingle();
-        if (helpRes != null) {
-          String val = '';
-          if (helpRes['external_url'] != null) {
-            val = helpRes['external_url'].toString().replaceAll(RegExp(r'[^0-9]'), '');
-          }
-          if (val.isEmpty && helpRes['note'] != null) {
-            final match = RegExp(r'\b(967\d{8,9}|\d{9})\b').firstMatch(helpRes['note'].toString());
-            if (match != null) val = match.group(0)!;
-          }
-          if (val.isNotEmpty) {
+            .inFilter('service_key', ['المساعدة والدعم', 'help_support'])
+            .limit(2);
+        for (final row in (helpRes as List)) {
+          String val = _extractCleanPhone(row['external_url']);
+          if (val.isEmpty) val = _extractCleanPhone(row['note']);
+          if (val.length >= 8) {
             _cachedCollegePhone = val;
             _savePhoneToPrefs(val);
             return val;
@@ -513,7 +508,20 @@ class DataService {
       }
     } catch (_) {}
 
-    return _cachedCollegePhone ?? '967776166321';
+    // 2. في حال انقطاع الإنترنت فقط نعود لآخر رقم محفوظ محلياً
+    if (_cachedCollegePhone != null && _cachedCollegePhone!.isNotEmpty) {
+      return _cachedCollegePhone!;
+    }
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getString('college_contact_phone');
+      if (saved != null && saved.trim().isNotEmpty) {
+        _cachedCollegePhone = saved.trim();
+        return _cachedCollegePhone!;
+      }
+    } catch (_) {}
+
+    return '967776166321';
   }
 
   static void _savePhoneToPrefs(String phone) async {
@@ -769,7 +777,15 @@ class DataService {
       note: 'رقم الواتساب الخاص بالدعم المباشر: $cleanPhone',
       externalUrl: 'https://wa.me/$cleanPhone',
     );
-    return getInstructionFromSupabase('المساعدة والدعم', fallback);
+    final loaded = await getInstructionFromSupabase('المساعدة والدعم', fallback);
+    return InstructionStepModel(
+      id: loaded.id,
+      title: loaded.title,
+      subtitle: loaded.subtitle,
+      steps: loaded.steps,
+      note: 'رقم الواتساب الخاص بالدعم المباشر: $cleanPhone',
+      externalUrl: 'https://wa.me/$cleanPhone',
+    );
   }
 
   // الأحداث والتكليفات للكالندر (ميزت باللون الذهبي)

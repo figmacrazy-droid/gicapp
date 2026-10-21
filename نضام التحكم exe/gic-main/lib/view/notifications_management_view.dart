@@ -4,6 +4,7 @@ import '../services/supabase_service.dart';
 import '../services/fcm_sender_service.dart';
 import '../services/auth_service.dart';
 import '../services/permission_service.dart';
+import '../services/audit_log_service.dart';
 import '../widgets/desktop_scroll_view.dart';
 
 class NotificationsManagementView extends StatefulWidget {
@@ -330,6 +331,12 @@ class _NotificationsManagementViewState extends State<NotificationsManagementVie
       final notifIds = campaign.targets.map((t) => t.id).toSet().toList();
       await supabase.from('notifications').delete().inFilter('id', notifIds);
 
+      AuditLogService.log(
+        actionType: 'DELETE',
+        module: 'الإشعارات والتنبيهات',
+        targetService: 'سجل الإشعارات',
+        description: 'قام الموظف بحذف الإشعار "${campaign.title}" بالكامل (${campaign.totalRecipients} مستلم)',
+      );
       _showSnackbar('تم حذف الإشعار بالكامل بنجاح');
       if (_selectedCampaign?.groupKey == campaign.groupKey) {
         setState(() {
@@ -431,6 +438,12 @@ class _NotificationsManagementViewState extends State<NotificationsManagementVie
         }
       }
 
+      AuditLogService.log(
+        actionType: 'UPDATE',
+        module: 'الإشعارات والتنبيهات',
+        targetService: 'سجل الإشعارات',
+        description: 'قام الموظف بتعديل الإشعار إلى العنوان ($newTitle) وإعادة إرساله لـ (${campaign.totalRecipients}) طالب',
+      );
       _showSnackbar('تم تعديل الإشعار في قاعدة البيانات وإعادة إرساله للطلاب بنجاح');
       _loadAllData();
     } catch (e) {
@@ -482,6 +495,12 @@ class _NotificationsManagementViewState extends State<NotificationsManagementVie
       final notifIds = selectedTargets.map((t) => t.id).toList();
       await supabase.from('notifications').delete().inFilter('id', notifIds);
 
+      AuditLogService.log(
+        actionType: 'DELETE',
+        module: 'الإشعارات والتنبيهات',
+        targetService: 'سجل الإشعارات',
+        description: 'قام الموظف بحذف الإشعار "${_selectedCampaign!.title}" لـ ($count) طلاب محددين',
+      );
       _showSnackbar('تم حذف الإشعار للطلاب المحددين بنجاح ($count طالب)');
       setState(() {
         _selectedStudentTargetIds.clear();
@@ -561,6 +580,12 @@ class _NotificationsManagementViewState extends State<NotificationsManagementVie
         }
       }
 
+      AuditLogService.log(
+        actionType: 'UPDATE',
+        module: 'الإشعارات والتنبيهات',
+        targetService: 'سجل الإشعارات',
+        description: 'قام الموظف بتعديل الإشعار ($newTitle) وإعادة إرساله لـ ($count) طلاب محددين',
+      );
       _showSnackbar('تم تعديل الإشعار في قاعدة البيانات وإعادة إرساله للطلاب المحددين ($count طالب)');
       setState(() => _selectedStudentTargetIds.clear());
       _loadAllData();
@@ -613,6 +638,14 @@ class _NotificationsManagementViewState extends State<NotificationsManagementVie
 
     try {
       await supabase.from('notifications').delete().eq('id', target.id);
+      AuditLogService.log(
+        actionType: 'DELETE',
+        module: 'الإشعارات والتنبيهات',
+        targetService: 'سجل الإشعارات',
+        targetId: target.academicId,
+        targetName: target.studentName,
+        description: 'قام الموظف بحذف الإشعار عن الطالب (${target.studentName} - ${target.academicId})',
+      );
       _showSnackbar('تم حذف الإشعار للطالب بنجاح');
       _loadAllData();
     } catch (e) {
@@ -858,6 +891,19 @@ class _NotificationsManagementViewState extends State<NotificationsManagementVie
                       routeName: selectedType,
                     );
                   }
+
+                  final targetDesc = targetMode == 'all'
+                      ? 'جميع الطلاب (${_studentsMap.length} طالب)'
+                      : (targetMode == 'specialty'
+                          ? 'تخصص ($selectedSpecialty)'
+                          : 'الطالب رقم ($singleAcademicId)');
+                  AuditLogService.log(
+                    actionType: 'NOTIFY',
+                    module: 'الإشعارات والتنبيهات',
+                    targetService: 'إرسال إشعار جديد',
+                    targetId: targetMode == 'single' ? _normalizeDigits(singleAcademicId) : null,
+                    description: 'قام الموظف بإرسال إشعار بعنوان ($title) إلى $targetDesc',
+                  );
 
                   _showSnackbar('تم إرسال الإشعار بنجاح وإيصاله للطلاب!');
                   _loadAllData();

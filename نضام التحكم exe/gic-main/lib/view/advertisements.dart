@@ -5,6 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:gic/services/permission_service.dart';
 import 'package:gic/services/supabase_service.dart';
+import 'package:gic/services/audit_log_service.dart';
 import '../services/fcm_sender_service.dart';
 
 class AdsView extends StatefulWidget {
@@ -925,6 +926,12 @@ class _AdsViewState extends State<AdsView> {
         }
       });
       await _saveBannersToSupabase();
+      AuditLogService.log(
+        actionType: 'DELETE',
+        module: 'الإعلانات والواجهة',
+        targetService: 'البنر الإعلاني',
+        description: 'قام الموظف بحذف البنر الإعلاني (${banner['title']})',
+      );
       _showNotification('تم حذف البنر بنجاح');
     } catch (e) {
       _showNotification('فشل حذف البنر: $e', isError: true);
@@ -1033,6 +1040,12 @@ class _AdsViewState extends State<AdsView> {
                   } catch (_) {}
                 }
 
+                AuditLogService.log(
+                  actionType: 'CREATE',
+                  module: 'الإعلانات والواجهة',
+                  targetService: 'البنر الإعلاني',
+                  description: 'قام الموظف بإضافة بنر إعلاني جديد بعنوان ($title)',
+                );
                 _showNotification('تمت إضافة البنر الإعلاني بنجاح وحفظه في السحابة!');
               },
               child: const Text('حفظ ونشر', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
@@ -1060,6 +1073,12 @@ class _AdsViewState extends State<AdsView> {
       bannersData[index]['display_order'] = index + 1;
     });
     await _saveBannersToSupabase();
+    AuditLogService.log(
+      actionType: 'UPDATE',
+      module: 'الإعلانات والواجهة',
+      targetService: 'البنر الإعلاني',
+      description: 'قام الموظف بإعادة تعيين البنر رقم (${index + 1}) إلى الإعداد الافتراضي',
+    );
     _showNotification('تمت إعادة تعيين البنر (${index + 1}) للافتراضي بنجاح');
   }
 
@@ -1162,6 +1181,12 @@ class _AdsViewState extends State<AdsView> {
                   } catch (_) {}
                 }
 
+                AuditLogService.log(
+                  actionType: 'UPDATE',
+                  module: 'الإعلانات والواجهة',
+                  targetService: 'البنر الإعلاني',
+                  description: 'قام الموظف باستبدال/تعديل البنر رقم ($slotNumber) إلى العنوان ($title)',
+                );
                 _showNotification('تم استبدال وحفظ البنر رقم $slotNumber بنجاح ومزامنته مع التطبيق!');
               },
               child: const Text('حفظ واستبدال البنر', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
@@ -1211,6 +1236,12 @@ class _AdsViewState extends State<AdsView> {
           selectedSpecialtyIndex = specialtiesData.length - 1;
         }
       });
+      AuditLogService.log(
+        actionType: 'DELETE',
+        module: 'الإعلانات والواجهة',
+        targetService: 'التخصصات الأكاديمية',
+        description: 'قام الموظف بحذف التخصص الأكاديمي (${spec['title']})',
+      );
       _showNotification('تم حذف التخصص بنجاح');
     } catch (e) {
       _showNotification('فشل حذف التخصص: $e', isError: true);
@@ -1332,6 +1363,12 @@ class _AdsViewState extends State<AdsView> {
                     } catch (_) {}
                   }
 
+                  AuditLogService.log(
+                    actionType: 'CREATE',
+                    module: 'الإعلانات والواجهة',
+                    targetService: 'التخصصات الأكاديمية',
+                    description: 'قام الموظف بإضافة التخصص الأكاديمي ($degreeType $title)',
+                  );
                   _showNotification('تمت إضافة التخصص ورابط اليوتيوب بنجاح!');
                 } catch (e) {
                   _showNotification('فشل إضافة التخصص: $e', isError: true);
@@ -1441,6 +1478,12 @@ class _AdsViewState extends State<AdsView> {
                     spec['youtube_url'] = yt;
                   });
 
+                  AuditLogService.log(
+                    actionType: 'UPDATE',
+                    module: 'الإعلانات والواجهة',
+                    targetService: 'التخصصات الأكاديمية',
+                    description: 'قام الموظف بتعديل التخصص الأكاديمي ($degreeType $title)',
+                  );
                   _showNotification('تم تحديث التخصص ورابط فيديو اليوتيوب بنجاح!');
                 } catch (e) {
                   _showNotification('فشل التعديل: $e', isError: true);
@@ -1647,6 +1690,12 @@ class _AdsViewState extends State<AdsView> {
         }
       });
       await _saveAchievementsToSupabase();
+      AuditLogService.log(
+        actionType: 'DELETE',
+        module: 'الإعلانات والواجهة',
+        targetService: 'إنجازاتنا',
+        description: 'قام الموظف بحذف الإنجاز (${item['title']})',
+      );
       _showNotification('تم حذف الإنجاز بنجاح');
     } catch (e) {
       _showNotification('فشل حذف الإنجاز: $e', isError: true);
@@ -1768,6 +1817,12 @@ class _AdsViewState extends State<AdsView> {
                   } catch (_) {}
                 }
 
+                AuditLogService.log(
+                  actionType: 'CREATE',
+                  module: 'الإعلانات والواجهة',
+                  targetService: 'إنجازاتنا',
+                  description: 'قام الموظف بإضافة إنجاز جديد بعنوان ($title)',
+                );
                 _showNotification('تمت إضافة الإنجاز وحفظه في السحابة بنجاح!');
               },
               child: const Text('حفظ ونشر', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
@@ -1866,6 +1921,12 @@ class _AdsViewState extends State<AdsView> {
                 });
 
                 await _saveAchievementsToSupabase();
+                AuditLogService.log(
+                  actionType: 'UPDATE',
+                  module: 'الإعلانات والواجهة',
+                  targetService: 'إنجازاتنا',
+                  description: 'قام الموظف بتعديل الإنجاز ($title)',
+                );
                 _showNotification('تم تحديث الإنجاز بنجاح!');
               },
               child: const Text('حفظ التعديل', style: TextStyle(color: Colors.white)),
@@ -2089,6 +2150,12 @@ class _AdsViewState extends State<AdsView> {
         }
       });
       await _saveAlumniToSupabase();
+      AuditLogService.log(
+        actionType: 'DELETE',
+        module: 'الإعلانات والواجهة',
+        targetService: 'خريجي الغد',
+        description: 'قام الموظف بحذف دفعة الخريجين (${item['title']})',
+      );
       _showNotification('تم حذف دفعة الخريجين بنجاح');
     } catch (e) {
       _showNotification('فشل الحذف: $e', isError: true);
@@ -2239,6 +2306,12 @@ class _AdsViewState extends State<AdsView> {
                   } catch (_) {}
                 }
 
+                AuditLogService.log(
+                  actionType: 'CREATE',
+                  module: 'الإعلانات والواجهة',
+                  targetService: 'خريجي الغد',
+                  description: 'قام الموظف بإضافة دفعة خريجين جديدة ($title - $bName)',
+                );
                 _showNotification('تمت إضافة دفعة الخريجين بنجاح!');
               },
               child: const Text('حفظ ونشر', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
@@ -2368,6 +2441,12 @@ class _AdsViewState extends State<AdsView> {
                 });
 
                 await _saveAlumniToSupabase();
+                AuditLogService.log(
+                  actionType: 'UPDATE',
+                  module: 'الإعلانات والواجهة',
+                  targetService: 'خريجي الغد',
+                  description: 'قام الموظف بتعديل دفعة الخريجين ($title - $bName)',
+                );
                 _showNotification('تم تحديث بيانات الدفعة بنجاح!');
               },
               child: const Text('حفظ التعديل', style: TextStyle(color: Colors.white)),
@@ -2749,6 +2828,12 @@ class _AdsViewState extends State<AdsView> {
                       eventDays.add(clickedDay);
                     }
                   });
+                  AuditLogService.log(
+                    actionType: 'CREATE',
+                    module: 'الإعلانات والواجهة',
+                    targetService: 'التقويم السنوي',
+                    description: 'قام الموظف بإضافة مناسبة جديدة في التقويم السنوي ($title) بتاريخ ($dateStr)',
+                  );
                   _showNotification('تمت إضافة المناسبة بنجاح!');
                 } catch (e) {
                   _showNotification('فشل حفظ المناسبة: $e', isError: true);
