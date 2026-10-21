@@ -318,7 +318,8 @@ class _GeneralRequestScreenState extends State<GeneralRequestScreen> {
 
     try {
       final freshPhone = await DataService.getCollegeContactPhone();
-      final cleanPhone = freshPhone.replaceAll(RegExp(r'[^0-9]'), '');
+      if (freshPhone.isNotEmpty) _collegePhone = freshPhone;
+      final cleanPhone = _collegePhone.replaceAll(RegExp(r'[^0-9]'), '');
       final targetPhone = cleanPhone.isNotEmpty ? cleanPhone : '967776166321';
       final encoded = Uri.encodeComponent(messageText);
 

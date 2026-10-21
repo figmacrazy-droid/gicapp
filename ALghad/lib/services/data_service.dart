@@ -494,11 +494,11 @@ class DataService {
         final helpRes = await client
             .from('system_instructions')
             .select('note, external_url')
-            .inFilter('service_key', ['المساعدة والدعم', 'help_support'])
-            .limit(2);
-        for (final row in (helpRes as List)) {
-          String val = _extractCleanPhone(row['external_url']);
-          if (val.isEmpty) val = _extractCleanPhone(row['note']);
+            .eq('service_key', 'المساعدة والدعم')
+            .maybeSingle();
+        if (helpRes != null) {
+          String val = _extractCleanPhone(helpRes['external_url']);
+          if (val.isEmpty) val = _extractCleanPhone(helpRes['note']);
           if (val.length >= 8) {
             _cachedCollegePhone = val;
             _savePhoneToPrefs(val);
