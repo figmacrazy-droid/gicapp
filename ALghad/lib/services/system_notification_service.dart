@@ -81,22 +81,44 @@ class SystemNotificationService {
         // إعداد واستقبال إشعارات Firebase Cloud Messaging السحابية
         try {
           final fcm = FirebaseMessaging.instance;
+          await fcm.setAutoInitEnabled(true);
           await fcm.requestPermission(
             alert: true,
             badge: true,
             sound: true,
+            provisional: false,
           );
 
-          // الاشتراك التلقائي في قناة الإشعارات العامة لجميع الطلاب
+          // 1. توليد رمز الجهاز أولاً لضمان جاهزية اشتراكات القنوات (Topics)
+          final token = await fcm.getToken();
+          if (token != null && token.isNotEmpty) {
+            debugPrint('FCM Device Token: $token');
+          }
+
+          // 2. الاشتراك المؤكد في قناة الإشعارات العامة لجميع الطلاب
           await fcm.subscribeToTopic('all_students');
+
+          // 3. إعادة الاشتراك تلقائياً عند تجديد رمز FCM من قبل النظام
+          fcm.onTokenRefresh.listen((newToken) async {
+            try {
+              await fcm.subscribeToTopic('all_students');
+              final activeId = _activeAcademicId;
+              if (activeId != null && activeId.isNotEmpty) {
+                final safeId = activeId.replaceAll(RegExp(r'[^a-zA-Z0-9-_.~%]+'), '_');
+                await fcm.subscribeToTopic('student_$safeId');
+              }
+            } catch (_) {}
+          });
 
           // الاستماع للإشعارات الواردة والتطبيق في الواجهة الأمامية (Foreground)
           FirebaseMessaging.onMessage.listen((RemoteMessage message) {
             final notif = message.notification;
-            if (notif != null) {
+            final title = notif?.title ?? message.data['title']?.toString() ?? 'إشعار جديد من الكلية';
+            final body = notif?.body ?? message.data['body']?.toString() ?? '';
+            if (title.isNotEmpty || body.isNotEmpty) {
               showSystemNotification(
-                title: notif.title ?? 'إشعار جديد من الكلية',
-                body: notif.body ?? '',
+                title: title,
+                body: body,
                 payload: 'notifications',
               );
             }
@@ -106,11 +128,6 @@ class SystemNotificationService {
           FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
             _handleNotificationClick('notifications');
           });
-
-          final token = await fcm.getToken();
-          if (token != null && token.isNotEmpty) {
-            debugPrint('FCM Device Token: $token');
-          }
         } catch (fcmError) {
           debugPrint('FCM setup note: $fcmError');
         }
@@ -158,9 +175,6 @@ class SystemNotificationService {
 
   /// الاستماع اللحظي لقاعدة البيانات وتوليد إشعار فوري في شريط الهاتف
   static void startRealtimeListener(String? currentStudentAcademicId) async {
-    // إلغاء الاشتراك القديم إن وجد لمنع التكرار
-    stopRealtimeListener();
-
     String? studentId = currentStudentAcademicId?.trim();
     if (studentId == null || studentId.isEmpty) {
       try {
@@ -168,12 +182,33 @@ class SystemNotificationService {
         studentId = session?.academicId.trim();
       } catch (_) {}
     }
+
+    // إذا تغير رقم الطالب السابق، نلغي اشتراك الرقم القديم فقط، ولا نلغي اشتراك نفس الطالب الحالي!
+    final prevId = _activeAcademicId;
+    if (prevId != null && prevId.isNotEmpty && prevId != studentId && !kIsWeb) {
+      try {
+        final safePrev = prevId.replaceAll(RegExp(r'[^a-zA-Z0-9-_.~%]+'), '_');
+        await FirebaseMessaging.instance.unsubscribeFromTopic('student_$safePrev');
+      } catch (_) {}
+    }
+
+    // إغلاق قناة Realtime القديمة فقط دون إلغاء اشتراكات FCM
+    stopRealtimeListener(unsubscribeFcm: false);
     _activeAcademicId = studentId;
 
-    if (studentId != null && studentId.isNotEmpty && !kIsWeb) {
+    if (!kIsWeb) {
       try {
-        FirebaseMessaging.instance.subscribeToTopic('student_$studentId');
-      } catch (_) {}
+        final fcm = FirebaseMessaging.instance;
+        await fcm.getToken();
+        await fcm.subscribeToTopic('all_students');
+        if (studentId != null && studentId.isNotEmpty) {
+          final safeId = studentId.replaceAll(RegExp(r'[^a-zA-Z0-9-_.~%]+'), '_');
+          await fcm.subscribeToTopic('student_$safeId');
+          debugPrint('Subscribed to FCM topics: all_students & student_$safeId');
+        }
+      } catch (e) {
+        debugPrint('FCM topic subscribe note: $e');
+      }
     }
 
     await _loadDeliveredIdsFromPrefs();
@@ -392,11 +427,13 @@ class SystemNotificationService {
   }
 
   /// إيقاف الاستماع عند تسجيل الخروج
-  static void stopRealtimeListener() {
-    if (_activeAcademicId != null && _activeAcademicId!.isNotEmpty && !kIsWeb) {
+  static void stopRealtimeListener({bool unsubscribeFcm = true}) {
+    if (unsubscribeFcm && _activeAcademicId != null && _activeAcademicId!.isNotEmpty && !kIsWeb) {
       try {
-        FirebaseMessaging.instance.unsubscribeFromTopic('student_$_activeAcademicId');
+        final safeId = _activeAcademicId!.replaceAll(RegExp(r'[^a-zA-Z0-9-_.~%]+'), '_');
+        FirebaseMessaging.instance.unsubscribeFromTopic('student_$safeId');
       } catch (_) {}
+      _activeAcademicId = null;
     }
     _pollTimer?.cancel();
     _pollTimer = null;

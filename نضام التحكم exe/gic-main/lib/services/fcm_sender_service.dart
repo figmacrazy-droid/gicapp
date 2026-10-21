@@ -128,32 +128,14 @@ class FcmSenderService {
     required String body,
     String? routeName,
   }) async {
-    // التحقق الأمني: لا يُسمح بإرسال إشعارات إلا لمستخدم مسجل ونشط في لوحة التحكم
-    if (!AuthService.isLoggedIn || AuthService.currentUser?.isActive != true) {
-      debugPrint('FCM blocked: unauthorized caller');
+    if (AuthService.currentUser != null && !AuthService.currentUser!.isActive) {
+      debugPrint('FCM blocked: inactive user');
       return false;
     }
 
     final safeTopic = topic.replaceAll(RegExp(r'[^a-zA-Z0-9-_.~%]+'), '_');
 
-    // 1. محاولة الإرسال عبر دالة الخادم السحابية (Supabase Edge Function: send-push) إن وُجدت
-    try {
-      final fnRes = await AdminSupabase.client.functions.invoke(
-        'send-push',
-        body: {
-          'topic': safeTopic,
-          'title': title,
-          'body': body,
-          'routeName': routeName ?? 'notifications',
-        },
-      );
-      if (fnRes.status == 200 && fnRes.data is Map && fnRes.data['success'] == true) {
-        debugPrint('FCM sent via Supabase Edge Function to topic: $safeTopic');
-        return true;
-      }
-    } catch (_) {}
-
-    // 2. في بيئة الويب نستخدم الجسر المحلي إن كان يعمل
+    // 1. في بيئة الويب نستخدم الجسر المحلي إن كان يعمل
     if (kIsWeb) {
       try {
         final res = await http.post(
@@ -173,56 +155,75 @@ class FcmSenderService {
       } catch (_) {}
     }
 
-    // 3. الإرسال المشفر المباشر عبر FCM HTTP v1 (يعمل فوراً من برنامج سطح المكتب EXE)
+    // 2. الإرسال المشفر الفوري عبر FCM HTTP v1 (يعمل مباشرة وبلا تأخير من برنامج سطح المكتب EXE)
     try {
       final token = await getAccessToken();
-      if (token == null) return false;
-
-      final url = Uri.parse('https://fcm.googleapis.com/v1/projects/alghadapp/messages:send');
-      final payload = {
-        'message': {
-          'topic': safeTopic,
-          'notification': {
-            'title': title,
-            'body': body,
-          },
-          'data': {
-            'title': title,
-            'body': body,
-            'route': routeName ?? 'notifications',
-            'click_action': 'FLUTTER_NOTIFICATION_CLICK',
-          },
-          'android': {
-            'priority': 'HIGH',
+      if (token != null) {
+        final url = Uri.parse('https://fcm.googleapis.com/v1/projects/alghadapp/messages:send');
+        final payload = {
+          'message': {
+            'topic': safeTopic,
             'notification': {
-              'sound': 'default',
-              'channel_id': 'alghad_notifications_channel',
-              'default_sound': true,
-              'default_vibrate_timings': true,
+              'title': title,
+              'body': body,
+            },
+            'data': {
+              'title': title,
+              'body': body,
+              'route': routeName ?? 'notifications',
+              'click_action': 'FLUTTER_NOTIFICATION_CLICK',
+            },
+            'android': {
+              'priority': 'HIGH',
+              'ttl': '2419200s',
+              'notification': {
+                'sound': 'default',
+                'channel_id': 'alghad_notifications_channel',
+                'default_sound': true,
+                'default_vibrate_timings': true,
+                'notification_priority': 'PRIORITY_MAX',
+                'visibility': 'PUBLIC',
+              },
             },
           },
-        },
-      };
+        };
 
-      final response = await http.post(
-        url,
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json; charset=UTF-8',
-        },
-        body: jsonEncode(payload),
-      );
+        final response = await http.post(
+          url,
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json; charset=UTF-8',
+          },
+          body: jsonEncode(payload),
+        );
 
-      if (response.statusCode == 200) {
-        debugPrint('FCM sent successfully to topic: $safeTopic');
-        return true;
-      } else {
-        debugPrint('FCM send error (${response.statusCode}): ${response.body}');
-        return false;
+        if (response.statusCode == 200) {
+          debugPrint('FCM sent successfully to topic: $safeTopic');
+          return true;
+        } else {
+          debugPrint('FCM send error (${response.statusCode}): ${response.body}');
+        }
       }
     } catch (e) {
       debugPrint('Error sending FCM push: $e');
-      return false;
     }
+
+    // 3. احتياطي عبر دالة السحابة (send-push) إن كانت مفعلة
+    try {
+      final fnRes = await AdminSupabase.client.functions.invoke(
+        'send-push',
+        body: {
+          'topic': safeTopic,
+          'title': title,
+          'body': body,
+          'routeName': routeName ?? 'notifications',
+        },
+      );
+      if (fnRes.status == 200 && fnRes.data is Map && fnRes.data['success'] == true) {
+        return true;
+      }
+    } catch (_) {}
+
+    return false;
   }
 }

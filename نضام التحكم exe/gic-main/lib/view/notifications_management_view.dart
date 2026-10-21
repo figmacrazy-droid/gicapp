@@ -783,7 +783,7 @@ class _NotificationsManagementViewState extends State<NotificationsManagementVie
                     }
 
                     // إرسال تنبيه فوري للهواتف حتى والتطبيق مغلق عبر Firebase
-                    FcmSenderService.sendToTopic(
+                    await FcmSenderService.sendToTopic(
                       topic: 'all_students',
                       title: title,
                       body: body,
@@ -815,7 +815,7 @@ class _NotificationsManagementViewState extends State<NotificationsManagementVie
 
                     // إرسال تنبيه فوري لكل طالب في هذا التخصص عبر Firebase
                     for (final acadId in targetIds) {
-                      FcmSenderService.sendToTopic(
+                      await FcmSenderService.sendToTopic(
                         topic: 'student_$acadId',
                         title: title,
                         body: body,
@@ -851,7 +851,7 @@ class _NotificationsManagementViewState extends State<NotificationsManagementVie
                     });
 
                     // إرسال تنبيه فوري للطالب المحدد عبر Firebase
-                    FcmSenderService.sendToTopic(
+                    await FcmSenderService.sendToTopic(
                       topic: 'student_$normalizedId',
                       title: title,
                       body: body,
